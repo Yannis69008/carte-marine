@@ -121,6 +121,14 @@ select,input[type=text],input[type=search]{background:var(--panel2);border:1px s
 .srow small{display:block;color:var(--muted);font-size:11px}
 select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;font:inherit}
 #zoneChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--warn);color:var(--warn)}
+#homePanel{position:absolute;left:16px;right:16px;top:30%;z-index:1100;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.6);max-width:420px;margin:0 auto}
+#homePanel b{font-family:var(--f-display);font-size:20px;letter-spacing:.06em;text-transform:uppercase}
+#homePanel .btn{text-align:left;padding:12px 14px;font-size:16px}
+#homePanel small{display:block;font-weight:400;font-size:12px;opacity:.85;margin-top:2px}
+.brow{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start;background:var(--panel2);border-radius:6px;padding:8px 10px}
+.brow i{font-style:normal;font-weight:700;text-align:center}
+.brow small{display:block;color:var(--muted);font-size:12px}
+#tripChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--ok);color:var(--ok)}
 #netChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--muted);color:var(--muted)}
 .bar{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);width:0}
 #zoneChip.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
@@ -154,6 +162,7 @@ body.nav #toolHint{display:none}
   <div class="inst"><div class="k">Sonde</div><div class="v" id="depthNow">--<small> m</small></div></div>
   <button id="gpsBtn">GPS</button>
   <div id="posLine">Position inconnue · touche GPS pour te localiser</div>
+  <div id="tripChip" hidden></div>
   <div id="netChip" hidden>Hors ligne · cartes et données téléchargées</div>
   <div id="zoneChip" hidden></div>
 </div>
@@ -164,8 +173,15 @@ body.nav #toolHint{display:none}
   <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
   <button class="fab" id="repFab" title="Signaler">⚑</button>
   <button class="fab" id="searchFab" title="Rechercher un lieu">⌕</button>
+  <button class="fab" id="homeFab" title="Rentrer au port" style="font-weight:700">⌂</button>
 </div>
 <div id="toolHint" hidden></div>
+<div id="homePanel" hidden>
+  <b>Rentrer</b>
+  <button class="btn primary" id="goDep">Revenir au port de départ<small id="goDepTxt"></small></button>
+  <button class="btn" id="goNear">Aller au port le plus proche<small id="goNearTxt"></small></button>
+  <button class="btn" id="goCancel">Annuler</button>
+</div>
 <div id="alertBar" hidden></div>
 <div id="navTop" hidden>
   <div id="navArrow"><svg id="navArrowSvg" width="34" height="34" viewBox="0 0 24 24"><path d="M12 2 L20 21 L12 16 L4 21 Z" fill="#1a1200"/></svg></div>
@@ -184,6 +200,7 @@ body.nav #toolHint{display:none}
   <div class="tabs">
     <button class="tab on" data-t="meteo">Météo</button>
     <button class="tab" data-t="route">Route</button>
+    <button class="tab" data-t="log">Sorties</button>
     <button class="tab" data-t="obst">Obstacles</button>
     <button class="tab" data-t="river">Fleuve</button>
     <button class="tab" data-t="secu">Sécurité</button>
@@ -214,7 +231,14 @@ body.nav #toolHint{display:none}
       <div class="row muted">
         Vitesse <input type="number" id="spd" value="15" min="1" step="1"> nd
         Conso <input type="number" id="conso" value="20" min="0" step="1"> L/h
+        Carburant à bord <input type="number" id="fuelOn" min="0" step="5" placeholder="L"> L
       </div>
+      <h3>Bilan avant de partir</h3>
+      <div class="row muted">Départ <input type="datetime-local" id="brDep" style="background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px"> durée <input type="number" id="brDur" value="3" min="0.5" step="0.5"> h</div>
+      <div class="row"><button class="btn primary" id="brGo">Vérifier ma sortie</button></div>
+      <div id="brief" class="pane"><div class="muted">Trace ta route (même approximative), indique l'heure de départ et la durée, puis vérifie : météo, coucher du soleil, marées, niveau du fleuve, ponts, fonds, dangers, carburant et zone hors ligne.</div></div>
+      <h3>Port d'attache</h3>
+      <div class="row"><button class="btn" id="homeSet">Mon port d'attache est ici</button><span id="homeTxt" class="muted"></span></div>
       <div id="routeOut" class="pane"></div>
       <h3>Navigation guidée</h3>
       <div class="row">
@@ -225,6 +249,21 @@ body.nav #toolHint{display:none}
       <div class="row muted">Distances en <select id="unit"><option value="km">km</option><option value="nm">milles nautiques</option></select>
         <label class="chk" style="padding:0"><input type="checkbox" id="voice" checked> Annonces vocales</label></div>
       <div id="navMsg" class="muted">« Aller à un point » trace une ligne droite : vérifie qu'elle ne coupe pas la terre ni un danger. « Itinéraire par le fleuve » suit automatiquement les rivières et canaux.</div>
+    </div>
+
+    <!-- SORTIES / JOURNAL DE BORD -->
+    <div class="pane" id="p-log" hidden>
+      <div id="tripLive" class="pane"></div>
+      <div class="row">
+        <button class="btn primary" id="tripStart">Démarrer une sortie</button>
+        <button class="btn danger" id="tripEnd" hidden>Terminer la sortie</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="tripAuto" checked> Enregistrer automatiquement dès que le bateau avance (au-dessus de 2 nœuds)</label>
+      <h3>Ma saison</h3>
+      <div id="tripTotals" class="grid"></div>
+      <h3>Mes sorties</h3>
+      <div id="tripList" class="replist"></div>
+      <div id="tripDetail" class="pane"></div>
     </div>
 
     <!-- OBSTACLES -->
@@ -493,7 +532,7 @@ $('ovList').addEventListener('change', e => {
 // ---------- onglets / tiroir ----------
 document.querySelectorAll('.tab[data-t]').forEach(t => t.addEventListener('click', () => {
   document.querySelectorAll('.tab[data-t]').forEach(x => x.classList.toggle('on', x === t));
-  ['meteo','route','obst','river','secu','couches'].forEach(p => $('p-'+p).hidden = p !== t.dataset.t);
+  ['meteo','route','log','obst','river','secu','couches'].forEach(p => $('p-'+p).hidden = p !== t.dataset.t);
   $('sheet').classList.remove('collapsed'); $('toggleSheet').textContent = '▾';
 }));
 $('toggleSheet').addEventListener('click', () => {
@@ -567,7 +606,7 @@ function onFix(pos){
   else { boat.setLatLng(p).setIcon(boatIcon(cog)); accCircle.setLatLng(p).setRadius(c.accuracy); }
   if (follow) map.panTo(p, { animate:true });
   if (!track.length || distNM(track[track.length-1], p) > 0.01){ track.push(p); if (track.length > 5000) track.shift(); trackLine.setLatLngs(track); }
-  checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver(); navUpdate(); zoneUpdate(); anchorCheck();
+  checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver(); navUpdate(); zoneUpdate(); anchorCheck(); tripTick(); tripWatch();
 }
 $('followBtn').classList.add('active');
 $('followBtn').addEventListener('click', () => { follow = !follow; $('followBtn').classList.toggle('active', follow); if (follow && gps) map.panTo(gps.p); });
@@ -603,6 +642,7 @@ async function loadWeather(p, label){
 }
 
 function renderWeather(p, label, w, m){
+  if (w && w.daily) sunCache = w.daily;
   const H = w.hourly, M = m ? m.hourly : {}, now = Date.now()/1000;
   let i0 = H.time.findIndex(t => t > now - 1800); if (i0 < 0) i0 = 0;
   const g = (arr, i) => arr ? arr[i] : null;
@@ -643,7 +683,7 @@ function renderWeather(p, label, w, m){
   const nH = Math.min(48, H.time.length - i0), tt = TH();
   html += `<h3>Vent sur 48 h (nœuds)</h3>` + wxChart(H.time, i0, nH, [{ name:'rafales', v:H.wind_gusts_10m, c:'#ef8a5a', area:true, w:1.5 }, { name:'vent moyen', v:H.wind_speed_10m, c:'#7fd3ff', lim:tt.w }], 'nd');
   if (m && M.wave_height) html += `<h3>Vagues sur 48 h (mètres)</h3>` + wxChart(H.time, i0, nH, [{ name:'vagues', v:M.wave_height, c:'#4fc3f7', area:true, lim:tt.h }, { name:'houle', v:M.swell_wave_height, c:'#b39ddb', dash:true }], 'm');
-  if (m && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)) html += `<h3>Marée (niveau de la mer, modèle)</h3>` + tideChart(H.time, M.sea_level_height_msl, i0);
+  if (m && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)) html += `<h3>Marée (niveau de la mer, modèle)</h3>` + tideChart(H.time, M.sea_level_height_msl, i0) + tideTable(H.time, M.sea_level_height_msl);
   // résumé 7 jours
   const days = {};
   H.time.forEach((t, i) => { if (t < now - 3600) return; const k = new Date(t*1000).toDateString(); const d = days[k] = days[k] || { t, w:0, g:0, h:0, dir:[], code:0, lvl:0, r:0 };
@@ -1035,7 +1075,7 @@ function osmParse(j, jb, ref){
     if (['bridge','lock','dam','weir','wreck','rock','obstruction'].includes(kind) && nearKind(iencPts, p, kind === 'weir' ? ['dam'] : [kind], 0.0010)) return;
     if ((kind === 'lock' || kind === 'bridge') && nearKind(out, p, [kind], kind === 'lock' ? 0.0012 : 0.0002)) return;
     const dv = parseFloat(t['seamark:' + kind + ':value_of_sounding']);
-    const hv = parseFloat(t['seamark:bridge:clearance_height'] ?? t['seamark:bridge:clearance_height_closed'] ?? t['bridge:clearance']);
+    const hv = parseFloat(t['seamark:bridge:clearance_height'] ?? t['seamark:bridge:clearance_height_closed'] ?? t['bridge:clearance'] ?? t['seamark:bridge:vertical_clearance'] ?? t['clearance:height']);
     if (['bridge','lock','dam','weir'].includes(kind)){
       const ig = findKind(ref, p, kind === 'weir' ? ['dam'] : [kind], 0.0010);
       if (ig){ if (kind === 'bridge' && isFinite(hv) && ig.h == null){ ig.h = hv; ig.src = 'IGN + OSM'; } if (!ig.n) ig.n = t.name || t['bridge:name'] || null; return; }
@@ -1053,7 +1093,8 @@ async function loadOsm(c, rNM){
   const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0])));
   const bb = `(${(c[0]-dLat).toFixed(4)},${(c[1]-dLon).toFixed(4)},${(c[0]+dLat).toFixed(4)},${(c[1]+dLon).toFixed(4)})`;
   const [q1, q2] = osmQueries(`(around:${Math.round(rNM*1852)},${c[0].toFixed(5)},${c[1].toFixed(5)})`, bb);
-  const [j, jb, ig] = await Promise.all([overpass(q1), overpass(q2), ignFeatures(c[0]-dLat, c[1]-dLon, c[0]+dLat, c[1]+dLon).catch(() => null)]);
+  const [j, jb, ig0, nb] = await Promise.all([overpass(q1), overpass(q2), ignFeatures(c[0]-dLat, c[1]-dLon, c[0]+dLat, c[1]+dLon).catch(() => null), nbiFeatures(c[0]-dLat, c[1]-dLon, c[0]+dLat, c[1]+dLon).catch(() => null)]);
+  const ig = ig0 || nb ? (ig0 || []).concat(nb || []) : null;
   if (ig) ignPts = enrichBridges(ig);
   if (!j && !jb && !ig){ const off = offlineNear(c, rNM); if (off.length){ ignPts = []; osmPts = off; return true; } return false; }
   if (!j && !jb) return !!ig;
@@ -1062,8 +1103,8 @@ async function loadOsm(c, rNM){
 async function osmBBox(b){
   const bb = `(${b.map(v => v.toFixed(4)).join(',')})`;
   const [q1, q2] = osmQueries(bb, bb);
-  const [j, jb, ig] = await Promise.all([overpass(q1), overpass(q2), ignFeatures(b[0], b[1], b[2], b[3]).catch(() => null)]);
-  const ref = ig || [];
+  const [j, jb, ig, nb] = await Promise.all([overpass(q1), overpass(q2), ignFeatures(b[0], b[1], b[2], b[3]).catch(() => null), nbiFeatures(b[0], b[1], b[2], b[3]).catch(() => null)]);
+  const ref = (ig || []).concat(nb || []);
   return enrichBridges(ref.concat(osmParse(j, jb, ref)));
 }
 
@@ -1124,7 +1165,7 @@ $('obsRefresh').addEventListener('click', () => {
   if (gps) refreshObstacles(gps.p, 'ton bateau'); else { const c = map.getCenter(); refreshObstacles([c.lat, c.lng], 'le centre de la carte'); }
 });
 function obsLabel(o){
-  const m = v => n1(v).replace(' ', '') + ' m';
+  const m = v => fmtH(v) + ' m';
   switch (o.kind){
     case 'bridge': return o.h != null ? (o.hMin ? '≥' : '') + m(o.h) : 'Pont ?';
     case 'cable': return 'Câble' + (o.h != null ? ' ' + m(o.h) : '');
@@ -1311,20 +1352,21 @@ async function ignFeatures(S, W, N, E){
   const [cs, cl, tr] = await Promise.all([
     gpfWfs('BDTOPO_V3:construction_surfacique', cons, 'nature,toponyme,geometrie').catch(() => null),
     gpfWfs('BDTOPO_V3:construction_lineaire', cons, 'nature,toponyme,geometrie').catch(() => null),
-    gpfWfs('BDTOPO_V3:troncon_hydrographique', bb, 'navigabilite,classe_de_largeur,geometrie').catch(() => null)
+    gpfWfs('BDTOPO_V3:troncon_hydrographique', bb, 'navigabilite,classe_de_largeur,cpx_toponyme_de_cours_d_eau,geometrie').catch(() => null)
   ]);
   if (!cs && !cl) return null;
   const water = [];
-  (tr || []).forEach(f => { const pr = f.properties || {}; if (pr.navigabilite || /50/.test(pr.classe_de_largeur || '')) geoLines(f.geometry).forEach(l => water.push(l)); });
-  const nearWater = p => water.some(l => { for (let i = 0; i < l.length-1; i++) if (projSeg(p, l[i], l[i+1]).d < 0.05) return true; return false; });
+  (tr || []).forEach(f => { const pr = f.properties || {}; if (pr.navigabilite || /50/.test(pr.classe_de_largeur || '')) geoLines(f.geometry).forEach(l => water.push({ l, n:pr.cpx_toponyme_de_cours_d_eau || '' })); });
+  const nearWater = p => { let best = null, bd = 0.05; water.forEach(w => { for (let i = 0; i < w.l.length-1; i++){ const d = projSeg(p, w.l[i], w.l[i+1]).d; if (d < bd){ bd = d; best = w.n || '?'; } } }); return best; };
   const out = [];
   [].concat(cs || [], cl || []).forEach(f => {
     const pr = f.properties || {}, nat = String(pr.nature || '');
     const kind = nat === 'Pont' ? 'bridge' : /cluse/.test(nat) ? 'lock' : nat === 'Barrage' ? 'dam' : null;
     const p = geoCentroid(f.geometry); if (!kind || !p) return;
-    if (kind === 'bridge' && !nearWater(p)) return;
+    const river = nearWater(p);
+    if (kind === 'bridge' && !river) return;
     if (findKind(out, p, [kind], 0.0008)) return;
-    out.push({ p, kind, n:pr.toponyme || null, d:null, h:null, c:null, x:'', src:'IGN' });
+    out.push({ p, kind, n:pr.toponyme || null, d:null, h:null, c:null, x:river && river !== '?' ? 'sur ' + river : '', river, src:'IGN' });
   });
   return out;
 }
@@ -1392,7 +1434,7 @@ function matchBridge(o){
   if (second && second.score === best.score && Math.abs((second.row[2] || 6.3) - (best.row[2] || 6.3)) > 0.3) return null;
   return best;
 }
-function enrichBridges(arr){
+var enrichBridges = function(arr){
   (arr || []).forEach(o => {
     if (o.kind !== 'bridge' || o.h != null || o.vnf) return;
     const m = matchBridge(o); if (!m) return;
@@ -1402,7 +1444,90 @@ function enrichBridges(arr){
   });
   return arr;
 }
-const hTxt = o => (o.hMin ? '≥ ' : '') + n1(o.h) + ' m';
+// Seine, Marne : hauteur libre minimale garantie par tronçon (règlement particulier de police Seine-Yonne, art. 5.2).
+// Valeur la plus faible retenue quand un pont tombe dans plusieurs zones (prudence).
+// Hauteur libre minimale garantie (sur retenue normale) par voie et par tronçon, d'après les règlements particuliers de police
+// de la navigation (Seine-Yonne 2019, Marne, liaison Saône-Marne 2017, réseau Nord/Aisne 2014, Nantes à Brest, Rhône au Rhin bief de Niffer)
+// et l'avis à la batellerie VNF 2023 (Rhône). Quand un pont tombe dans plusieurs zones, la valeur la plus faible est retenue.
+// b = [sud, ouest, nord, est] ; sans b, la valeur s'applique à toute la voie en France.
+const SECTION_MIN = [
+  // Seine
+  { rx:/seine/, b:[48.820, 2.2875, 48.875, 2.385], h:6.00, n:'Seine, traversée de Paris (amont de Bir-Hakeim)' },
+  { rx:/seine/, b:[48.830, 2.255, 48.870, 2.2875], h:7.00, n:'Seine, Paris aval (Bir-Hakeim → périphérique)' },
+  { rx:/seine/, b:[48.800, 2.385, 48.835, 2.420], h:10.00, n:'Seine, périphérique amont → confluence de la Marne' },
+  { rx:/seine/, b:[48.380, 2.400, 48.812, 3.000], h:5.50, n:'Haute-Seine, Montereau → confluence de la Marne' },
+  { rx:/seine/, b:[48.380, 2.950, 48.560, 3.240], h:6.45, n:'Petite-Seine, Montereau → Bray' },
+  { rx:/seine/, b:[48.380, 3.240, 48.600, 3.800], h:3.40, n:'Petite-Seine, Bray → Marcilly' },
+  { rx:/seine/, b:[48.820, 2.200, 48.960, 2.370], h:7.32, n:'Basse-Seine, Paris → pont de l\'A15' },
+  { rx:/seine/, b:[48.860, 2.070, 48.900, 2.160], h:6.38, n:'Basse-Seine, secteur de Marly' },
+  { rx:/seine/, b:[48.880, 1.150, 49.330, 2.250], h:9.23, n:'Basse-Seine, A15 → Amfreville' },
+  // Yonne
+  { rx:/yonne/, b:[47.950, 2.940, 48.395, 3.450], h:4.70, n:'Yonne, Joigny → Montereau' },
+  // Marne
+  { rx:/marne/, b:[48.760, 2.410, 48.835, 2.470], h:5.60, n:'Marne, Joinville → confluence' },
+  { rx:/marne/, b:[48.780, 2.470, 48.900, 2.530], h:6.49, n:'Marne, Neuilly-sur-Marne → Joinville' },
+  { rx:/marne/, b:[48.800, 2.530, 49.020, 2.880], h:4.52, n:'Marne, Meaux → Neuilly-sur-Marne' },
+  { rx:/marne/, b:[48.850, 2.880, 49.100, 3.280], h:5.16, n:'Marne, Charly-sur-Marne → Meaux' },
+  { rx:/marne/, b:[48.950, 3.195, 49.000, 3.250], h:4.95, n:'Marne, ponts de Nanteuil' },
+  { rx:/marne/, b:[48.950, 3.280, 49.150, 4.050], h:5.35, n:'Marne, Épernay → Charly-sur-Marne' },
+  { rx:/canal lateral a la marne/, h:3.70, n:'Canal latéral à la Marne' },
+  { rx:/canal entre champagne et bourgogne|canal de la marne a la saone/, h:3.45, n:'Canal entre Champagne et Bourgogne (point le plus bas)' },
+  { rx:/canal de l.aisne a la marne/, h:3.70, n:'Canal de l\'Aisne à la Marne' },
+  // Nord, Picardie, Ardennes
+  { rx:/canal lateral a l.aisne/, h:3.70, n:'Canal latéral à l\'Aisne' },
+  { rx:/^(l.)?aisne$|riviere d.aisne/, h:4.20, n:'Aisne canalisée' },
+  { rx:/canal de l.oise a l.aisne/, h:3.50, n:'Canal de l\'Oise à l\'Aisne' },
+  { rx:/canal lateral a l.oise/, h:3.95, n:'Canal latéral à l\'Oise' },
+  { rx:/^(l.)?oise$/, b:[49.550, 3.150, 49.720, 3.450], h:3.65, n:'Oise, secteur de Chauny et La Fère' },
+  { rx:/^(l.)?oise$/, b:[48.975, 2.040, 49.020, 2.120], h:11.00, n:'Oise, confluence avec la Seine' },
+  { rx:/canal de saint.quentin/, h:3.65, n:'Canal de Saint-Quentin (pont du Hamel, point le plus bas)' },
+  { rx:/canal de la sambre a l.oise/, h:3.40, n:'Canal de la Sambre à l\'Oise (point le plus bas)' },
+  { rx:/^(la )?sambre$/, h:3.00, n:'Sambre canalisée' },
+  { rx:/canal des ardennes/, h:3.70, n:'Canal des Ardennes' },
+  { rx:/escaut/, b:[50.120, 3.180, 50.260, 3.360], h:3.80, n:'Escaut canalisé, secteur de Cambrai' },
+  // Bretagne
+  { rx:/canal de nantes a brest|^(l.)?aff$/, h:2.20, n:'Canal de Nantes à Brest (3,00 m aux plus hautes eaux navigables)' },
+  // Alsace
+  { rx:/canal du rhone au rhin/, b:[47.700, 7.280, 47.800, 7.560], h:6.95, n:'Canal du Rhône au Rhin, bief de Niffer – Mulhouse' },
+  // Rhône (de Lyon à Arles)
+  { rx:/rhone/, b:[43.600, 4.400, 45.735, 5.000], h:6.30, n:'Rhône, Lyon → Arles (minimum réglementaire)' }
+];
+const normRiver = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, "'").trim();
+function sectionMin(o){
+  if (!o.river) return null;
+  const r = normRiver(o.river);
+  let best = null;
+  SECTION_MIN.forEach(sct => { const b = sct.b; if (!sct.rx.test(r)) return; if (b && !(o.p[0] >= b[0] && o.p[0] <= b[2] && o.p[1] >= b[1] && o.p[1] <= b[3])) return; if (!best || sct.h < best.h) best = sct; });
+  return best;
+}
+const _enrich = enrichBridges;
+enrichBridges = function(arr){
+  _enrich(arr);
+  (arr || []).forEach(o => {
+    if (o.kind !== 'bridge' || o.h != null) return;
+    const sct = sectionMin(o); if (!sct) return;
+    o.h = sct.h; o.hMin = true; o.vnf = true;
+    o.x = [o.x, `minimum garanti ${fmtH(sct.h)} m (${sct.n}, règlement de police)`].filter(Boolean).join(' · ');
+    o.src = (o.src || '') + ' + RPP';
+  });
+  return arr;
+};
+const fmtH = v => (Math.floor(v*100 + 1e-6)/100).toLocaleString('fr-FR', { maximumFractionDigits:2 });
+const hTxt = o => (o.hMin ? '≥ ' : '') + fmtH(o.h) + ' m';
+
+// ---------- ÉTATS-UNIS : inventaire national des ponts (FHWA / BTS, hauteur de navigation officielle) ----------
+const US_BOX = [17.5, -180, 72, -64];
+const inBoxUS = (b, bb) => !(b[2] < bb[0] || b[0] > bb[2] || b[3] < bb[1] || b[1] > bb[3]);
+async function nbiFeatures(S, W, N, E){
+  if (!inBoxUS([S, W, N, E], US_BOX)) return null;
+  const u = 'https://geo.dot.gov/server/rest/services/Hosted/National_Bridge_Inventory/FeatureServer/0/query?' + new URLSearchParams({
+    where:"navigation='1' AND nav_vert_c>0 AND nav_vert_c<80", geometry:[W, S, E, N].map(v => v.toFixed(5)).join(','), geometryType:'esriGeometryEnvelope', inSR:'4326',
+    spatialRel:'esriSpatialRelIntersects', outFields:'facility_c,features_d,nav_vert_c,nav_horr_c', outSR:'4326', returnGeometry:'true', resultRecordCount:'2000', f:'json' });
+  const j = await fetch(u).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  return (j.features || []).filter(f => f.geometry && isFinite(f.geometry.y) && f.geometry.y !== 0).map(f => { const a = f.attributes || {};
+    return { p:[f.geometry.y, f.geometry.x], kind:'bridge', n:(a.facility_c || 'Pont').trim(), d:null, h:+a.nav_vert_c, c:null,
+      x:[a.features_d ? 'sur ' + String(a.features_d).trim() : '', a.nav_horr_c > 0 ? 'largeur de passe ' + n1(a.nav_horr_c) + ' m' : '', 'hauteur de navigation officielle (inventaire national des ponts)'].filter(Boolean).join(' · '), src:'NBI (USA)' }; });
+}
 
 // ---------- CARTES OFFICIELLES IENC (S-57 : VNF, CNR…) ----------
 const S57 = { 11:'bridge', 38:'dam', 79:'lock', 86:'obstruction', 159:'wreck', 153:'rock', 21:'cable', 93:'cable', 34:'cable' };
@@ -1547,6 +1672,7 @@ async function loadRiver(c, label){
       if (qs && qs.length) q0 = n0(qs[qs.length-1].v/1000) + ' m³/s';
       return `<div class="cell"><div class="k">${esc(r.s.libelle_cours_eau || 'Cours d\'eau')}</div><div class="v">${hTxt}</div><div class="s">${esc(r.s.libelle_station)}<br>débit ${q0}${trend ? '<br>' + trend : ''}<br>à ${n1(r.km)} km${when ? ' · ' + when : ''}</div></div>`;
     }).join('');
+    riverInfo = { t:Date.now(), alert:alertTxt, ok:true };
     $('riverOut').innerHTML = (alertTxt ? `<div class="verdict v2"><div><b>Niveau en hausse rapide</b><div>${esc(alertTxt)} Vérifie la vigilance crues avant de naviguer.</div></div></div>` : '') +
       `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${cells}</div>
        <div class="muted">La hauteur est lue à l'échelle de la station, ce n'est pas la profondeur sous ta coque. Un débit fort veut dire un courant fort : barrages et piles de ponts deviennent plus dangereux. Source : Hub'Eau (eaufrance.fr).</div>`;
@@ -1960,6 +2086,306 @@ $('anchOff').addEventListener('click', () => { anchor = null; store.set('anchor'
 $('anchR').addEventListener('change', () => { if (anchor){ anchor.r = Math.max(10, +$('anchR').value || 40); store.set('anchor', anchor); drawAnchor(); } });
 if (anchor) $('anchR').value = anchor.r;
 drawAnchor();
+
+// ---------- SORTIES : enregistrement, statistiques, tracé ----------
+let trips = [], trip = store.get('tripLive', null), tripCand = null, tripView = L.layerGroup().addTo(map), lastTripSave = 0;
+const tripLine = L.polyline([], { color:'#3fbf7f', weight:4, opacity:.9 }).addTo(map);
+$('tripAuto').checked = store.get('tripAuto', true);
+$('tripAuto').addEventListener('change', () => store.set('tripAuto', $('tripAuto').checked));
+const durTxt = ms => { const m = Math.round(ms/60000); return m >= 60 ? Math.floor(m/60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min'; };
+const spdCol = v => v >= 25 ? '#ef5350' : v >= 15 ? '#f2b134' : v >= 5 ? '#3fbf7f' : '#4fc3f7';
+function startTrip(manual){
+  trip = { id:'t' + Date.now(), t0:Date.now(), t1:Date.now(), pts:[], dist:0, moving:0, max:0, manual:!!manual, fuel0:+$('fuelOn').value || null };
+  if (gps) trip.pts.push([+gps.p[0].toFixed(6), +gps.p[1].toFixed(6), 0, gps.sog || 0]);
+  store.set('tripLive', trip); tripUI(); say && cfg.voice && say('Sortie enregistrée');
+}
+function tripTick(){
+  if (!gps || gps.acc > 50) return;
+  const now = Date.now(), sog = gps.sog || 0;
+  if (!trip){
+    if (!$('tripAuto').checked) return;
+    if (sog > 2){ if (!tripCand) tripCand = now; else if (now - tripCand > 20000) startTrip(false); } else tripCand = null;
+    return;
+  }
+  const last = trip.pts[trip.pts.length-1], dt = last ? (now - trip.t0)/1000 - last[2] : 0;
+  const d = last ? distNM([last[0], last[1]], gps.p) : 0;
+  if (last && dt > 0 && d/(dt/3600) > 80) return; // saut GPS
+  if (!last || d*1852 >= 12 || (dt >= 15 && d*1852 >= 4)){
+    trip.pts.push([+gps.p[0].toFixed(6), +gps.p[1].toFixed(6), Math.round((now - trip.t0)/1000), +sog.toFixed(1)]);
+    if (last){ trip.dist += d; if (sog > 1) trip.moving += dt*1000; }
+    if (sog < 70) trip.max = Math.max(trip.max, sog);
+    tripLine.setLatLngs(trip.pts.map(q => [q[0], q[1]]));
+  }
+  trip.t1 = now;
+  if (sog < 0.8){ if (!trip.stop) trip.stop = now; else if (!trip.manual && now - trip.stop > 10*60000) return endTrip(); } else trip.stop = null;
+  if (now - lastTripSave > 30000){ lastTripSave = now; store.set('tripLive', trip); }
+  tripUI();
+}
+async function placeName(p){
+  try{ const j = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=14&accept-language=fr&lat=${p[0]}&lon=${p[1]}`).then(r => r.json());
+    const a = j.address || {}; return a.village || a.town || a.city || a.hamlet || a.suburb || (j.display_name || '').split(',')[0] || null; }catch(e){ return null; }
+}
+async function endTrip(){
+  const t = trip; trip = null; tripCand = null; store.set('tripLive', null); tripLine.setLatLngs([]);
+  if (!t){ tripUI(); return; }
+  if (t.dist < 0.1 || t.pts.length < 3){ tripUI(); hint('Sortie trop courte, pas enregistrée.', 3000); return; }
+  const end = t.stop || t.t1;
+  t.dur = end - t.t0; t.avg = t.moving > 60000 ? t.dist/(t.moving/3600000) : 0;
+  t.fuel = (+$('conso').value || 0)*t.moving/3600000;
+  delete t.stop;
+  trips.unshift(t); await idbSet('trips', trips); tripUI(); showTrip(t.id);
+  say('Sortie terminée. ' + spokenD(t.dist) + ' parcourus.');
+  const [a, b] = await Promise.all([placeName(t.pts[0]), placeName(t.pts[t.pts.length-1])]);
+  t.from = a; t.to = b; await idbSet('trips', trips); tripUI();
+}
+function tripUI(){
+  $('tripStart').hidden = !!trip; $('tripEnd').hidden = !trip;
+  const chip = $('tripChip');
+  if (trip){
+    const el = Date.now() - trip.t0;
+    chip.hidden = false; chip.textContent = `● Sortie en cours · ${fmtD(trip.dist)} · ${durTxt(el)} · max ${n0(trip.max)} nd`;
+    $('tripLive').innerHTML = `<div class="grid">
+      <div class="cell"><div class="k">Distance</div><div class="v">${fmtD(trip.dist)}</div><div class="s">${n1(trip.dist)} NM</div></div>
+      <div class="cell"><div class="k">Durée</div><div class="v">${durTxt(el)}</div><div class="s">en route ${durTxt(trip.moving)}</div></div>
+      <div class="cell"><div class="k">Vitesse moy.</div><div class="v">${trip.moving > 60000 ? n1(trip.dist/(trip.moving/3600000)) : '–'} nd</div><div class="s">en route</div></div>
+      <div class="cell"><div class="k">Vitesse max</div><div class="v">${n1(trip.max)} nd</div><div class="s">${n0(trip.max*1.852)} km/h</div></div>
+      <div class="cell"><div class="k">Carburant</div><div class="v">${n0((+$('conso').value || 0)*trip.moving/3600000)} L</div><div class="s">estimé</div></div></div>`;
+  } else { chip.hidden = true; $('tripLive').innerHTML = '<div class="muted">Aucune sortie en cours. Elle démarre seule quand le bateau avance, ou avec le bouton.</div>'; }
+  const tot = trips.reduce((a, t) => ({ n:a.n+1, d:a.d+t.dist, h:a.h+t.moving, m:Math.max(a.m, t.max), f:a.f+(t.fuel || 0) }), { n:0, d:0, h:0, m:0, f:0 });
+  $('tripTotals').innerHTML = [['Sorties', tot.n, ''], ['Distance', fmtD(tot.d), n0(tot.d) + ' NM'], ['En route', durTxt(tot.h), ''], ['Record', n1(tot.m) + ' nd', n0(tot.m*1.852) + ' km/h'], ['Carburant', n0(tot.f) + ' L', 'estimé']]
+    .map(c => `<div class="cell"><div class="k">${c[0]}</div><div class="v">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('');
+  $('tripList').innerHTML = trips.length ? trips.map(t => `<div class="reprow"><span class="dot" style="background:${spdCol(t.max)}"></span>
+    <span>${new Date(t.t0).toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' })} · ${new Date(t.t0).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}${t.from ? ' · ' + esc(t.from) + (t.to && t.to !== t.from ? ' → ' + esc(t.to) : '') : ''}
+    <small>${fmtD(t.dist)} · ${durTxt(t.dur)} · moy. ${n1(t.avg)} nd · max ${n1(t.max)} nd${t.fuel ? ' · ' + n0(t.fuel) + ' L' : ''}</small></span>
+    <button class="btn" data-tv="${t.id}">Voir</button></div>`).join('') : '<div class="muted">Pas encore de sortie enregistrée.</div>';
+}
+function showTrip(id){
+  const t = trips.find(x => x.id === id); if (!t) return;
+  tripView.clearLayers();
+  let seg = [], col = null;
+  t.pts.forEach((q, i) => { const c = spdCol(q[3]); if (c !== col && seg.length){ seg.push([q[0], q[1]]); L.polyline(seg, { color:col, weight:5, opacity:.95 }).addTo(tripView); seg = []; } col = c; seg.push([q[0], q[1]]); });
+  if (seg.length > 1) L.polyline(seg, { color:col, weight:5, opacity:.95 }).addTo(tripView);
+  const a = t.pts[0], b = t.pts[t.pts.length-1];
+  L.marker([a[0], a[1]], { icon:L.divIcon({ className:'', iconSize:[0,0], html:'<div class="mk" style="--c:#3fbf7f">Départ</div>' }) }).addTo(tripView);
+  L.marker([b[0], b[1]], { icon:L.divIcon({ className:'', iconSize:[0,0], html:'<div class="mk" style="--c:#ff4fa3">Arrivée</div>' }) }).addTo(tripView);
+  const mx = t.pts.reduce((m, q) => q[3] > m[3] ? q : m, t.pts[0]);
+  L.marker([mx[0], mx[1]], { icon:L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk" style="--c:#ef5350">Max ${n0(mx[3])} nd</div>` }) }).addTo(tripView);
+  follow = false; $('followBtn').classList.remove('active');
+  map.fitBounds(t.pts.map(q => [q[0], q[1]]), { padding:[40, 40] });
+  const step = Math.max(1, Math.floor(t.pts.length/200)), sp = t.pts.filter((q, i) => i % step === 0);
+  const T = sp.map(q => Math.round(t.t0/1000) + q[2]);
+  $('tripDetail').innerHTML = `<h3>Sortie du ${new Date(t.t0).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}</h3>
+    <div class="grid">
+      <div class="cell"><div class="k">Distance</div><div class="v">${fmtD(t.dist)}</div><div class="s">${n1(t.dist)} NM</div></div>
+      <div class="cell"><div class="k">Durée</div><div class="v">${durTxt(t.dur)}</div><div class="s">en route ${durTxt(t.moving)}</div></div>
+      <div class="cell"><div class="k">Vitesse moy.</div><div class="v">${n1(t.avg)} nd</div><div class="s">${n0(t.avg*1.852)} km/h</div></div>
+      <div class="cell"><div class="k">Vitesse max</div><div class="v">${n1(t.max)} nd</div><div class="s">${n0(t.max*1.852)} km/h</div></div>
+      <div class="cell"><div class="k">Carburant</div><div class="v">${n0(t.fuel || 0)} L</div><div class="s">estimé</div></div>
+      <div class="cell"><div class="k">Horaires</div><div class="v">${new Date(t.t0).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</div><div class="s">→ ${new Date(t.t0 + t.dur).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</div></div>
+    </div>
+    <h3>Vitesse pendant la sortie (nœuds)</h3>${wxChart(T, 0, T.length, [{ name:'vitesse', v:sp.map(q => q[3]), c:'#3fbf7f', area:true }], 'nd')}
+    <div class="muted">Couleurs du tracé : <span style="color:#4fc3f7">━</span> moins de 5 nd · <span style="color:#3fbf7f">━</span> 5 à 15 · <span style="color:#f2b134">━</span> 15 à 25 · <span style="color:#ef5350">━</span> plus de 25 nd</div>
+    <div class="row"><button class="btn" data-tgpx="${t.id}">Exporter (GPX)</button><button class="btn" data-thide="1">Masquer le tracé</button><button class="btn danger" data-tdel="${t.id}">Supprimer</button></div>`;
+}
+function gpx(t){
+  const pts = t.pts.map(q => `<trkpt lat="${q[0]}" lon="${q[1]}"><time>${new Date(t.t0 + q[2]*1000).toISOString()}</time><speed>${(q[3]*0.514444).toFixed(2)}</speed></trkpt>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Ma Carte Marine" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Sortie ${new Date(t.t0).toLocaleDateString('fr-FR')}</name><trkseg>${pts}</trkseg></trk></gpx>`;
+}
+$('p-log').addEventListener('click', async e => {
+  const v = e.target.closest('[data-tv]'), g = e.target.closest('[data-tgpx]'), d = e.target.closest('[data-tdel]'), h = e.target.closest('[data-thide]');
+  if (v){ showTrip(v.dataset.tv); }
+  if (g){ const t = trips.find(x => x.id === g.dataset.tgpx); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([gpx(t)], { type:'application/gpx+xml' })); a.download = `sortie-${new Date(t.t0).toISOString().slice(0, 10)}.gpx`; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000); }
+  if (d){ trips = trips.filter(x => x.id !== d.dataset.tdel); await idbSet('trips', trips); tripView.clearLayers(); $('tripDetail').innerHTML = ''; tripUI(); }
+  if (h){ tripView.clearLayers(); $('tripDetail').innerHTML = ''; }
+});
+$('tripStart').addEventListener('click', () => { if (!watchId) $('gpsBtn').click(); startTrip(true); });
+$('tripEnd').addEventListener('click', () => endTrip());
+idbGet('trips').then(t => { if (Array.isArray(t)) trips = t; if (trip) tripLine.setLatLngs(trip.pts.map(q => [q[0], q[1]])); tripUI(); });
+
+// ---------- MARÉES : pleines et basses mers, coefficient calculé ----------
+function tideExtremes(T, Lv, from, to){
+  const out = [];
+  for (let i = 1; i < T.length-1; i++){
+    const a = Lv[i-1], b = Lv[i], c = Lv[i+1]; if (a == null || b == null || c == null) continue;
+    const hi = b > a && b >= c, lo = b < a && b <= c; if (!hi && !lo) continue;
+    const den = a - 2*b + c, off = den ? 0.5*(a - c)/den : 0, h = b - 0.25*(a - c)*off;
+    const t = T[i] + off*(T[i+1] - T[i]); if (t < from || t > to) continue;
+    out.push({ t, h, hi });
+  }
+  return out;
+}
+let brestPM = null;
+async function loadBrest(){
+  const c = await idbGet('brest');
+  if (c && Date.now() - c.t < 12*3600000){ brestPM = c.pm; return; }
+  try{
+    const j = await fetch('https://marine-api.open-meteo.com/v1/marine?latitude=48.36&longitude=-4.58&hourly=sea_level_height_msl&forecast_days=7&timeformat=unixtime&timezone=auto').then(r => r.json());
+    brestPM = tideExtremes(j.hourly.time, j.hourly.sea_level_height_msl, 0, 1e12).filter(e => e.hi).map(e => ({ t:e.t, c:Math.max(20, Math.min(120, Math.round(100*e.h/3.05))) }));
+    idbSet('brest', { t:Date.now(), pm:brestPM });
+  }catch(e){ if (c) brestPM = c.pm; }
+}
+function coefAt(t){ if (!brestPM || !brestPM.length) return null; let b = brestPM[0]; brestPM.forEach(x => { if (Math.abs(x.t - t) < Math.abs(b.t - t)) b = x; }); return Math.abs(b.t - t) < 16*3600 ? b.c : null; }
+function tideTable(T, Lv){
+  const now = Date.now()/1000, ex = tideExtremes(T, Lv, now - 3600, now + 3*86400);
+  if (ex.length < 2) return '';
+  const rows = ex.map(e => { const c = e.hi ? coefAt(e.t) : null;
+    return `<tr><td>${new Date(e.t*1000).toLocaleDateString('fr-FR', { weekday:'short' })} ${new Date(e.t*1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</td><td>${e.hi ? 'Pleine mer' : 'Basse mer'}</td><td>${e.h >= 0 ? '+' : ''}${n1(e.h)} m</td><td>${c != null ? c : ''}</td></tr>`; }).join('');
+  return `<div class="tblWrap"><table><thead><tr><th>Heure</th><th>Marée</th><th>Hauteur</th><th>Coef.</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="muted">Heures et hauteurs calculées par un modèle océanique (par rapport au niveau moyen), précises à environ 30 min et quelques dizaines de cm. Le coefficient est calculé à partir de la marée prévue à Brest, comme le coefficient officiel. Dans les ports et estuaires, vérifie l'annuaire du SHOM.</div>`;
+}
+loadBrest();
+
+// ---------- SÉCURITÉ DE SORTIE : bilan avant départ, alertes en route, retour au port ----------
+var riverInfo = null, sunCache = null;
+const fmtT = ms => new Date(ms).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+if (cfg.fuel != null) $('fuelOn').value = cfg.fuel;
+$('fuelOn').addEventListener('change', () => { cfg.fuel = $('fuelOn').value === '' ? null : +$('fuelOn').value; store.set('cfg', cfg); if (trip && cfg.fuel) trip.fuel0 = trip.fuel0 || cfg.fuel; });
+(() => { const d = new Date(Date.now() + 15*60000); d.setMinutes(Math.round(d.getMinutes()/5)*5); $('brDep').value = new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0, 16); })();
+const pathMinD = (p, path) => { let d = Infinity; for (let i = 0; i < path.length-1; i++){ const r = projSeg(p, path[i], path[i+1]).d; if (r < d) d = r; } return d; };
+
+async function briefing(){
+  const out = $('brief'); out.innerHTML = '<div class="muted">Vérification en cours… (quelques secondes)</div>';
+  const t0 = $('brDep').value ? new Date($('brDep').value).getTime() : Date.now();
+  const dur = Math.max(0.5, +$('brDur').value || 3), t1 = t0 + dur*3600000;
+  const start = gps ? gps.p : (route.length ? route[0] : [map.getCenter().lat, map.getCenter().lng]);
+  const path = gps ? [start].concat(route) : route.length ? route.slice() : [start];
+  const items = [], add = (lvl, t, d) => items.push({ lvl, t, d });
+  // météo, soleil, marées
+  try{
+    const q = `latitude=${start[0].toFixed(4)}&longitude=${start[1].toFixed(4)}&timezone=auto&timeformat=unixtime&forecast_days=7`;
+    const [w, m] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code,visibility,cape&daily=sunrise,sunset&wind_speed_unit=kn`).then(r => r.json()),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&hourly=wave_height,sea_level_height_msl`).then(r => r.json()).catch(() => null)]);
+    const H = w.hourly, M = m && m.hourly && m.hourly.wave_height ? m.hourly : null; let worst = { lvl:0, why:[] }, wt = null, mw = 0, mg = 0, mh = 0, n = 0;
+    H.time.forEach((t, i) => { if (t*1000 < t0 - 1800000 || t*1000 > t1) return; n++;
+      const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], M ? M.wave_height[i] : null, H.weather_code[i], H.cape[i], H.visibility[i]);
+      mw = Math.max(mw, H.wind_speed_10m[i] || 0); mg = Math.max(mg, H.wind_gusts_10m[i] || 0); if (M) mh = Math.max(mh, M.wave_height[i] || 0);
+      if (r.lvl > worst.lvl){ worst = r; wt = t; } });
+    if (!n) add(1, 'Météo', 'sortie trop lointaine : les prévisions ne vont qu\'à 7 jours');
+    else add(worst.lvl, 'Météo pendant la sortie', `vent jusqu'à ${n0(mw)} nd, rafales ${n0(mg)} nd` + (M ? `, vagues jusqu'à ${n1(mh)} m` : '') + (worst.lvl ? ` · ${worst.why.join(', ')} vers ${hhmm(wt)}` : ''));
+    sunCache = w.daily;
+    const ss = (w.daily.sunset || []).map(x => x*1000).find(x => x > t0);
+    if (ss){ const lvl = t1 > ss ? 2 : t1 > ss - 45*60000 ? 1 : 0;
+      add(lvl, 'Coucher du soleil', `à ${fmtT(ss)}` + (lvl === 2 ? ` : ton retour prévu (${fmtT(t1)}) est après la nuit tombée` : lvl ? ` : retour prévu à ${fmtT(t1)}, c'est juste` : ` · retour prévu à ${fmtT(t1)}, avant la nuit`)); }
+    if (M && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)){
+      const ex = tideExtremes(M.time, M.sea_level_height_msl, t0/1000 - 1800, t1/1000 + 1800);
+      if (ex.length) add(0, 'Marées pendant la sortie', ex.map(e => `${e.hi ? 'pleine mer' : 'basse mer'} ${hhmm(e.t)} (${e.h >= 0 ? '+' : ''}${n1(e.h)} m)`).join(' · '));
+    }
+  }catch(e){ add(1, 'Météo', 'impossible à vérifier : pas de réseau'); }
+  // fleuve (France)
+  if (start[0] > 41 && start[0] < 51.6 && start[1] > -5.8 && start[1] < 10){
+    try{ riverInfo = null; await loadRiver(start, 'ton point de départ');
+      if (riverInfo && riverInfo.alert) add(2, 'Niveau du fleuve', riverInfo.alert);
+      else if (riverInfo && riverInfo.ok) add(0, 'Niveau du fleuve', 'pas de montée rapide près de toi (détails dans l\'onglet Fleuve)'); }catch(e){}
+  }
+  // route : ponts, dangers, fonds, carburant
+  if (path.length >= 2){
+    const S = Math.min(...path.map(p => p[0])) - 0.01, N = Math.max(...path.map(p => p[0])) + 0.01, W = Math.min(...path.map(p => p[1])) - 0.015, E = Math.max(...path.map(p => p[1])) + 0.015;
+    let feats = [];
+    if (N - S < 1.5 && E - W < 2){ try{ feats = await osmBBox([S, W, N, E]); }catch(e){} }
+    if (!feats.length) offZones.forEach(z => feats = feats.concat(z.pts || []));
+    feats = feats.concat(iencPts, shomPts, repPts);
+    const low = [], unk = [], dz = [];
+    feats.forEach(o => { if (o.p[0] < S || o.p[0] > N || o.p[1] < W || o.p[1] > E) return; const d = pathMinD(o.p, path)*1852;
+      if ((o.kind === 'bridge' || o.kind === 'cable') && d < 80){ if (o.h == null){ if (o.kind === 'bridge') unk.push(o); } else if (o.h < cfg.air + 0.5) low.push(o); }
+      if ((HAZ.has(o.kind) || o.kind === 'danger') && d < 55) dz.push(o); });
+    add(low.length ? 2 : unk.length ? 1 : 0, 'Ponts et lignes aériennes sur ta route',
+      low.length ? `${low.length} trop bas pour toi (${fmtH(cfg.air)} m hors d'eau) : ` + low.slice(0, 3).map(o => (o.n || KIND[o.kind]) + ' ' + hTxt(o)).join(', ')
+      : unk.length ? `aucun trop bas connu, mais ${unk.length} pont(s) de hauteur inconnue : vérifie sur place` : 'aucun pont trop bas');
+    add(dz.length ? 1 : 0, 'Dangers près de ta route', dz.length ? `${dz.length} roche(s), épave(s) ou obstacle(s) à moins de 55 m de ta route : ` + dz.slice(0, 3).map(o => KIND[o.kind] || 'danger').join(', ') : 'aucun danger répertorié à moins de 55 m');
+    const samples = []; let total = 0;
+    for (let i = 0; i < path.length-1; i++){ const L0 = distNM(path[i], path[i+1]); total += L0; const k = Math.max(1, Math.ceil(L0/0.15)); for (let j = 0; j <= k; j++) samples.push([path[i][0] + (path[i+1][0]-path[i][0])*j/k, path[i][1] + (path[i+1][1]-path[i][1])*j/k]); }
+    const step = Math.max(1, Math.ceil(samples.length/80)), sm = samples.filter((x, i) => i % step === 0);
+    const ds = (await Promise.all(sm.map(p => depthAt(p).catch(() => null)))).filter(v => v != null);
+    const need = cfg.draft + cfg.margin;
+    if (ds.length){ const mn = Math.min(...ds); add(mn < cfg.draft ? 2 : mn < need ? 1 : 0, 'Profondeur sur ta route', `minimum estimé ${mn < 0 ? 'à sec' : n1(mn) + ' m'} (il te faut ${n1(need)} m avec la marge)` + (mn < need ? ' : vérifie la marée et passe au large' : '')); }
+    else add(1, 'Profondeur sur ta route', 'pas de donnée de profondeur ici');
+    const spd = +$('spd').value || 10, conso = +$('conso').value || 0, fuel = +$('fuelOn').value || 0;
+    if (conso){ const needL = total*2/spd*conso;
+      add(fuel ? (fuel < needL ? 2 : fuel < needL*1.3 ? 1 : 0) : 1, 'Carburant', `aller-retour ${fmtD(total*2)} à ${spd} nd ≈ ${n0(needL)} L, prévois au moins ${n0(needL*1.3)} L avec la réserve` + (fuel ? ` · à bord : ${n0(fuel)} L` : ' · indique le carburant à bord pour vérifier')); }
+  } else add(1, 'Route', 'aucune route tracée : trace-la pour vérifier les ponts, les fonds, les dangers et le carburant');
+  // hors ligne
+  const zoneOk = offZones.some(z => path.every(p => p[0] > z.b[0] && p[0] < z.b[2] && p[1] > z.b[1] && p[1] < z.b[3]));
+  add(zoneOk ? 0 : 1, 'Navigation sans réseau', zoneOk ? 'ta zone est téléchargée' : 'zone pas téléchargée : fais-le dans Couches > Hors ligne avant de partir');
+  if (!cfg.home) add(1, 'Port d\'attache', 'pas encore défini : appuie sur « Mon port d\'attache est ici » quand tu es au port');
+  const lvl = Math.max(...items.map(i => i.lvl));
+  out.innerHTML = `<div class="verdict v${lvl}"><div><b>${['C\'est bon, bonne sortie', 'Prudence : regarde les points en orange', 'Ne pars pas comme ça'][lvl]}</b><div>Départ ${new Date(t0).toLocaleDateString('fr-FR', { weekday:'long' })} à ${fmtT(t0)}, retour vers ${fmtT(t1)}</div></div></div>` +
+    items.sort((a, b) => b.lvl - a.lvl).map(i => `<div class="brow"><i style="color:${['var(--ok)', 'var(--warn)', 'var(--bad)'][i.lvl]}">${['✓', '!', '✕'][i.lvl]}</i><span>${esc(i.t)}<small>${esc(i.d)}</small></span></div>`).join('');
+  say(['Bilan terminé, conditions bonnes.', 'Bilan terminé, prudence.', 'Bilan terminé : ne pars pas dans ces conditions.'][lvl]);
+}
+$('brGo').addEventListener('click', briefing);
+
+// --- port d'attache et retour
+function homeTxt(){ $('homeTxt').textContent = cfg.home ? `enregistré (${fmtPos(cfg.home)})` : 'pas encore défini'; }
+$('homeSet').addEventListener('click', () => { const p = gps ? gps.p.slice() : [map.getCenter().lat, map.getCenter().lng]; cfg.home = p; store.set('cfg', cfg); homeTxt(); hint('Port d\'attache enregistré.', 3000); });
+homeTxt();
+const depPort = () => trip && trip.pts.length ? [trip.pts[0][0], trip.pts[0][1]] : cfg.home || null;
+const herePos = () => gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
+async function nearestPort(){
+  const here = herePos();
+  let c = [].concat(osmPts, ignPts, offlineNear(here, 10), repPts).filter(o => o.kind === 'marina' || o.kind === 'fuel');
+  let best = null; c.forEach(o => { const d = distNM(here, o.p); if (!best || d < best.d) best = { p:o.p, n:o.n || KIND[o.kind], d }; });
+  if ((!best || best.d > 8) && navigator.onLine){
+    const j = await overpass(`[out:json][timeout:25];(nwr(around:25000,${here[0].toFixed(5)},${here[1].toFixed(5)})["leisure"="marina"];nwr(around:25000,${here[0].toFixed(5)},${here[1].toFixed(5)})["seamark:type"~"^(harbour|small_craft_facility)$"];nwr(around:25000,${here[0].toFixed(5)},${here[1].toFixed(5)})["waterway"="fuel"];);out center 60;`);
+    (j && j.elements || []).forEach(el => { const p = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; if (!p) return; const d = distNM(here, p);
+      if (!best || d < best.d) best = { p, n:(el.tags || {}).name || (el.tags && el.tags.waterway === 'fuel' ? 'Carburant' : 'Port'), d }; });
+  }
+  return best;
+}
+async function goTo(dest){
+  $('homePanel').hidden = true;
+  const here = herePos(), atSea = (coast.length || coastOff.length) && coastDistM(here) < 8000;
+  if (!atSea){ await planRiver(dest); if (nav) return; }
+  startNav([dest], 'direct');
+}
+$('homeFab').addEventListener('click', async () => {
+  const dp = depPort(), here = herePos();
+  $('goDep').disabled = !dp; $('goDepTxt').textContent = dp ? `${trip ? 'départ de la sortie en cours' : 'ton port d\'attache'} · ${fmtD(distNM(here, dp))}` : 'aucun : définis ton port d\'attache (onglet Route)';
+  $('goNear').disabled = true; $('goNearTxt').textContent = 'recherche…'; $('homePanel').hidden = false;
+  const np = await nearestPort(); $('homePanel').np = np;
+  $('goNear').disabled = !np; $('goNearTxt').textContent = np ? `${np.n} · ${fmtD(np.d)}` : 'aucun port trouvé à proximité';
+});
+$('goDep').addEventListener('click', () => { const dp = depPort(); if (dp) goTo(dp); });
+$('goNear').addEventListener('click', () => { const np = $('homePanel').np; if (np) goTo(np.p); });
+$('goCancel').addEventListener('click', () => { $('homePanel').hidden = true; });
+
+// --- alertes pendant la sortie : carburant, nuit, météo
+let lastWatch = 0, lastWxWatch = 0;
+const warned = {};
+function watchAlert(key, msg, speak){
+  setAlert(key, msg);
+  if (msg && speak && (!warned[key] || Date.now() - warned[key] > 15*60000)){ warned[key] = Date.now(); say(speak); }
+}
+async function tripWatch(){
+  if (!gps || (!trip && !nav)) return;
+  if (Date.now() - lastWatch < 60000) return; lastWatch = Date.now();
+  const home = depPort(), spd = +$('spd').value || 10, conso = +$('conso').value || 0;
+  if (home){
+    const dBack = distNM(gps.p, home)*1.25, hrsBack = dBack/spd;
+    if (conso && trip && trip.fuel0){
+      const left = trip.fuel0 - conso*trip.moving/3600000, needL = hrsBack*conso;
+      if (left < needL*1.2) watchAlert('w_fuel', `⛽ CARBURANT : environ ${n0(Math.max(0, left))} L restants, il en faut ${n0(needL)} pour rentrer. Rentre maintenant.`, 'Attention carburant, il est temps de rentrer');
+      else if (left < needL*1.6) watchAlert('w_fuel', `⛽ Carburant : ${n0(left)} L restants, ${n0(needL)} L pour rentrer. Bientôt le point de non-retour.`, 'Carburant bientôt au point de non-retour');
+      else setAlert('w_fuel', null);
+    }
+    const ss = sunCache && (sunCache.sunset || []).map(x => x*1000).find(x => x > Date.now() - 3600000);
+    if (ss){ const eta = Date.now() + hrsBack*3600000;
+      if (eta > ss - 15*60000) watchAlert('w_sun', `🌅 Coucher du soleil à ${fmtT(ss)} : il te faut environ ${durTxt(hrsBack*3600000)} pour rentrer. Rentre maintenant.`, 'La nuit approche, il est temps de rentrer');
+      else setAlert('w_sun', null); }
+  }
+  if (navigator.onLine && Date.now() - lastWxWatch > 30*60000){
+    lastWxWatch = Date.now();
+    try{
+      const q = `latitude=${gps.p[0].toFixed(3)}&longitude=${gps.p[1].toFixed(3)}&forecast_hours=4&timeformat=unixtime`;
+      const [w, m] = await Promise.all([fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_gusts_10m,weather_code,visibility,cape&wind_speed_unit=kn`).then(r => r.json()), fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&hourly=wave_height`).then(r => r.json()).catch(() => null)]);
+      const H = w.hourly, M = m && m.hourly && m.hourly.wave_height ? m.hourly : null; let worst = { lvl:0, why:[] }, wt = null;
+      H.time.forEach((t, i) => { const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], M ? M.wave_height[i] : null, H.weather_code[i], H.cape[i], H.visibility[i]); if (r.lvl > worst.lvl){ worst = r; wt = t; } });
+      if (worst.lvl >= 2) watchAlert('w_wx', `⛈ MÉTÉO : ${worst.why.join(', ')} prévus vers ${hhmm(wt)}. Rentre ou mets-toi à l'abri.`, 'Attention, la météo se dégrade');
+      else if (worst.lvl === 1) watchAlert('w_wx', `Météo : ${worst.why.join(', ')} prévus vers ${hhmm(wt)}. Prudence.`, null);
+      else setAlert('w_wx', null);
+    }catch(e){}
+  }
+}
 
 // ---------- démarrage ----------
 loadShom(false); loadIenc(); drawReports();
