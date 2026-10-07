@@ -435,11 +435,15 @@ body.nav #toolHint{display:none}
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <script>
 "use strict";
+const LIBURL = { shp:'https://unpkg.com/shpjs@4.0.4/dist/shp.min.js', JSZip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', GeoTIFF:'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js' };
+const libP = {};
+function needLib(name){
+  if (window[name]) return Promise.resolve(window[name]);
+  return libP[name] = libP[name] || new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = LIBURL[name]; sc.async = true;
+    sc.onload = () => res(window[name]); sc.onerror = () => { delete libP[name]; rej(new Error('outil non chargé, vérifie le réseau')); }; document.head.appendChild(sc); });
+}
 // ---------- utilitaires ----------
 const $ = id => document.getElementById(id);
 const store = {
@@ -1082,7 +1086,7 @@ function ingest(gj){
   return out;
 }
 async function importZip(buf){
-  if (typeof shp === 'undefined') throw new Error('lecteur de fichier non chargé, vérifie le réseau');
+  await needLib('shp');
   shomPts = ingest(await shp(buf));
   if (!shomPts.length) throw new Error('aucune épave trouvée dans ce fichier');
   await idbSet('shom', { pts:shomPts, t:Date.now() });
@@ -1349,7 +1353,8 @@ function gridDepth(p){
   return undefined;
 }
 async function fetchGrid(S, W, N, E){
-  if (typeof GeoTIFF === 'undefined' || S < 11 || N > 89 || W < -70.4 || E > 42.9) return null;
+  if (S < 11 || N > 89 || W < -70.4 || E > 42.9) return null;
+  await needLib('GeoTIFF');
   const u = `https://ows.emodnet-bathymetry.eu/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=emodnet__mean&format=image/tiff&subset=Lat(${S.toFixed(5)},${N.toFixed(5)})&subset=Long(${W.toFixed(5)},${E.toFixed(5)})`;
   const ab = await fetch(u).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
   const tif = await GeoTIFF.fromArrayBuffer(ab), img = await tif.getImage();
@@ -1693,7 +1698,7 @@ function rebuildIenc(){
   drawObsInView(); depthCache.clear();
 }
 async function importIenc(files){
-  if (typeof JSZip === 'undefined') throw new Error('lecteur de .zip non chargé, vérifie le réseau');
+  await needLib('JSZip');
   const bufs = [];
   const addZip = async ab => { const z = await JSZip.loadAsync(ab); for (const [name, e] of Object.entries(z.files)){ if (e.dir) continue; const ln = name.toLowerCase(); if (ln.endsWith('.000')) bufs.push([name, await e.async('arraybuffer')]); else if (ln.endsWith('.zip')) await addZip(await e.async('arraybuffer')); } };
   for (const f of files){ const ln = f.name.toLowerCase(), ab = await f.arrayBuffer(); if (ln.endsWith('.zip')) await addZip(ab); else if (ln.endsWith('.000')) bufs.push([f.name, ab]); }
@@ -2394,7 +2399,7 @@ function tideTable(T, Lv, q, cal){
   return `<div class="tblWrap"><table><thead><tr><th>Heure</th><th>Marée</th><th>Hauteur</th><th>Coef.</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="muted">${cal ? 'Calées sur l\'annuaire officiel que tu as saisi : précision d\'environ 5 à 10 min et 10 cm près du port de calage. ' : ''}Heures et hauteurs calculées par le modèle de marée de Météo-France (${cal ? 'corrigé localement' : 'par rapport au niveau moyen'}), ${q === 15 ? 'avec un point tous les quarts d\'heure : précision d\'environ 10 à 20 min' : 'avec un point par heure : précision d\'environ 30 min'} et quelques dizaines de cm. Le coefficient est calculé à partir de la marée prévue à Brest, comme le coefficient officiel. Dans les ports et estuaires, vérifie l'annuaire du SHOM.</div>`;
 }
-loadBrest();
+setTimeout(loadBrest, 5000);
 
 // ---------- SÉCURITÉ DE SORTIE : bilan avant départ, alertes en route, retour au port ----------
 var riverInfo = null, sunCache = null;
@@ -2827,14 +2832,19 @@ function seamarkHtml(t){
     const HC = { marina:'port de plaisance', marina_no_facilities:'port de plaisance sans services', fishing:'port de pêche', ferry_terminal:'gare maritime', container_terminal:'terminal conteneurs', yacht:'port de plaisance', harbour_of_refuge:'port de refuge', naval_base:'base navale' };
     const SCF = { visitor_berth:'places visiteurs', fuel_station:'carburant', slipway:'cale de mise à l\'eau', water_tap:'eau', electrical_supply:'électricité', toilets:'toilettes', showers:'douches', chandler:'accastillage', boat_hoist:'grue / travel-lift', sailmaker:'voilerie', laundrette:'laverie', pump_out:'vidange des eaux usées', refuse_bin:'poubelles', visitors_mooring:'bouées visiteurs', boatyard:'chantier', slipway_:'cale' };
     const hc = t['seamark:harbour:category'] || ''; const hcs = hc.split(';').filter(Boolean).map(x => HC[x] || x).filter(x => x.toLowerCase() !== title.toLowerCase()); if (hcs.length) title += ' · ' + hcs.join(', ');
-    const sc = String(t['seamark:small_craft_facility:category'] || '').split(';').filter(Boolean).map(x => SCF[x] || x.replace(/_/g, ' '));
+    const sc = String(t['seamark:small_craft_facility:category'] || '').split(';').filter(Boolean).map(x => SCF[x] || esc(x.replace(/_/g, ' ')));
     const bits = [];
     if (sc.length) bits.push('Services : ' + sc.join(', '));
-    if (t.capacity) bits.push(t.capacity + ' places');
-    const vhf = t.vhf || t['seamark:radio_station:channel'] || t['communication:vhf']; if (vhf) bits.push('VHF canal ' + vhf);
-    const ph = t.phone || t['contact:phone']; if (ph) bits.push('Tél. ' + ph);
+    const vis = t['harbour:visitor_berth'] ?? t['capacity:visitors'] ?? t['seamark:small_craft_facility:visitor_berth'], vmo = t['harbour:visitors_mooring'];
+    if (vis) bits.push(/^\d+$/.test(vis) ? `<b>${vis} places visiteurs</b>` : vis === 'yes' ? 'places visiteurs : oui (nombre non renseigné)' : vis === 'no' ? 'pas de place visiteurs' : 'places visiteurs : ' + esc(vis));
+    else if (sc.some(x => /visiteurs/.test(x))) bits.push('places visiteurs : oui (nombre non renseigné)');
+    else bits.push('places visiteurs : non renseigné');
+    if (vmo) bits.push(/^\d+$/.test(vmo) ? vmo + ' bouées visiteurs' : 'bouées visiteurs : ' + esc(vmo));
+    if (t.capacity) bits.push(esc(t.capacity) + ' places au total');
+    const vhf = t.vhf_channel || t.vhf || t['seamark:radio_station:channel'] || t['communication:vhf']; if (vhf) bits.push('VHF canal ' + esc(vhf));
+    const ph = t.phone || t['contact:phone']; if (ph) bits.push('Tél. ' + esc(ph));
     if (t.fuel === 'yes' || t['fuel:diesel'] === 'yes' || t['fuel:octane_95'] === 'yes') bits.push('carburant');
-    if (t.opening_hours) bits.push('Horaires : ' + t.opening_hours);
+    if (t.opening_hours) bits.push('Horaires : ' + esc(t.opening_hours));
     how = bits.join(' · ');
     const web = t.website || t['contact:website'];
     if (web && /^https?:\/\//.test(web)) how += `<br><a href="${esc(web)}" target="_blank" rel="noopener">Site du port</a>`;
@@ -2861,10 +2871,10 @@ async function identifyAt(ll){
 }
 
 // ---------- démarrage ----------
-loadShom(false); loadIenc(); drawReports(); applyBal();
+drawReports(); applyBal(); setTimeout(loadIenc, 800); setTimeout(() => loadShom(false), 3000);
 drawRoute(); drawChecks(); updateMob(); setTool(null);
-loadWeather([map.getCenter().lat, map.getCenter().lng], 'centre de la carte');
-loadWindGrid();
+setTimeout(() => loadWeather([map.getCenter().lat, map.getCenter().lng], 'centre de la carte'), 600);
+setTimeout(loadWindGrid, 2000);
 </script>
 </body>
 </html>
