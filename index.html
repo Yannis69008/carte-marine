@@ -1156,7 +1156,14 @@ async function ctrLoad(){
   const A = w && w.a, M = w && w.m, bits = [];
   if (A) bits.push(`Vent <b>${n0(A.wind_speed_10m)} nd</b> ${card(A.wind_direction_10m)} · rafales ${n0(A.wind_gusts_10m)} nd${WCODE(A.weather_code) ? ' · ' + esc(WCODE(A.weather_code)) : ''}`);
   if (M && M.wave_height != null) bits.push(`Vagues <b>${n1(M.wave_height)} m</b>${M.swell_wave_height != null ? ` · houle ${n1(M.swell_wave_height)} m${M.swell_wave_period ? ' / ' + n0(M.swell_wave_period) + ' s' : ''}` : ''}${M.sea_surface_temperature != null ? ` · eau ${n0(M.sea_surface_temperature)} °C` : ''}`);
-  bits.push(...(await ctrDepthLines(p, d)));
+  if (d == null || d < 0){
+    const lr = await Promise.race([lakeFor(p, p), new Promise(r => setTimeout(() => r(null), 7000))]);
+    if (seq !== ctrSeq) return;
+    if (lr && lakeIn(lr, p)){ lakeBandDraw(lr); const sh = lakeShore(lr, p);
+      bits.push(`${lr.name ? (/^(lac|lake|lago|see|étang|etang|retenue|réservoir)/i.test(lr.name) ? esc(lr.name) : 'Lac ' + esc(lr.name)) : 'Lac'} : ${A ? lakeWaveTxt(lr, p, A.wind_speed_10m, A.wind_direction_10m) : 'vagues non calculées (pas de météo)'}`);
+      bits.push(`À ${sh >= 1000 ? n1(sh/1000) + ' km' : Math.round(sh) + ' m'} de la rive${sh < 300 ? ' · <b style="color:var(--warn)">zone riveraine : vitesse réduite</b>' : ''} · profondeur du lac inconnue`); }
+    else bits.push(...(await ctrDepthLines(p, d)));
+  } else bits.push(...(await ctrDepthLines(p, d)));
   if (!A) bits.unshift(navigator.onLine ? '<span class="muted">Météo indisponible pour le moment</span>' : '<span class="muted">Pas de réseau : météo indisponible</span>');
   el.innerHTML = `<span class="cx" data-cx="1" aria-label="Masquer">✕</span><div class="muted">Au centre (croix) · maintenant</div>${bits.join('<br>')}<div class="muted" style="font-size:11px">Touche pour la météo détaillée</div>`;
 }
@@ -1174,7 +1181,7 @@ function onFix(pos){
   }
   prevFix = { p, t:now };
   gps = { p, sog, cog, acc:c.accuracy };
-  smoothFix(sog, cog); spdTween(spdSm); rotFollow(cogSm, sog); if (follow && !$('ctrInfo').hidden) ctrHide();
+  smoothFix(sog, cog); spdTween(spdSm); rotFollow(cogSm, sog); lakeWatch(p, sog); if (follow && !$('ctrInfo').hidden) ctrHide();
   const still = cogSm == null || (sog != null && sog < 0.5);
   $('cog').innerHTML = !still ? pad3(cogSm) + '<small>°</small>' : compass.on && compass.h != null ? pad3(compass.h) + '<small>° bouss.</small>' : '---<small>°</small>';
   $('posLine').textContent = (demo ? 'MODE DÉMO · bateau virtuel · ' : '') + fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
@@ -1328,6 +1335,7 @@ function renderWeather(p, label, w, m){
   html += `</tbody></table></div>
   <div class="muted">Vent en nœuds, vagues en mètres, période en secondes. Bande orange = prudence, rouge = dangereux. Seuils réglés pour ton bateau (en haut de l'onglet) : orange à partir de 70 % de ta limite de vent et de rafales et de la moitié de ta limite de vagues, rouge à ta limite, plus les orages et le brouillard. Source : Open-Meteo (meilleur modèle disponible selon la zone, AROME de Météo-France en France). Vérifie aussi le BMS et la météo côtière de Météo-France.</div>`;
   $('wxOut').innerHTML = html;
+  if (!hasW) lakeFor(p, p).then(lr => { if (!lr || !lakeIn(lr, p, 100)) return; const box = document.createElement('div'); box.className = 'verdict v0'; box.innerHTML = `<div><b>${lr.name ? esc(lr.name) : 'Lac'}</b><div class="muted" style="color:inherit">Pas de modèle de vagues pour les lacs : ${lakeWaveTxt(lr, lakeIn(lr, p) ? p : p, ws, wd) || 'vagues non calculées'}. Sur un lac, les vagues sont courtes et se lèvent vite avec le vent ; méfie-toi des orages et des vents de vallée l'après-midi en montagne.</div></div>`; const v = $('wxOut').querySelector('.verdict'); if (v) v.after(box); });
 }
 function pressTrend(a, i){
   if (i < 3 || a[i-3] == null) return '';
@@ -3297,9 +3305,11 @@ $('routeAuto').addEventListener('click', async () => {
   const from = route.length >= 2 ? route[0] : gps ? gps.p : null, to = route.length ? route[route.length - 1] : null;
   const out = $('routeAutoMsg');
   if (!from || !to || (route.length < 2 && !gps)){ out.textContent = 'Pose au moins un point d\'arrivée avec « Tracer une route » (et un point de départ si le GPS est coupé).'; return; }
-  if (!inGridZone(from, to)){ out.textContent = 'Le calcul automatique marche en Europe et sur ses côtes (profondeurs EMODnet).'; return; }
   out.textContent = 'Calcul en cours… (quelques secondes)';
-  const r = await seaRoute(from, to);
+  const lr = await lakeFor(from, to);
+  if (!lr && !inGridZone(from, to)){ out.textContent = 'Le calcul automatique marche sur les lacs (partout) et en mer en Europe (profondeurs EMODnet).'; return; }
+  const r = lr ? lakeRoute(lr, from, to) : await seaRoute(from, to);
+  if (lr) lakeBandDraw(lr);
   if (!Array.isArray(r.path)){ out.textContent = 'Impossible : ' + r.err + '.'; return; }
   route = route.length >= 2 ? [from].concat(r.path) : r.path; saveRoute(); drawRoute();
   try{ map.fitBounds(L.latLngBounds([from].concat(r.path)), { padding:[40, 40] }); }catch(e){}
@@ -3599,18 +3609,19 @@ homeTxt();
 const depPort = () => trip && trip.pts.length ? [trip.pts[0][0], trip.pts[0][1]] : cfg.home || null;
 const herePos = () => gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
 async function nearestPort(){
-  const here = herePos();
-  let c = [].concat(osmPts, ignPts, offlineNear(here, 10), repPts).filter(o => o.kind === 'marina' || o.kind === 'fuel');
+  const here = herePos(), lkP = curLake && lakeIn(curLake, here, 80) ? curLake : null, okP = q => !lkP || lakeIn(lkP, q, 300);
+  let c = [].concat(osmPts, ignPts, offlineNear(here, 10), repPts).filter(o => (o.kind === 'marina' || o.kind === 'fuel') && okP(o.p));
   let best = null; c.forEach(o => { const d = distNM(here, o.p); if (!best || d < best.d) best = { p:o.p, n:o.n || KIND[o.kind], d }; });
   if ((!best || best.d > 8) && navigator.onLine){
     const j = await overpass(`[out:json][timeout:25];(nwr(around:25000,${here[0].toFixed(5)},${here[1].toFixed(5)})["leisure"="marina"];nwr(around:25000,${here[0].toFixed(5)},${here[1].toFixed(5)})["seamark:type"~"^(harbour|small_craft_facility)$"];nwr(around:25000,${here[0].toFixed(5)},${here[1].toFixed(5)})["waterway"="fuel"];);out center 60;`);
-    (j && j.elements || []).forEach(el => { const p = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; if (!p) return; const d = distNM(here, p);
+    (j && j.elements || []).forEach(el => { const p = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; if (!p || !okP(p)) return; const d = distNM(here, p);
       if (!best || d < best.d) best = { p, n:(el.tags || {}).name || (el.tags && el.tags.waterway === 'fuel' ? 'Carburant' : 'Port'), d }; });
   }
   return best;
 }
 async function goTo(dest){
   $('homePanel').hidden = true;
+  { const hp = herePos(), lr = await lakeFor(hp, dest); if (lr){ const r = lakeRoute(lr, hp, dest); if (Array.isArray(r.path)){ lakeBandDraw(lr); startNav(r.path, 'route'); $('navMsg').textContent = r.msg; hint(r.short + ' Profondeur inconnue : reste attentif près des rives.', 7000); return; } } }
   const here = herePos(), atSea = (coast.length || coastOff.length) ? coastDistM(here) < 8000 : true;
   const prev = nav;
   if (atSea && inGridZone(here, dest)){
@@ -4064,6 +4075,128 @@ async function harbourNear(p, R){
   }catch(e){ return null; }
 }
 
+
+// ---------- LACS : contour, navigation qui reste sur l'eau, zone riveraine, vagues estimées ----------
+// Le contour du lac (OpenStreetMap) est transformé en grille : eau / terre, et distance à la rive pour chaque case.
+// Pas de profondeur sur les lacs (sauf relief suisse) : on reste à distance des rives et on le dit.
+const lakeGeoCache = new Map(); let curLake = null, lakeWatchT = 0;
+function lakeRaster(g){
+  const [s, w, n, e] = g.b, pd = 0.003, S = s - pd, N = n + pd, kx = Math.cos(toRad((s + n)/2)), W0 = w - pd/kx, E = e + pd/kx;
+  const spY = (N - S)*111120, spX = (E - W0)*111120*kx; let cell = Math.max(25, Math.hypot(spX, spY)/700);
+  while ((spX/cell)*(spY/cell) > 420000) cell *= 1.15;
+  const w_ = Math.ceil(spX/cell), h_ = Math.ceil(spY/cell), cy = (N - S)/h_, cx = (E - W0)/w_;
+  const ed = []; g.lines.forEach(l => { for (let i = 1; i < l.length; i++) ed.push([(N - l[i-1][0])/cy, (l[i-1][1] - W0)/cx, (N - l[i][0])/cy, (l[i][1] - W0)/cx]); });
+  const water = new Uint8Array(w_*h_);
+  for (let r = 0; r < h_; r++){
+    const yc = r + 0.5, xs = [];
+    for (const q of ed) if ((q[0] <= yc) !== (q[2] <= yc)) xs.push(q[1] + (yc - q[0])*(q[3] - q[1])/(q[2] - q[0]));
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2){ const c0 = Math.max(0, Math.ceil(xs[k] - 0.5)), c1 = Math.min(w_ - 1, Math.floor(xs[k+1] - 0.5)); for (let c = c0; c <= c1; c++) water[r*w_ + c] = 1; }
+  }
+  // distance à la rive (mètres), en deux passes
+  const D = new Float32Array(w_*h_), a = cell, b = cell*Math.SQRT2;
+  for (let i = 0; i < D.length; i++) D[i] = water[i] ? 1e9 : 0;
+  for (let r = 0; r < h_; r++) for (let c = 0; c < w_; c++){ const i = r*w_ + c; if (!D[i]) continue; let v = D[i];
+    if (c > 0) v = Math.min(v, D[i-1] + a); else v = Math.min(v, a/2); if (r > 0){ v = Math.min(v, D[i-w_] + a); if (c > 0) v = Math.min(v, D[i-w_-1] + b); if (c < w_-1) v = Math.min(v, D[i-w_+1] + b); } else v = Math.min(v, a/2); D[i] = v; }
+  for (let r = h_ - 1; r >= 0; r--) for (let c = w_ - 1; c >= 0; c--){ const i = r*w_ + c; if (!D[i]) continue; let v = D[i];
+    if (c < w_-1) v = Math.min(v, D[i+1] + a); if (r < h_-1){ v = Math.min(v, D[i+w_] + a); if (c < w_-1) v = Math.min(v, D[i+w_+1] + b); if (c > 0) v = Math.min(v, D[i+w_-1] + b); } D[i] = v; }
+  return { name:g.name, b:[S, W0, N, E], w:w_, h:h_, cy, cx, cell, water, D, mY:cy*111120, mX:cx*111120*kx };
+}
+const lakeRC = (R, p) => [Math.floor((R.b[2] - p[0])/R.cy), Math.floor((p[1] - R.b[1])/R.cx)];
+const lakeLL = (R, r, c) => [R.b[2] - (r + 0.5)*R.cy, R.b[1] + (c + 0.5)*R.cx];
+function lakeCell(R, p){ const [r, c] = lakeRC(R, p); return r < 0 || c < 0 || r >= R.h || c >= R.w ? -1 : r*R.w + c; }
+function lakeIn(R, p, tol){
+  const i = lakeCell(R, p); if (i >= 0 && R.water[i]) return true; if (!tol) return false;
+  const [r0, c0] = lakeRC(R, p), k = Math.ceil(tol/R.cell);
+  for (let dr = -k; dr <= k; dr++) for (let dc = -k; dc <= k; dc++){ const r = r0 + dr, c = c0 + dc; if (r >= 0 && c >= 0 && r < R.h && c < R.w && R.water[r*R.w + c]) return true; }
+  return false;
+}
+const lakeShore = (R, p) => { const i = lakeCell(R, p); return i >= 0 && R.water[i] ? R.D[i] : 0; };
+async function lakeGeom(L){
+  const key = 'lake_' + L.type + L.id; if (lakeGeoCache.has(key)) return lakeGeoCache.get(key);
+  let g = await idbGet(key);
+  if (!g || !g.lines){
+    const j = await overpass(`[out:json][timeout:45];${L.type}(${L.id});out geom;`, 60*86400000, true).catch(() => null);
+    const el = j && j.elements && j.elements[0]; if (!el) return null;
+    const lines = []; if (el.geometry) lines.push(el.geometry.filter(Boolean).map(q => [q.lat, q.lon]));
+    (el.members || []).forEach(m => { if (m.type === 'way' && m.geometry && m.role !== 'subarea') lines.push(m.geometry.filter(Boolean).map(q => [q.lat, q.lon])); });
+    if (!lines.length) return null;
+    g = { lines, b:L.b, name:L.tags.name || '' }; idbSet(key, g);
+  }
+  const R = lakeRaster(g); R.key = key; R.L = L; lakeGeoCache.set(key, R); return R;
+}
+// Le point (et la destination) sont-ils sur un même lac ? → grille du lac, sinon null (mer ou rivière)
+async function lakeFor(a, b){
+  try{
+    if ((coast.length || coastOff.length) && coastDistM(a) < 6000) return null;          // en mer : pas la peine de chercher
+    if (curLake && lakeIn(curLake, a, 300) && lakeIn(curLake, b, 300)) return curLake;
+    const L = await Promise.race([lakeAt(a), new Promise(r => setTimeout(() => r(null), 9000))]); if (!L) return null;
+    const R = await lakeGeom(L); if (!R || !lakeIn(R, a, 300) || !lakeIn(R, b, 300)) return null;
+    return R;
+  }catch(e){ return null; }
+}
+function lakeRoute(R, from, to){
+  const m = Math.min(40, R.cell*1.5), nav = i => R.water[i] && R.D[i] >= m, w = R.w, h = R.h;
+  const snap = p => { const i = lakeCell(R, p); if (i >= 0 && nav(i)) return { i, d:0 };
+    const [r0, c0] = lakeRC(R, p), K = Math.ceil(1500/R.cell); let best = null;
+    for (let dr = -K; dr <= K; dr++) for (let dc = -K; dc <= K; dc++){ const r = r0 + dr, c = c0 + dc; if (r < 0 || c < 0 || r >= h || c >= w || !nav(r*w + c)) continue; const d = Math.hypot(dr*R.mY, dc*R.mX); if (!best || d < best.d) best = { i:r*w + c, d }; }
+    return best; };
+  const s0 = snap(from), s1 = snap(to);
+  if (!s0 || !s1) return { err:'trop loin de l\'eau libre du lac' };
+  const n = w*h, gS = new Float32Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), done = new Uint8Array(n);
+  const tr = Math.floor(s1.i/w), tc = s1.i % w, H = i => Math.hypot((Math.floor(i/w) - tr)*R.mY, (i % w - tc)*R.mX);
+  const heap = [], push = (i, pr) => { heap.push([pr, i]); let k = heap.length - 1; while (k){ const q = (k - 1) >> 1; if (heap[q][0] <= heap[k][0]) break; [heap[q], heap[k]] = [heap[k], heap[q]]; k = q; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length){ heap[0] = last; let k = 0; for (;;){ const a = 2*k + 1, b = a + 1; let mm = k; if (a < heap.length && heap[a][0] < heap[mm][0]) mm = a; if (b < heap.length && heap[b][0] < heap[mm][0]) mm = b; if (mm === k) break; [heap[mm], heap[k]] = [heap[k], heap[mm]]; k = mm; } } return top; };
+  gS[s0.i] = 0; push(s0.i, H(s0.i)); let found = false;
+  const D8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+  while (heap.length){
+    const [, i] = pop(); if (done[i]) continue; done[i] = 1; if (i === s1.i){ found = true; break; }
+    const r = Math.floor(i/w), c = i % w;
+    for (const [dr, dc] of D8){ const R2 = r + dr, C2 = c + dc; if (R2 < 0 || C2 < 0 || R2 >= h || C2 >= w) continue; const j = R2*w + C2; if (done[j] || !nav(j)) continue;
+      if (dr && dc && (!nav(r*w + C2) || !nav(R2*w + c))) continue;
+      const ng = gS[i] + Math.hypot(dr*R.mY, dc*R.mX)*(R.D[j] < 120 ? 1.4 : 1); if (ng < gS[j]){ gS[j] = ng; prev[j] = i; push(j, ng + H(j)); } }
+  }
+  if (!found) return { err:'pas de passage sur l\'eau entre ces deux points' };
+  const cells = []; for (let i = s1.i; i !== -1; i = prev[i]) cells.push(i); cells.reverse();
+  const clear = (a, b) => { const ra = Math.floor(a/w), ca = a % w, rb = Math.floor(b/w), cb = b % w, k = Math.ceil(Math.max(Math.abs(rb - ra), Math.abs(cb - ca))*2) || 1;
+    for (let t = 0; t <= k; t++){ const j = Math.round(ra + (rb - ra)*t/k)*w + Math.round(ca + (cb - ca)*t/k); if (!nav(j)) return false; } return true; };
+  const keep = [cells[0]]; let a = 0; while (a < cells.length - 1){ let b = cells.length - 1; while (b > a + 1 && !clear(cells[a], cells[b])) b--; keep.push(cells[b]); a = b; }
+  const path = keep.slice(1).map(i => lakeLL(R, Math.floor(i/w), i % w)); path[path.length - 1] = to.slice(); if (s0.d > 0) path.unshift(lakeLL(R, Math.floor(s0.i/w), s0.i % w));
+  let tot = distNM(from, path[0]); for (let i = 1; i < path.length; i++) tot += distNM(path[i-1], path[i]);
+  const short = `Passage sur le lac : ${fmtD(tot)}, ${path.length} point(s).`;
+  return { path, short, msg:`${short} Il reste sur l'eau, à au moins ${Math.round(m)} m des rives (contour du lac OpenStreetMap). La profondeur des lacs n'est pas connue : prudence près des bords, des embouchures et des hauts-fonds, et respecte la zone riveraine (vitesse réduite).` };
+}
+// Vagues sur un lac : on mesure la longueur d'eau face au vent (le « fetch ») et on applique la formule des vagues de vent (JONSWAP)
+function lakeWaves(R, p, kn, from){
+  if (kn == null || from == null) return null;
+  const st = Math.max(R.cell, 30), rad = toRad(from); let F = 0;
+  for (let k = 1; k < 4000; k++){ const q = dest(p, from, k*st/1852); if (!lakeIn(R, q)) break; F = k*st; }
+  const U = kn*0.5144, g = 9.81; if (U < 1) return { hs:0, F };
+  const hs = Math.min(0.0016*U*Math.sqrt(F/g), 0.2433*U*U/g);
+  return { hs, F };
+}
+function lakeWaveTxt(R, p, kn, from){ const v = lakeWaves(R, p, kn, from); if (!v) return ''; return v.hs < 0.1 ? 'eau plate à petit clapot' : `vagues estimées ≈ ${n1(v.hs)} m (vent sur ${v.F >= 1000 ? n1(v.F/1000) + ' km' : Math.round(v.F) + ' m'} de lac, courtes et rapprochées${v.hs >= 0.5 ? ' : inconfortables pour un petit bateau' : ''})`; }
+// Bande riveraine dessinée sur la carte (avec la couche « bande des 300 m »)
+const lakeBands = new Set();
+function lakeBandDraw(R){
+  if (!R || lakeBands.has(R.key)) return; lakeBands.add(R.key);
+  const cv = document.createElement('canvas'); cv.width = R.w; cv.height = R.h; const cx = cv.getContext('2d'), im = cx.createImageData(R.w, R.h);
+  for (let i = 0; i < R.water.length; i++) if (R.water[i] && R.D[i] < 300){ im.data[i*4] = 242; im.data[i*4+1] = 177; im.data[i*4+2] = 52; im.data[i*4+3] = R.D[i] < 300 - R.cell ? 55 : 150; }
+  cx.putImageData(im, 0, 0);
+  L.imageOverlay(cv.toDataURL(), [[R.b[0], R.b[1]], [R.b[2], R.b[3]]], { interactive:false, className:'lakeband' }).addTo(zoneLayer);
+}
+// Pendant la navigation sur un lac : zone riveraine et vitesse
+async function lakeWatch(p, sog){
+  if (curLake && lakeIn(curLake, p, 50)){
+    const d = lakeShore(curLake, p), kmh = (sog || 0)*1.852;
+    setAlert('lakezone', d > 0 && d < 300 && kmh > 10 ? `🐢 Zone riveraine du lac (${Math.round(d)} m du bord) : vitesse réduite près des rives, souvent 5 à 10 km/h selon le lac. Tu es à ${n0(kmh)} km/h.` : null);
+    return;
+  }
+  setAlert('lakezone', null);
+  if (Date.now() - lakeWatchT < 60000) return; lakeWatchT = Date.now();
+  const R = await lakeFor(p, p); if (R){ curLake = R; lakeBandDraw(R); }
+}
+
 // ---------- LACS : « Puis-je naviguer ici avec MON bateau ? » ----------
 // Données ouvertes : OpenStreetMap (lac, accès bateau/moteur, mises à l'eau, ports, carburant), Open-Meteo (vent, altitude),
 // swisstopo (profondeurs des lacs suisses). La réglementation officielle dépend de chaque lac : on le dit et on aide à la trouver.
@@ -4074,7 +4207,7 @@ async function lakeAt(p){
   if (!j || !j.elements) return null;
   const cc = (j.elements.find(e => e.tags && e.tags['ISO3166-1']) || {}).tags;
   const w = j.elements.filter(e => e.bounds && e.tags && !/^(river|canal|stream|ditch|wastewater|stream_pool|fish_pass|moat)$/.test(e.tags.water || '') && (e.tags.natural === 'water' || e.tags.water))
-    .map(e => ({ tags:e.tags, b:[e.bounds.minlat, e.bounds.minlon, e.bounds.maxlat, e.bounds.maxlon] }))
+    .map(e => ({ tags:e.tags, type:e.type, id:e.id, b:[e.bounds.minlat, e.bounds.minlon, e.bounds.maxlat, e.bounds.maxlon] }))
     .sort((a, b) => (a.b[2]-a.b[0])*(a.b[3]-a.b[1]) - (b.b[2]-b.b[0])*(b.b[3]-b.b[1]));
   if (!w.length) return null;
   const L0 = w.find(x => x.tags.name) || w[0];
@@ -4117,7 +4250,8 @@ async function lakeOpen(L){
   const go = (x, label) => `<a class="go" data-lkgo="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">${esc(label)}</a>`;
   const sl = near('slip'), po = near('port'), fu = near('fuel');
   const depthTxt = L.tags.depth || L.tags.maxdepth ? `Profondeur indiquée : ${esc(L.tags.maxdepth || L.tags.depth)} m (OpenStreetMap).` : L.cc === 'CH' ? 'Relief du fond disponible : <a class="go" data-lk="swiss">afficher les profondeurs des lacs suisses (swisstopo)</a>.' : 'Pas de carte de profondeur ouverte pour ce lac : prudence près des rives, des embouchures et des hauts-fonds.';
-  const windTxt = A ? `Vent ${n0(A.wind_speed_10m)} nd ${card(A.wind_direction_10m)}, rafales ${n0(A.wind_gusts_10m)} nd${A.wind_gusts_10m >= 22 ? ' : <b style="color:var(--warn)">fort pour un lac, les vagues y sont courtes et creuses</b>' : ''}.` : 'Météo indisponible pour le moment.';
+  const LR = await lakeGeom(L).catch(() => null); if (lastLake !== L || box.hidden) return; if (LR){ curLake = curLake || LR; lakeBandDraw(LR); }
+  const windTxt = A ? `Vent ${n0(A.wind_speed_10m)} nd ${card(A.wind_direction_10m)}, rafales ${n0(A.wind_gusts_10m)} nd${A.wind_gusts_10m >= 22 ? ' : <b style="color:var(--warn)">fort pour un lac</b>' : ''}.${LR ? ' Au milieu du lac : ' + lakeWaveTxt(LR, lakeIn(LR, L.p) ? L.p : [(L.b[0] + L.b[2])/2, (L.b[1] + L.b[3])/2], A.wind_speed_10m, A.wind_direction_10m) + '.' : ''}` : 'Météo indisponible pour le moment.';
   el.innerHTML = `<b class="lgT">${name}</b>
     <div class="muted">${L.km >= 1 ? '≈ ' + n0(L.km) + ' km d\'un bout à l\'autre' : 'petit plan d\'eau'}${alt != null ? ' · altitude ' + n0(alt) + ' m' : ''}${L.country ? ' · ' + esc(L.country) : ''}</div>
     <div class="lkV v${vl}">Puis-je naviguer ici avec mon bateau ? ${vl === 0 ? '🟢' : vl === 1 ? '🟠' : '🔴'} ${vt}<small>${vd}</small></div>
@@ -4125,6 +4259,7 @@ async function lakeOpen(L){
     <div class="lkR"><span>⚓</span><span><b>Ports</b> : ${po ? cnt('port').length + ' · ' + go(po, po.t.name || 'le plus proche') : 'aucun connu'}</span></div>
     <div class="lkR"><span>💨</span><span><b>Maintenant</b> : ${windTxt}</span></div>
     <div class="lkR"><span>📏</span><span><b>Profondeur</b> : ${depthTxt}</span></div>
+    <div class="lkR"><span>🐢</span><span><b>Zone riveraine</b> : près des bords (bande souvent de 300 m, en orange sur la carte), vitesse très réduite et priorité aux baigneurs. L'appli te prévient si tu y vas trop vite (plus de 10 km/h).</span></div>
     <details><summary>Règles et restrictions</summary><div class="muted" style="margin-top:6px">${lakeRules(L)}${cnt('swim').length ? `<br>${cnt('swim').length} zone(s) de baignade : passe au ralenti et au large.` : ''}${cnt('ski').length ? `<br>${cnt('ski').length} zone(s) de ski nautique.` : ''}${cnt('prot').length ? `<br>${cnt('prot').length} zone(s) naturelle(s) protégée(s) dans le secteur : accès souvent limité ou interdit.` : ''}${L.tags.motorboat ? `<br>Moteur (OpenStreetMap) : ${L.tags.motorboat === 'no' ? 'interdit' : L.tags.motorboat === 'yes' ? 'autorisé' : esc(L.tags.motorboat)}.` : ''}${L.tags.maxspeed ? `<br>Vitesse maximale indiquée : ${esc(L.tags.maxspeed)}.` : ''}</div></details>
     <details><summary>Services sur le lac</summary><div class="muted" style="margin-top:6px">Carburant : ${fu ? go(fu, fu.t.name || 'station') : 'aucune station bateau connue'}<br>Location de bateaux : ${cnt('rent').length || 'aucune connue'}<br>Mouillages indiqués : ${cnt('anch').length || 'aucun'}</div></details>
     <div class="muted" style="font-size:12px">D'après OpenStreetMap, Open-Meteo et swisstopo : pas un texte officiel. Le règlement du lac et les panneaux sur place font foi.</div>
@@ -4191,6 +4326,7 @@ async function balades(){
     let sc = BAL_K[k][2] + (t.wikipedia || t.wikidata ? 2 : 0) + (/sand|fine_gravel/.test(t.surface || '') ? 0.5 : 0) - d/R*1.5;
     spots.push({ p, name, k, d, sc, t });
   });
+  const lrO = await lakeFor(o, o); if (lrO){ for (let i = spots.length - 1; i >= 0; i--) if (!lakeIn(lrO, spots[i].p, 250)) spots.splice(i, 1); lakeBandDraw(lrO); }
   if (!spots.length){ out.innerHTML = `<div class="muted">Aucune plage, crique, île ou mouillage répertorié à moins de ${n0(R)} milles. Déplace la carte vers la côte ou un lac, ou choisis plus de temps.</div>`; return; }
   spots.sort((a, b) => b.sc - a.sc);
   const top = spots.slice(0, 12), maxStops = H <= 1.5 ? 1 : H <= 4 ? 3 : 4, its = [], sigs = new Set();
@@ -4232,10 +4368,11 @@ $('balOut').addEventListener('click', async e => {
   if (!u) return;
   const it = balIts[+u.dataset.balu], pts = [balOrigin].concat(it.stops.map(x => x.p), [balOrigin]);
   let path = [pts[0]], cut = 0;
-  if (inGridZone(pts[0], pts[1])){
+  const lrB = await lakeFor(pts[0], pts[1]);
+  if (lrB || inGridZone(pts[0], pts[1])){
     for (let i = 1; i < pts.length; i++){
       u.textContent = `Calcul du passage ${i}/${pts.length - 1}…`;
-      const r = await seaRoute(pts[i-1], pts[i]).catch(() => ({}));
+      const r = lrB && lakeIn(lrB, pts[i-1], 300) && lakeIn(lrB, pts[i], 300) ? lakeRoute(lrB, pts[i-1], pts[i]) : inGridZone(pts[i-1], pts[i]) ? await seaRoute(pts[i-1], pts[i]).catch(() => ({})) : {};
       if (Array.isArray(r.path)) path = path.concat(r.path); else { path.push(pts[i]); cut++; }
     }
   } else { path = pts; cut = pts.length - 1; }
