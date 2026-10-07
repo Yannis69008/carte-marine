@@ -129,6 +129,10 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 #dash .dv2 small{font-size:.35em;color:var(--muted);font-weight:400}
 #dash .dv2.warn{color:var(--warn)} #dash .dv2.bad{color:var(--bad)}
 #sogBox .v small{border-bottom:1px dotted var(--muted)}
+.leaflet-marker-icon > .mk{rotate:calc(-1*var(--rot,0deg));transform-origin:0 0}
+#rotFab{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;gap:1px;padding:0}
+#rotFab .rotN{display:block;font-size:15px;color:#ef5350;transition:transform .15s linear}
+#rotFab .rotT{font-size:10px;font-weight:700;letter-spacing:.04em}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -285,6 +289,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <button class="fab" id="followBtn" title="Suivre le bateau">◎</button>
   <button class="fab" id="repFab" title="Signaler">⚑</button>
   <button class="fab" id="searchFab" title="Rechercher un lieu">⌕</button>
+  <button class="fab" id="rotFab" title="Pivoter la carte"></button>
   <button class="fab" id="compassFab" title="Boussole" style="font-size:13px;font-weight:700">N</button>
   <button class="fab" id="aisFab" title="Bateaux autour (AIS en ligne)" style="font-size:11px;font-weight:700">AIS</button>
   <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
@@ -309,6 +314,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">AIS</span><span><b>Autres bateaux</b> équipés d'AIS, avec réseau : une aide, pas une sécurité (voir l'avertissement)</span></div>
     <div class="lgRow"><span class="lgI">☾</span><span><b>Mode nuit</b> : écran rouge, préserve la vue de nuit</span></div>
     <div class="lgRow"><span class="lgI">⇄</span><span>Touche le cadre <b>Vitesse</b> pour passer de nœuds à km/h. Appui long sur un cadre : <b>grand compteur</b></span></div>
+    <div class="lgRow"><span class="lgI">N▲</span><span><b>Pivoter la carte</b> : deux doigts qui tournent (Maj + glisser sur Mac). Touche le bouton pour « cap en haut » ou remettre le nord en haut</span></div>
     <div class="lgRow"><span class="lgI">▶</span><span><b>Mode démo</b> : un bateau virtuel avance pour essayer l'appli sans être sur l'eau</span></div>
     <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
     <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgDemo">Mode démo</button><button class="btn" id="lgClose">Fermer</button></div>
@@ -693,6 +699,118 @@ L.TileLayer.prototype.options.updateWhenZooming = false; L.TileLayer.prototype.o
 L.control.scale({ position:'bottomleft', imperial:true, metric:true, maxWidth:120 }).addTo(map);
 map.on('moveend', () => store.set('view', { c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom() }));
 
+
+// ---------- ROTATION DE LA CARTE (360°) : code maison, sans bibliothèque supplémentaire ----------
+// Principe : on fait tourner le « panneau » de la carte avec la propriété CSS rotate autour du centre de l'écran, et on corrige
+// les conversions écran ⇄ carte de Leaflet (clic, glisser, pincer, tuiles à charger). Les étiquettes restent droites.
+const ROT_OK = !!(window.CSS && CSS.supports && CSS.supports('rotate', '1deg'));
+let mapRot = 0, rotMode = 'north', rotDragging = false;       // mapRot : degrés dont la carte est tournée dans le sens des aiguilles d'une montre
+const rotP = (pt, deg) => { const r = deg*Math.PI/180, c = Math.cos(r), s = Math.sin(r); return L.point(pt.x*c - pt.y*s, pt.x*s + pt.y*c); };
+const angDiff = (a, b) => ((a - b + 540) % 360) - 180;
+if (ROT_OK){
+  const _c2l = L.Map.prototype.containerPointToLayerPoint, _l2c = L.Map.prototype.layerPointToContainerPoint, _gpb = L.Map.prototype.getPixelBounds, _ru = L.Renderer.prototype._update, _om = L.Draggable.prototype._onMove;
+  L.Map.include({
+    containerPointToLayerPoint(pt){ if (!mapRot) return _c2l.call(this, pt); const O = this.getSize().divideBy(2); return rotP(L.point(pt).subtract(O), -mapRot).add(O).subtract(this._getMapPanePos()); },
+    layerPointToContainerPoint(pt){ if (!mapRot) return _l2c.call(this, pt); const O = this.getSize().divideBy(2); return rotP(L.point(pt).add(this._getMapPanePos()).subtract(O), mapRot).add(O); },
+    getPixelBounds(c, z){ const b = _gpb.call(this, c, z); if (!mapRot) return b; const sz = this.getSize(), d = Math.ceil(Math.hypot(sz.x, sz.y)), ex = (d - sz.x)/2, ey = (d - sz.y)/2; return L.bounds(b.min.subtract([ex, ey]), b.max.add([ex, ey])); }
+  });
+  L.GridLayer.include({ _getTiledPixelBounds(center){
+    const map = this._map, mz = map._animatingZoom ? Math.max(map._animateToZoom, map.getZoom()) : map.getZoom(), sc = map.getZoomScale(mz, this._tileZoom), pc = map.project(center, this._tileZoom).floor(), sz = map.getSize();
+    const half = mapRot ? L.point(1, 1).multiplyBy(Math.hypot(sz.x, sz.y)/(sc*2)) : sz.divideBy(sc*2);
+    return new L.Bounds(pc.subtract(half), pc.add(half)); } });
+  L.Renderer.include({ _update(){
+    if (!mapRot) return _ru.call(this);
+    const p = this.options.padding, sz = this._map.getSize(), d = Math.ceil(Math.hypot(sz.x, sz.y)), side = Math.ceil(d*(1 + 2*p)), min = sz.divideBy(2).subtract(this._map._getMapPanePos()).subtract([side/2, side/2]).round();
+    this._bounds = new L.Bounds(min, min.add([side, side])); this._center = this._map.getCenter(); this._zoom = this._map.getZoom(); } });
+  // glisser : le déplacement de l'écran est tourné dans le repère de la carte
+  L.Draggable.include({ _onMove(e){
+    if (!mapRot || (e.touches && e.touches.length > 1)) return _om.call(this, e);
+    const f = (e.touches && e.touches.length === 1) ? e.touches[0] : e, r = rotP(L.point(f.clientX - this._startPoint.x, f.clientY - this._startPoint.y), -mapRot);
+    return _om.call(this, { clientX:this._startPoint.x + r.x, clientY:this._startPoint.y + r.y, target:e.target, srcElement:e.srcElement, type:e.type, preventDefault(){ if (e.preventDefault) e.preventDefault(); } }); } });
+  // pincer : le déplacement du milieu des deux doigts est lui aussi tourné
+  L.Map.TouchZoom.include({ _onTouchMove(e){
+    if (!e.touches || e.touches.length !== 2 || !this._zooming) return;
+    const map = this._map, p1 = map.mouseEventToContainerPoint(e.touches[0]), p2 = map.mouseEventToContainerPoint(e.touches[1]), scale = p1.distanceTo(p2)/this._startDist;
+    this._zoom = map.getScaleZoom(scale, this._startZoom);
+    if (!map.options.bounceAtZoomLimits && ((this._zoom < map.getMinZoom() && scale < 1) || (this._zoom > map.getMaxZoom() && scale > 1))) this._zoom = map._limitZoom(this._zoom);
+    const delta = rotP(p1._add(p2)._divideBy(2)._subtract(this._centerPoint), -mapRot);
+    if (scale === 1 && delta.x === 0 && delta.y === 0) return;
+    this._center = map.unproject(map.project(this._pinchStartLatLng, this._zoom).subtract(delta), this._zoom);
+    if (!this._moved){ map._moveStart(true, false); this._moved = true; }
+    L.Util.cancelAnimFrame(this._animRequest);
+    this._animRequest = L.Util.requestAnimFrame(L.Util.bind(map._move, map, this._center, this._zoom, { pinch:true, round:false }, undefined), this, true);
+    L.DomEvent.preventDefault(e); } });
+  // fenêtres d'info : on les redresse autour de leur pointe (leur conteneur est déjà positionné par transform, on tourne donc chaque morceau)
+  const _pu = L.Popup.prototype._updatePosition, _pa = L.Popup.prototype._adjustPan;
+  L.Popup.include({
+    _updatePosition(){ _pu.call(this); popUpright(this); },
+    _adjustPan(){ if (mapRot) return; return _pa.call(this); } });
+  map.boxZoom.disable();
+}
+function popUpright(pop){
+  const c = pop && pop._container; if (!c) return;
+  const w = c.offsetWidth, h = c.offsetHeight;
+  [...c.children].forEach(ch => { ch.style.transformOrigin = (w/2 - ch.offsetLeft) + 'px ' + (h + 20 - ch.offsetTop) + 'px'; ch.style.rotate = mapRot ? (-mapRot) + 'deg' : ''; });
+}
+function rotApply(){
+  const pane = map.getPane('mapPane'), sz = map.getSize();
+  pane.style.transformOrigin = (sz.x/2) + 'px ' + (sz.y/2) + 'px';
+  pane.style.rotate = mapRot ? mapRot + 'deg' : '';
+  map.getContainer().style.setProperty('--rot', mapRot + 'deg');
+  if (map._popup) popUpright(map._popup);
+  rotUI();
+}
+let rotWas = 0, rotMoveT = 0;
+function setBearing(b, opt){
+  if (!ROT_OK) return;
+  b = ((b % 360) + 540) % 360 - 180; if (Math.abs(b) < 0.4) b = 0;
+  const first = !mapRot && b;
+  mapRot = b; rotApply();
+  // les images de carte autour de l'écran doivent suivre : on les recalcule (tout de suite la 1re fois, puis à la fin du geste)
+  if (first || (opt && opt.now)) map.fire('moveend');
+  else { clearTimeout(rotMoveT); rotMoveT = setTimeout(() => map.fire('moveend'), 250); }
+}
+map.on('resize', rotApply);
+function rotUI(){
+  const f = document.getElementById('rotFab'); if (!f) return;
+  f.classList.toggle('active', rotMode === 'course');
+  f.innerHTML = `<span class="rotN" style="transform:rotate(${mapRot}deg)">▲</span><span class="rotT">${rotMode === 'course' ? 'CAP' : 'N'}</span>`;
+  f.title = rotMode === 'course' ? 'Cap en haut (touche pour remettre le nord en haut)' : mapRot ? 'Remettre le nord en haut' : 'Touche : cap en haut. Deux doigts qui tournent : pivoter la carte';
+}
+(function(){
+  if (!ROT_OK) return;
+  const el = map.getContainer();
+  // deux doigts qui tournent
+  let a0 = null, b0 = 0, acc = 0;
+  const ang = t => Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX)*180/Math.PI;
+  el.addEventListener('touchstart', e => { if (e.touches.length === 2){ a0 = ang(e.touches); acc = 0; } }, { passive:true });
+  el.addEventListener('touchmove', e => {
+    if (e.touches.length !== 2 || a0 == null) return;
+    const a = ang(e.touches), d = angDiff(a, a0); a0 = a; acc += d;
+    if (Math.abs(acc) < 5 && !mapRot && rotMode !== 'free') return;     // petit tremblement pendant un zoom : on ignore
+    rotMode = 'free'; setBearing(mapRot + d);
+  }, { passive:true });
+  el.addEventListener('touchend', e => { if (e.touches.length < 2){ if (a0 != null && mapRot) setBearing(mapRot, { now:true }); a0 = null; } }, { passive:true });
+  // souris : Maj + glisser ; trackpad Safari (Mac) : deux doigts qui tournent
+  let sx = 0;
+  el.addEventListener('mousedown', e => { if (!e.shiftKey || e.button !== 0) return; e.stopPropagation(); e.preventDefault(); rotDragging = true; sx = e.clientX; b0 = mapRot; el.style.cursor = 'grabbing'; }, true);
+  addEventListener('mousemove', e => { if (!rotDragging) return; rotMode = 'free'; setBearing(b0 + (e.clientX - sx)*0.5); });
+  addEventListener('mouseup', () => { if (rotDragging){ rotDragging = false; el.style.cursor = ''; setBearing(mapRot, { now:true }); } });
+  if ('GestureEvent' in window && !('ontouchstart' in window)){
+    let g0 = 0, z0 = 0;
+    el.addEventListener('gesturestart', e => { e.preventDefault(); g0 = mapRot; z0 = map.getZoom(); });
+    el.addEventListener('gesturechange', e => { e.preventDefault(); rotMode = 'free'; setBearing(g0 + e.rotation); map.setZoom(z0 + Math.log2(e.scale || 1), { animate:false }); });
+    el.addEventListener('gestureend', e => { e.preventDefault(); setBearing(mapRot, { now:true }); });
+  }
+})();
+// « Cap en haut » : la carte tourne pour que la direction du bateau soit toujours vers le haut
+function rotFollow(cog, sog){
+  if (rotMode !== 'course' || cog == null || !(sog > 0.7)) return;
+  const target = -cog, d = angDiff(target, mapRot);
+  if (Math.abs(d) < 1.2) return;
+  setBearing(mapRot + d*0.35);
+}
+
 const BASES = {
   ocean: { name:'Océan (relief sous-marin, plan détaillé quand on zoome)', layer: L.featureGroup([
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom:12.99, attribution:'© Esri, GEBCO, NOAA' }),
@@ -934,7 +1052,7 @@ function onFix(pos){
   }
   prevFix = { p, t:now };
   gps = { p, sog, cog, acc:c.accuracy };
-  smoothFix(sog, cog); spdTween(spdSm);
+  smoothFix(sog, cog); spdTween(spdSm); rotFollow(cogSm, sog);
   const still = cogSm == null || (sog != null && sog < 0.5);
   $('cog').innerHTML = !still ? pad3(cogSm) + '<small>°</small>' : compass.on && compass.h != null ? pad3(compass.h) + '<small>° bouss.</small>' : '---<small>°</small>';
   $('posLine').textContent = (demo ? 'MODE DÉMO · bateau virtuel · ' : '') + fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
@@ -946,6 +1064,11 @@ function onFix(pos){
 }
 $('followBtn').classList.add('active');
 renderSpd(null);
+if (ROT_OK){ rotUI(); $('rotFab').addEventListener('click', () => {
+  if (rotMode === 'course' || mapRot){ rotMode = 'north'; setBearing(0, { now:true }); hint('Nord en haut.', 1800); return; }
+  if (!gps){ hint('Active le GPS (ou la démo) pour utiliser « cap en haut », ou pivote la carte avec deux doigts (Maj + glisser sur Mac).', 6000); return; }
+  rotMode = 'course'; rotUI(); rotFollow(cogSm, 5); hint('Cap en haut : la carte tourne avec ton bateau. Touche à nouveau pour remettre le nord en haut.', 4500);
+}); } else $('rotFab').hidden = true;
 // toucher = changer d'unité ; appui long (0,6 s) sur un cadre = grand compteur
 (function(){
   let tm = null, long = false;
