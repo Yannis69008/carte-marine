@@ -1059,6 +1059,31 @@ const ctrWanted = () => { try{ return !store.get('ctrOff', 0) && map.getZoom() >
 function ctrHide(){ clearTimeout(ctrT); $('ctrInfo').hidden = true; $('ctrX').hidden = true; }
 map.on('moveend', () => { clearTimeout(ctrT); if (!ctrWanted()) return ctrHide(); $('ctrX').hidden = false; ctrT = setTimeout(ctrLoad, 700); });
 map.on('movestart', () => { if (!$('ctrInfo').hidden) $('ctrInfo').style.opacity = .55; });
+// Fond au centre avec la marée du moment, et ce qu'il restera à la prochaine basse mer
+async function ctrDepthLines(p, d){
+  if (d === undefined) return ['Fond : en cours…'];
+  if (d == null) return ['Fond : inconnu ici'];
+  if (d < 0) return ['Fond : terre ou à sec'];
+  await Promise.race([Promise.resolve(tideDbReady(p)).catch(() => {}), new Promise(r => setTimeout(r, 3000))]);
+  const now = Date.now()/1000, th = tideHeightAt(p, now);
+  const withTide = th != null && repDepth(p) == null && iencDepth(p) == null;
+  if (!withTide) return [`Fond <b>≈ ${n1(d)} m</b> <span class="muted">(estimé${th == null ? ', marée non calculée ici' : ''})</span>`];
+  const chart = d - th, need = cfg.draft + cfg.margin;
+  let lo = null, hi = null, prev = th;
+  for (let k = 1; k <= 90 && !(lo && hi); k++){
+    const t = now + k*600, v = tideHeightAt(p, t), v2 = tideHeightAt(p, t + 600); if (v == null || v2 == null) break;
+    if (!lo && v <= prev && v <= v2) lo = { t, v }; if (!hi && v >= prev && v >= v2) hi = { t, v }; prev = v;
+  }
+  const v1 = tideHeightAt(p, now + 600), sens = v1 == null ? '' : v1 > th ? ', mer montante' : ', mer descendante';
+  const col = x => x < cfg.draft ? '#ef5350' : x < need ? 'var(--warn)' : 'inherit';
+  const out = [`Fond <b>≈ ${n1(d)} m</b> maintenant <span class="muted">(marée ${th >= 0 ? '+' : ''}${n1(th)} m${sens})</span>`];
+  const ev = [];
+  if (lo){ const x = chart + lo.v; ev.push(`<span style="color:${col(x)}">basse mer ${hhmm(lo.t)} : ≈ ${n1(Math.max(0, x))} m${x < need ? ' ⚠' : ''}</span>`); }
+  if (hi) ev.push(`pleine mer ${hhmm(hi.t)} : ≈ ${n1(chart + hi.v)} m`);
+  if (ev.length) out.push(ev.join(' · '));
+  if (lo && chart + lo.v < need) out.push(`<span style="color:${col(chart + lo.v)}">Pas assez d'eau à basse mer pour ton bateau (${n1(cfg.draft)} m + ${n1(cfg.margin)} m de marge).</span>`);
+  return out;
+}
 async function ctrLoad(){
   const c = map.getCenter(), p = [c.lat, c.lng], seq = ++ctrSeq, k = p[0].toFixed(2) + ',' + p[1].toFixed(2), el = $('ctrInfo');
   el.hidden = false; el.style.opacity = 1;
@@ -1071,12 +1096,13 @@ async function ctrLoad(){
       fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&current=wave_height,swell_wave_height,swell_wave_period,sea_surface_temperature&cell_selection=sea`).then(r => r.json()).catch(() => null)]);
     if (a && a.current){ w = { t:Date.now(), a:a.current, m:m && m.current }; ctrCache.set(k, w); if (ctrCache.size > 200) ctrCache.delete(ctrCache.keys().next().value); }
   }
+  await Promise.race([Promise.resolve(tideDbReady(p)).catch(() => {}), new Promise(r => setTimeout(r, 3000))]);   // marées prêtes avant de calculer le fond
   const d = await Promise.race([depthAt(p).catch(() => null), new Promise(r => setTimeout(() => r(undefined), 6000))]);
   if (seq !== ctrSeq || !ctrWanted()) return;
   const A = w && w.a, M = w && w.m, bits = [];
   if (A) bits.push(`Vent <b>${n0(A.wind_speed_10m)} nd</b> ${card(A.wind_direction_10m)} · rafales ${n0(A.wind_gusts_10m)} nd${WCODE(A.weather_code) ? ' · ' + esc(WCODE(A.weather_code)) : ''}`);
   if (M && M.wave_height != null) bits.push(`Vagues <b>${n1(M.wave_height)} m</b>${M.swell_wave_height != null ? ` · houle ${n1(M.swell_wave_height)} m${M.swell_wave_period ? ' / ' + n0(M.swell_wave_period) + ' s' : ''}` : ''}${M.sea_surface_temperature != null ? ` · eau ${n0(M.sea_surface_temperature)} °C` : ''}`);
-  bits.push(d === undefined ? 'Fond : en cours…' : d == null ? 'Fond : inconnu ici' : d < 0 ? 'Fond : terre ou à sec' : `Fond <b>≈ ${n1(d)} m</b> <span class="muted">(estimé, marée comprise)</span>`);
+  bits.push(...(await ctrDepthLines(p, d)));
   if (!A) bits.unshift(navigator.onLine ? '<span class="muted">Météo indisponible pour le moment</span>' : '<span class="muted">Pas de réseau : météo indisponible</span>');
   el.innerHTML = `<span class="cx" data-cx="1" aria-label="Masquer">✕</span><div class="muted">Au centre (croix) · maintenant</div>${bits.join('<br>')}<div class="muted" style="font-size:11px">Touche pour la météo détaillée</div>`;
 }
