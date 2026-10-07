@@ -7,6 +7,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1a24">
 <title>Ma Carte Marine</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Carte Marine">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Barlow:wght@400;500;600&display=swap">
@@ -60,6 +64,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);
   border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,0px);display:flex;flex-direction:column;max-height:58%}
 #sheet.collapsed .body{display:none}
+#welcome{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:16px}
+#welcome .wbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:520px;max-height:90vh;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:10px}
+#welcome h2{margin:0;font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+#welcome ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+#welcome p{margin:0}
+.portrow{display:grid;grid-template-columns:1fr auto;gap:6px 10px;background:var(--panel2);border-radius:8px;padding:8px 10px;align-items:center}
+.portrow small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.portrow .pd{font-family:var(--f-data);font-weight:600;text-align:right}
+.portrow .pb{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
 /* Grand écran (Mac, tablette à l'horizontale) : le tiroir devient un panneau à gauche */
 @media (min-width:900px) and (min-height:500px){
   #sheet{right:auto;width:440px;top:calc(env(safe-area-inset-top,0px) + 100px);max-height:none;border-radius:0 14px 0 0;border-right:1px solid var(--line)}
@@ -270,7 +283,9 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
         <button class="btn primary" id="routeTool">Tracer une route</button>
         <button class="btn" id="routeUndo">Annuler dernier</button>
         <button class="btn" id="routeClear">Effacer</button>
+        <button class="btn" id="routeAuto">Passage sûr automatique</button>
       </div>
+      <div id="routeAutoMsg" class="muted"></div>
       <div class="row muted">
         <span class="fld">Vitesse <input type="number" id="spd" value="15" min="1" step="1"> nd</span>
         <span class="fld">Conso <input type="number" id="conso" value="20" min="0" step="1"> L/h</span>
@@ -280,6 +295,9 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
       <div class="row muted"><span class="fld">Départ <input type="datetime-local" id="brDep" style="background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;max-width:210px"></span> <span class="fld">durée <input type="number" id="brDur" value="3" min="0.5" step="0.5"> h</span></div>
       <div class="row"><button class="btn primary" id="brGo">Vérifier ma sortie</button></div>
       <div id="brief" class="pane"><div class="muted">Trace ta route (même approximative), indique l'heure de départ et la durée, puis vérifie : météo, coucher du soleil, marées, niveau du fleuve, ponts, fonds, dangers, carburant et zone hors ligne.</div></div>
+      <h3>Trouver un port</h3>
+      <div class="row"><button class="btn primary" id="portsGo">Ports autour de moi</button><label class="chk" style="padding:0"><input type="checkbox" id="portsFuel"> avec carburant</label></div>
+      <div id="portsOut"></div>
       <h3>Port d'attache</h3>
       <div class="row"><button class="btn" id="homeSet">Mon port d'attache est ici</button><span id="homeTxt" class="muted"></span></div>
       <div id="routeOut" class="pane"></div>
@@ -291,7 +309,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
       </div>
       <div class="row muted">Distances en <select id="unit"><option value="km">km</option><option value="nm">milles nautiques</option></select>
         <label class="chk" style="padding:0"><input type="checkbox" id="voice" checked> Annonces vocales</label></div>
-      <div id="navMsg" class="muted">« Aller à un point » trace une ligne droite : vérifie qu'elle ne coupe pas la terre ni un danger. « Itinéraire par le fleuve » suit automatiquement les rivières et canaux.</div>
+      <div id="navMsg" class="muted">« Aller à un point » calcule un passage qui évite la terre et les hauts-fonds en mer (Europe), suit les rivières et canaux à l'intérieur des terres, et sinon trace une ligne droite à vérifier.</div>
     </div>
 
     <!-- SORTIES / JOURNAL DE BORD -->
@@ -377,6 +395,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
         <div><b>112</b><span>Urgence européenne</span></div>
       </div>
       <div id="mobOut" class="muted">Homme à la mer : appuie sur MOB pour marquer la position et afficher le cap pour y revenir.</div>
+      <div class="row"><button class="btn" id="wAgain">Revoir l'avertissement et les conseils</button></div>
 
       <h3>Alarme de mouillage</h3>
       <div class="muted">Une fois l'ancre posée, appuie sur « Jeter l'ancre ici ». Si le bateau sort du cercle (l'ancre chasse), le téléphone sonne, vibre et parle. Laisse l'appli ouverte, écran allumé et branché.</div>
@@ -443,6 +462,21 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<div id="welcome" hidden>
+  <div class="wbox">
+    <h2>Bienvenue à bord</h2>
+    <p><b>Ma Carte Marine est une aide à la navigation.</b> Elle rassemble des données officielles (SHOM, IGN, VNF, NOAA, EMODnet, Météo-France) et collaboratives (OpenStreetMap, OpenSeaMap). Elle ne remplace pas les cartes marines officielles à jour, l'annuaire des marées, les avis aux navigateurs ni la veille à bord : la responsabilité de la navigation reste celle du chef de bord.</p>
+    <ul>
+      <li><b>Avant de partir</b> : onglet Route, « Vérifier ma sortie » (météo, marées, ponts, fonds, carburant). Puis télécharge la zone (Couches, Hors ligne) : au large, le réseau disparaît.</li>
+      <li><b>⌂</b> te ramène au port de départ ou au plus proche, en évitant la terre et les hauts-fonds quand c'est possible.</li>
+      <li><b>MOB</b> marque tout de suite la position d'une personne à la mer.</li>
+      <li><b>Garde l'écran allumé</b> pendant la navigation : un site web ne peut pas suivre le bateau ni sonner écran éteint.</li>
+    </ul>
+    <p class="muted" id="wInstall"></p>
+    <label class="chk"><input type="checkbox" id="wOk"> J'ai compris : je garde une carte officielle et je reste attentif.</label>
+    <button class="btn primary" id="wGo" disabled>C'est parti</button>
+  </div>
+</div>
 <script>
 "use strict";
 const LIBURL = { shp:'https://unpkg.com/shpjs@4.0.4/dist/shp.min.js', JSZip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', GeoTIFF:'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js', TidePred:'tide-engine.js' };
@@ -650,7 +684,7 @@ function setTool(t, hint){
 }
 map.on('click', e => {
   const p = [e.latlng.lat, e.latlng.lng];
-  if (tool === 'goto'){ setTool('goto'); startNav([p], 'direct'); return; }
+  if (tool === 'goto'){ setTool('goto'); goTo(p); return; }
   if (tool === 'river'){ setTool('river'); planRiver(p); return; }
   if (tool === 'route'){ route.push(p); saveRoute(); drawRoute(); }
   else if (tool === 'danger'){ addReport(p); setTool('danger'); }
@@ -1166,12 +1200,29 @@ function osmKind(t){
 }
 function findKind(arr, p, kinds, tol){ return arr.find(s => kinds.includes(s.kind) && Math.abs(s.p[0]-p[0]) < tol && Math.abs(s.p[1]-p[1]) < tol*1.5); }
 function nearKind(arr, p, kinds, tol){ return arr.some(s => kinds.includes(s.kind) && Math.abs(s.p[0]-p[0]) < tol && Math.abs(s.p[1]-p[1]) < tol*1.5); }
-async function overpass(q){
+// Serveurs gratuits partagés par tout le monde : on garde les réponses 3 jours, on espace les demandes
+// et on fait une pause d'une minute quand le serveur dit qu'il est saturé.
+const hashStr = t => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + t.length.toString(36); };
+let opPause = 0, opLast = 0, opChain = Promise.resolve();
+const opSlot = () => (opChain = opChain.then(() => new Promise(r => setTimeout(r, Math.max(0, opLast + 1100 - Date.now())))).then(() => { opLast = Date.now(); }));
+async function overpass(q, ttl){
+  const key = 'op_' + hashStr(q), c = await idbGet(key);
+  if (c && c.j && Date.now() - c.t < (ttl || 3*86400000)) return c.j;
+  if (!navigator.onLine || Date.now() < opPause) return c ? c.j : null;
+  await opSlot();
   for (const url of OVERPASS){
-    try{ return await fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }); }catch(e){}
+    try{
+      const r = await fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } });
+      if (r.status === 429 || r.status === 503 || r.status === 504){ opPause = Date.now() + 60000; continue; }
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (j && Array.isArray(j.elements)){ idbSet(key, { t:Date.now(), j }); opKeep(key); }
+      return j;
+    }catch(e){}
   }
-  return null;
+  return c ? c.j : null;
 }
+function opKeep(key){ const k = store.get('opKeys', []).filter(x => x !== key); k.push(key); while (k.length > 120){ const old = k.shift(); idbSet(old, null); } store.set('opKeys', k); }
 function osmQueries(sel, bb){
   return [
     `[out:json][timeout:30];(nwr${sel}["seamark:type"~"^(wreck|rock|obstruction|bridge)$"];nwr${sel}["waterway"~"^(lock_gate|weir|dam|fuel)$"];nwr${sel}["lock"="yes"];nwr${sel}["leisure"~"^(marina|slipway)$"];nwr${sel}["natural"~"^(reef|shoal)$"];node${sel}["natural"="rock"];);out center tags 1500;`,
@@ -1204,7 +1255,8 @@ function osmParse(j, jb, ref){
   });
   return out;
 }
-async function loadOsm(c, rNM){
+async function loadOsm(c0, rNM){
+  const c = [Math.round(c0[0]/0.02)*0.02, Math.round(c0[1]/0.03)*0.03]; rNM = Math.ceil(rNM + 1);
   const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0])));
   const bb = `(${(c[0]-dLat).toFixed(4)},${(c[1]-dLon).toFixed(4)},${(c[0]+dLat).toFixed(4)},${(c[1]+dLon).toFixed(4)})`;
   const [q1, q2] = osmQueries(`(around:${Math.round(rNM*1852)},${c[0].toFixed(5)},${c[1].toFixed(5)})`, bb);
@@ -2061,8 +2113,8 @@ async function searchPlace(){
     $('searchRes').onclick = e => {
       const b = e.target.closest('.srow'); if (!b) return; const r = j[+b.dataset.i], p = [+r.lat, +r.lon];
       follow = false; $('followBtn').classList.remove('active'); map.setView(p, 14);
-      L.popup().setLatLng(p).setContent(`<b>${esc(r.display_name.split(',')[0])}</b><br><button class="btn primary" id="goHere" style="margin-top:6px">Y aller (ligne droite)</button> <button class="btn" id="goRiver" style="margin-top:6px">Y aller par le fleuve</button>`).openOn(map);
-      setTimeout(() => { const g = document.getElementById('goHere'), gr = document.getElementById('goRiver'); if (g) g.onclick = () => { map.closePopup(); startNav([p], 'direct'); }; if (gr) gr.onclick = () => { map.closePopup(); planRiver(p); }; }, 50);
+      L.popup().setLatLng(p).setContent(`<b>${esc(r.display_name.split(',')[0])}</b><br><button class="btn primary" id="goHere" style="margin-top:6px">Y aller</button> <button class="btn" id="goRiver" style="margin-top:6px">Y aller par le fleuve</button>`).openOn(map);
+      setTimeout(() => { const g = document.getElementById('goHere'), gr = document.getElementById('goRiver'); if (g) g.onclick = () => { map.closePopup(); goTo(p); }; if (gr) gr.onclick = () => { map.closePopup(); planRiver(p); }; }, 50);
       $('sheet').classList.add('collapsed'); $('toggleSheet').textContent = '▴';
     };
   }catch(e){ $('searchRes').innerHTML = '<div class="muted">Recherche impossible sans réseau.</div>'; }
@@ -2639,6 +2691,137 @@ function drawTideSt(){
 map.on('moveend', () => { if (map.hasLayer(tideStLayer)) loadTideDb().then(drawTideSt); });
 setTimeout(() => loadTideDb(), 4000);
 
+// ---------- PASSAGE SÛR AUTOMATIQUE EN MER ----------
+// Grille de profondeur EMODnet (≈ 115 m, rapportée aux plus basses mers) : on cherche le plus court chemin
+// où il y a toujours au moins tirant d'eau + marge, en restant loin des roches, épaves et obstructions connues.
+const inGridZone = (a, b) => [a, b].every(p => p[0] > 11 && p[0] < 72 && p[1] > -36 && p[1] < 42.9);
+async function seaRoute(from, to){
+  const need = cfg.draft + cfg.margin, lat0 = (from[0] + to[0])/2, kx = Math.cos(toRad(lat0));
+  const span = Math.max(Math.abs(from[0] - to[0]), Math.abs(from[1] - to[1])*kx), pad = Math.max(0.03, span*0.35);
+  const S = Math.min(from[0], to[0]) - pad, N = Math.max(from[0], to[0]) + pad, W = Math.min(from[1], to[1]) - pad/kx, E = Math.max(from[1], to[1]) + pad/kx;
+  if (N - S > 1.1 || (E - W)*kx > 1.1) return { err:'trajet de plus de 40 milles environ, fais des étapes' };
+  let g;
+  try{ g = await fetchGrid(S, W, N, E); }catch(e){ g = null; }
+  if (!g) return { err:navigator.onLine ? 'profondeurs indisponibles ici' : 'pas de réseau pour les profondeurs' };
+  // grille réduite si trop grande (on garde la case la moins profonde : prudent)
+  const f = Math.max(1, Math.ceil(Math.sqrt(g.w*g.h/350000))), w = Math.ceil(g.w/f), h = Math.ceil(g.h/f);
+  const okv = v => v != null && !isNaN(v) && !(g.nd != null && Math.abs(v - g.nd) < 1e-3) && Math.abs(v) < 12000;
+  const dep = new Float32Array(w*h).fill(NaN);
+  for (let r = 0; r < g.h; r++) for (let c = 0; c < g.w; c++){ const v = g.data[r*g.w + c]; if (!okv(v)) continue; const i = Math.floor(r/f)*w + Math.floor(c/f), d = -v; if (isNaN(dep[i]) || d < dep[i]) dep[i] = d; }
+  const B = g.b, cellY = (B[2] - B[0])/h, cellX = (B[3] - B[1])/w, mY = cellY*111120, mX = cellX*111120*kx;
+  const rc = p => [Math.floor((B[2] - p[0])/cellY), Math.floor((p[1] - B[1])/cellX)], ll = (r, c) => [B[2] - (r + 0.5)*cellY, B[1] + (c + 0.5)*cellX];
+  const block = new Uint8Array(w*h);
+  for (let i = 0; i < w*h; i++) if (isNaN(dep[i]) || dep[i] < need) block[i] = 1;
+  // dangers connus : roches, épaves, obstructions (sauf épave connue bien profonde)
+  let nHaz = 0;
+  [].concat(iencPts, shomPts, osmPts, repPts, offlineNear([(S + N)/2, (W + E)/2], 40)).forEach(o => {
+    if (!o || !o.p || !(HAZ.has(o.kind) || o.kind === 'reef' || o.kind === 'shoal')) return;
+    if (o.kind === 'weir' || o.kind === 'dam') return;
+    if (o.d != null && o.d >= need + 2) return;
+    const [r, c] = rc(o.p); if (r < 0 || c < 0 || r >= h || c >= w) return;
+    const rr = Math.max(1, Math.ceil(70/Math.min(mX, mY)));
+    for (let dr = -rr; dr <= rr; dr++) for (let dc = -rr; dc <= rr; dc++){ const R = r + dr, C = c + dc; if (R >= 0 && C >= 0 && R < h && C < w && Math.hypot(dr*mY, dc*mX) <= 70 + Math.max(mX, mY)/2){ block[R*w + C] = 1; } }
+    nHaz++;
+  });
+  // proximité des hauts-fonds et de la terre : on s'en écarte si possible
+  const near = new Uint8Array(w*h);
+  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++){ if (block[r*w + c]) continue; for (let dr = -1; dr <= 1 && !near[r*w + c]; dr++) for (let dc = -1; dc <= 1; dc++){ const R = r + dr, C = c + dc; if (R < 0 || C < 0 || R >= h || C >= w || block[R*w + C]){ near[r*w + c] = 1; break; } } }
+  // départ / arrivée : souvent dans un port peu profond → on rejoint l'eau libre la plus proche
+  const snap = p => { const [r0, c0] = rc(p); if (r0 >= 0 && c0 >= 0 && r0 < h && c0 < w && !block[r0*w + c0]) return { i:r0*w + c0, d:0 };
+    let best = null; const R = Math.ceil(2500/Math.min(mX, mY));
+    for (let dr = -R; dr <= R; dr++) for (let dc = -R; dc <= R; dc++){ const r = r0 + dr, c = c0 + dc; if (r < 0 || c < 0 || r >= h || c >= w || block[r*w + c]) continue; const d = Math.hypot(dr*mY, dc*mX); if (!best || d < best.d) best = { i:r*w + c, d }; }
+    return best; };
+  const s0 = snap(from), s1 = snap(to);
+  if (!s0) return { err:'aucune eau assez profonde près du départ' };
+  if (!s1) return { err:'aucune eau assez profonde près de l\'arrivée' };
+  // A*
+  const n = w*h, gS = new Float32Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), done = new Uint8Array(n);
+  const tr = Math.floor(s1.i/w), tc = s1.i % w, H = i => Math.hypot((Math.floor(i/w) - tr)*mY, (i % w - tc)*mX);
+  const heap = [], push = (i, pr) => { heap.push([pr, i]); let k = heap.length - 1; while (k){ const q = (k - 1) >> 1; if (heap[q][0] <= heap[k][0]) break; [heap[q], heap[k]] = [heap[k], heap[q]]; k = q; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length){ heap[0] = last; let k = 0; for (;;){ const a = 2*k + 1, b = a + 1; let m = k; if (a < heap.length && heap[a][0] < heap[m][0]) m = a; if (b < heap.length && heap[b][0] < heap[m][0]) m = b; if (m === k) break; [heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return top; };
+  gS[s0.i] = 0; push(s0.i, H(s0.i));
+  const D8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+  let found = false, it = 0;
+  while (heap.length){
+    const [, i] = pop(); if (done[i]) continue; done[i] = 1;
+    if (i === s1.i){ found = true; break; }
+    if (++it > 3e6) break;
+    const r = Math.floor(i/w), c = i % w;
+    for (const [dr, dc] of D8){ const R = r + dr, C = c + dc; if (R < 0 || C < 0 || R >= h || C >= w) continue; const j = R*w + C; if (block[j] || done[j]) continue;
+      if (dr && dc && (block[r*w + C] || block[R*w + c])) continue;
+      const cost = Math.hypot(dr*mY, dc*mX)*(near[j] ? 1.8 : dep[j] < need + 2 ? 1.3 : 1), ng = gS[i] + cost;
+      if (ng < gS[j]){ gS[j] = ng; prev[j] = i; push(j, ng + H(j)); } }
+  }
+  if (!found) return { err:'pas de passage assez profond pour ton tirant d\'eau entre ces deux points' };
+  const cells = []; for (let i = s1.i; i !== -1; i = prev[i]) cells.push(i); cells.reverse();
+  // simplification : on garde un point seulement quand la ligne droite ne passe plus en eau libre
+  const clear = (a, b) => { const ra = Math.floor(a/w), ca = a % w, rb = Math.floor(b/w), cb = b % w, k = Math.ceil(Math.max(Math.abs(rb - ra), Math.abs(cb - ca))*2) || 1;
+    for (let t = 0; t <= k; t++){ const r = Math.round(ra + (rb - ra)*t/k), c = Math.round(ca + (cb - ca)*t/k), j = r*w + c; if (block[j] || (near[j] && !near[a] && !near[b])) return false; } return true; };
+  const keep = [cells[0]]; let a = 0;
+  while (a < cells.length - 1){ let b = cells.length - 1; while (b > a + 1 && !clear(cells[a], cells[b])) b--; keep.push(cells[b]); a = b; }
+  const path = keep.slice(1).map(i => ll(Math.floor(i/w), i % w));
+  if (s1.d > 0) path.push(to.slice()); else path[path.length - 1] = to.slice();
+  if (s0.d > 0) path.unshift(ll(Math.floor(s0.i/w), s0.i % w));
+  let tot = distNM(from, path[0]); for (let i = 1; i < path.length; i++) tot += distNM(path[i-1], path[i]);
+  const direct = distNM(from, to), minD = Math.min(...cells.map(i => dep[i]));
+  const short = `Passage calculé : ${fmtD(tot)}${tot > direct*1.05 ? ` (ligne droite ${fmtD(direct)})` : ''}, ${path.length} point(s).`;
+  const msg = `${short} Au moins ${n1(Math.max(need, minD))} m d'eau même aux plus basses mers selon les profondeurs EMODnet (cases de ${Math.round(Math.max(mX, mY))} m), pour ${n1(cfg.draft)} m de tirant d'eau + ${n1(cfg.margin)} m de marge${nHaz ? `, en évitant ${nHaz} roche(s)/épave(s) connue(s)` : ''}.` +
+    `${s0.d > 0 ? ` Sortie du port au moteur et à vue (${Math.round(s0.d)} m peu profonds ou non cartographiés).` : ''}${s1.d > 0 ? ` Fin du trajet à vue sur ${Math.round(s1.d)} m (port ou zone peu profonde).` : ''} Les petites roches isolées et les bancs mobiles peuvent manquer : garde un œil sur la carte et le balisage.`;
+  return { path, msg, short };
+}
+$('routeAuto').addEventListener('click', async () => {
+  const from = route.length >= 2 ? route[0] : gps ? gps.p : null, to = route.length ? route[route.length - 1] : null;
+  const out = $('routeAutoMsg');
+  if (!from || !to || (route.length < 2 && !gps)){ out.textContent = 'Pose au moins un point d\'arrivée avec « Tracer une route » (et un point de départ si le GPS est coupé).'; return; }
+  if (!inGridZone(from, to)){ out.textContent = 'Le calcul automatique marche en Europe et sur ses côtes (profondeurs EMODnet).'; return; }
+  out.textContent = 'Calcul en cours… (quelques secondes)';
+  const r = await seaRoute(from, to);
+  if (!Array.isArray(r.path)){ out.textContent = 'Impossible : ' + r.err + '.'; return; }
+  route = route.length >= 2 ? [from].concat(r.path) : r.path; saveRoute(); drawRoute();
+  try{ map.fitBounds(L.latLngBounds([from].concat(r.path)), { padding:[40, 40] }); }catch(e){}
+  out.textContent = r.msg;
+});
+
+// ---------- TROUVER UN PORT ----------
+async function findPorts(){
+  const out = $('portsOut'), here = herePos(), fuelOnly = $('portsFuel').checked;
+  out.innerHTML = '<div class="muted">Recherche des ports…</div>';
+  const R = 30000, a = `(around:${R},${here[0].toFixed(3)},${here[1].toFixed(3)})`;
+  const j = await overpass(`[out:json][timeout:30];(nwr${a}["leisure"="marina"];nwr${a}["seamark:type"~"^(harbour|small_craft_facility)$"];nwr${a}["waterway"="fuel"];nwr${a}["amenity"="fuel"]["boat"="yes"];);out center tags 300;`);
+  const list = [];
+  (j && j.elements || []).forEach(el => { const t = el.tags || {}, p = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; if (!p) return;
+    const fuel = t.waterway === 'fuel' || t.amenity === 'fuel' || /fuel/.test(t['seamark:small_craft_facility:category'] || '') || t.fuel === 'yes' || t['fuel:diesel'] === 'yes';
+    const name = t.name || t['seamark:name'] || (fuel && !t.leisure ? 'Carburant' : 'Port sans nom');
+    const dup = list.find(x => distNM(x.p, p) < 0.25 && (x.name === name || !t.name));
+    if (dup){ dup.fuel = dup.fuel || fuel; dup.vhf = dup.vhf || t.vhf_channel || t['seamark:radio_station:channel'] || t['vhf']; return; }
+    list.push({ p, name, fuel, d:distNM(here, p), brg:bearing(here, p),
+      vhf:t.vhf_channel || t.vhf || t['seamark:radio_station:channel'] || t['seamark:harbour:radio_channel'],
+      vis:t['harbour:visitor_berth'] || t['capacity:visitors'] || t['harbour:visitors_mooring'], cap:t.capacity || t['seamark:harbour:berths'],
+      tel:t.phone || t['contact:phone'], web:t.website || t['contact:website'], depth:t.depth || t['seamark:harbour:depth'] || t.maxdraught }); });
+  const res = list.filter(x => !fuelOnly || x.fuel).sort((a, b) => a.d - b.d).slice(0, 15);
+  if (!res.length){ out.innerHTML = `<div class="muted">${j ? 'Aucun port ' + (fuelOnly ? 'avec carburant ' : '') + 'connu à moins de 30 km.' : 'Recherche impossible pour le moment (réseau ou serveur saturé). Réessaie dans une minute.'}</div>`; return; }
+  out.innerHTML = res.map((x, i) => `<div class="portrow"><div><b>${esc(x.name)}</b><small>${[x.fuel ? '⛽ carburant' : '', x.vhf ? 'VHF ' + esc(x.vhf) : '', x.vis ? esc(x.vis) + ' places visiteurs' : x.cap ? esc(x.cap) + ' places' : '', x.depth ? 'fond ' + esc(x.depth) + ' m' : ''].filter(Boolean).join(' · ') || 'infos de services non renseignées'}</small></div>
+    <div class="pd">${fmtD(x.d)}<small>cap ${pad3(x.brg)}°</small></div>
+    <div class="pb"><button class="btn primary" data-pgo="${i}">Y aller</button><button class="btn" data-pview="${i}">Voir</button>${x.tel ? `<a class="btn" href="tel:${esc(String(x.tel).replace(/[^+\d]/g, ''))}">Appeler</a>` : ''}${x.web && /^https?:\/\//.test(x.web) ? `<a class="btn" href="${esc(x.web)}" target="_blank" rel="noopener">Site</a>` : ''}</div></div>`).join('') +
+    '<div class="muted">Données OpenStreetMap / OpenSeaMap : services, places et VHF renseignés par les plaisanciers. Appelle la capitainerie (VHF 9 en France) avant d\'arriver.</div>';
+  out.onclick = e => { const g = e.target.closest('[data-pgo]'), v = e.target.closest('[data-pview]');
+    if (g) goTo(res[+g.dataset.pgo].p);
+    if (v){ const x = res[+v.dataset.pview]; follow = false; $('followBtn').classList.remove('active'); map.setView(x.p, 15); L.popup().setLatLng(x.p).setContent(`<b>${esc(x.name)}</b>`).openOn(map); } };
+}
+$('portsGo').addEventListener('click', findPorts);
+$('portsFuel').addEventListener('change', () => { if ($('portsOut').innerHTML) findPorts(); });
+
+// ---------- ACCUEIL ----------
+function showWelcome(){
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent), standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  $('wInstall').textContent = standalone ? '' : ios ? 'Astuce : dans Safari, touche le bouton Partager puis « Sur l\'écran d\'accueil » : l\'appli s\'ouvre alors en plein écran, comme une vraie appli.' : 'Astuce : installe l\'appli depuis le menu du navigateur (« Installer » ou « Ajouter à l\'écran d\'accueil »).';
+  $('welcome').hidden = false;
+}
+$('wOk').addEventListener('change', () => { $('wGo').disabled = !$('wOk').checked; });
+$('wGo').addEventListener('click', () => { store.set('welcome', 1); $('welcome').hidden = true; });
+if (!store.get('welcome', 0)) showWelcome();
+$('wAgain').addEventListener('click', showWelcome);
+
 // ---------- SÉCURITÉ DE SORTIE : bilan avant départ, alertes en route, retour au port ----------
 var riverInfo = null, sunCache = null;
 const fmtT = ms => new Date(ms).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
@@ -2745,9 +2928,18 @@ async function nearestPort(){
 }
 async function goTo(dest){
   $('homePanel').hidden = true;
-  const here = herePos(), atSea = (coast.length || coastOff.length) && coastDistM(here) < 8000;
-  if (!atSea){ const prev = nav; await planRiver(dest); if (nav && nav !== prev) return; }
+  const here = herePos(), atSea = (coast.length || coastOff.length) ? coastDistM(here) < 8000 : true;
+  const prev = nav;
+  if (atSea && inGridZone(here, dest)){
+    hint('Calcul d\'un passage qui évite la terre et les hauts-fonds…', 30000);
+    const r = await seaRoute(here, dest);
+    $('toolHint').hidden = true;
+    if (Array.isArray(r.path)){ startNav(r.path, 'route'); $('navMsg').textContent = r.msg; hint(r.short, 6000); return; }
+    if (!(coast.length || coastOff.length) || coastDistM(here) > 3000){ startNav([dest], 'direct'); hint('Pas de passage automatique (' + r.err + ') : ligne droite, vérifie qu\'elle ne coupe pas la terre.', 9000); return; }
+  }
+  await planRiver(dest); if (nav && nav !== prev) return;
   startNav([dest], 'direct');
+  hint('Ligne droite : vérifie sur la carte qu\'elle ne coupe pas la terre ni un danger.', 8000);
 }
 $('homeFab').addEventListener('click', async () => {
   const dp = depPort(), here = herePos();
