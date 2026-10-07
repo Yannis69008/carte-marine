@@ -133,6 +133,12 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 #rotFab{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;gap:1px;padding:0}
 #rotFab .rotN{display:block;font-size:15px;color:#ef5350;transition:transform .15s linear}
 #rotFab .rotT{font-size:10px;font-weight:700;letter-spacing:.04em}
+#ctrX{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;z-index:900;pointer-events:none}
+#ctrX::before,#ctrX::after{content:'';position:absolute;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+#ctrX::before{left:12px;top:0;width:2px;height:26px}#ctrX::after{top:12px;left:0;height:2px;width:26px}
+#ctrInfo{position:absolute;left:10px;top:calc(env(safe-area-inset-top,0px) + 104px);z-index:1001;max-width:min(62vw,300px);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 28px 7px 10px;font-size:13px;line-height:1.35;box-shadow:0 2px 10px rgba(0,0,0,.4);cursor:pointer}
+#ctrInfo b{color:var(--accent)} #ctrInfo .cx{position:absolute;right:4px;top:2px;padding:2px 6px;color:var(--muted);font-size:15px}
+body.nav #ctrInfo,body.nav #ctrX{display:none}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -314,12 +320,15 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">AIS</span><span><b>Autres bateaux</b> équipés d'AIS, avec réseau : une aide, pas une sécurité (voir l'avertissement)</span></div>
     <div class="lgRow"><span class="lgI">☾</span><span><b>Mode nuit</b> : écran rouge, préserve la vue de nuit</span></div>
     <div class="lgRow"><span class="lgI">⇄</span><span>Touche le cadre <b>Vitesse</b> pour passer de nœuds à km/h. Appui long sur un cadre : <b>grand compteur</b></span></div>
-    <div class="lgRow"><span class="lgI">N▲</span><span><b>Pivoter la carte</b> : deux doigts qui tournent (Maj + glisser sur Mac). Touche le bouton pour « cap en haut » ou remettre le nord en haut</span></div>
+    <div class="lgRow"><span class="lgI">▲↻</span><span><b>Pivoter la carte</b> : deux doigts qui tournent (Maj + glisser sur Mac). Touche le bouton pour « cap en haut » ou remettre le nord en haut</span></div>
+    <div class="lgRow"><span class="lgI">✛</span><span><b>Croix au centre</b> : quand tu zoomes quelque part, vent, vagues et fond à cet endroit. <a href="#" id="ctrOn">Réafficher</a> si tu l'as masquée</span></div>
     <div class="lgRow"><span class="lgI">▶</span><span><b>Mode démo</b> : un bateau virtuel avance pour essayer l'appli sans être sur l'eau</span></div>
     <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
     <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgDemo">Mode démo</button><button class="btn" id="lgClose">Fermer</button></div>
   </div>
 </div>
+<div id="ctrX" hidden></div>
+<div id="ctrInfo" hidden role="button" tabindex="0"></div>
 <div id="toolHint" hidden></div>
 <div id="homePanel" hidden>
   <b>Rentrer</b>
@@ -774,7 +783,7 @@ map.on('resize', rotApply);
 function rotUI(){
   const f = document.getElementById('rotFab'); if (!f) return;
   f.classList.toggle('active', rotMode === 'course');
-  f.innerHTML = `<span class="rotN" style="transform:rotate(${mapRot}deg)">▲</span><span class="rotT">${rotMode === 'course' ? 'CAP' : 'N'}</span>`;
+  f.innerHTML = `<span class="rotN" style="transform:rotate(${mapRot}deg)">▲</span><span class="rotT">${rotMode === 'course' ? 'CAP' : '↻'}</span>`;
   f.title = rotMode === 'course' ? 'Cap en haut (touche pour remettre le nord en haut)' : mapRot ? 'Remettre le nord en haut' : 'Touche : cap en haut. Deux doigts qui tournent : pivoter la carte';
 }
 (function(){
@@ -813,7 +822,7 @@ function rotFollow(cog, sog){
 
 const BASES = {
   ocean: { name:'Océan (relief sous-marin, plan détaillé quand on zoome)', layer: L.featureGroup([
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom:12.99, attribution:'© Esri, GEBCO, NOAA' }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom:12.99, maxNativeZoom:10, attribution:'© Esri, GEBCO, NOAA' }),
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { minZoom:13, maxZoom:19, attribution:'© OpenStreetMap' }) ]) },
   osm:   { name:'Plan (OpenStreetMap)', layer: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }) },
   ign:   { name:'Photo aérienne IGN (France, très précise)', layer: L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { maxZoom:19, attribution:'© IGN' }) },
@@ -847,7 +856,7 @@ const OVERLAYS = {
   obs:     { name:'Épaves, roches, obstructions (points cliquables, SHOM + OSM)', on:true, layer: obsLayer },
   noaa:    { name:'Cartes marines officielles NOAA (États-Unis)', on:false, layer: arcgisTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/export', '© NOAA') },
   shomBal: { name:'Balisage officiel SHOM (bouées, balises, phares)', on:true, layer: shomT('BALISAGE_PYR_PNG_3857_WMTS') },
-  shomBathy:{ name:'Profondeurs officielles SHOM (couleurs)', on:true, layer: shomT('BATHYELLI_ZH_PYR_PNG_3857_WMTS', { opacity:.5, maxNativeZoom:15 }) },
+  shomBathy:{ name:'Profondeurs officielles SHOM (couleurs)', on:true, layer: shomT('BATHYELLI_ZH_PYR_PNG_3857_WMTS', { opacity:.5, maxNativeZoom:15, minZoom:9 }) },
   shomEpv: { name:'Épaves et obstructions SHOM (symboles)', on:true, layer: shomT('EPAVES_PYR-PNG_WLD_3857_WMTS') },
   shomCab: { name:'Câbles et conduites sous-marins SHOM (ne pas mouiller dessus)', on:false, layer: shomT('CABLES_PYR-PNG_WLD_3857_WMTS', { maxNativeZoom:13 }) },
   shomPort:{ name:'Informations portuaires SHOM', on:false, layer: shomT('PORTS_WMTS_3857', { maxNativeZoom:15 }) },
@@ -1042,6 +1051,39 @@ function demoStop(){
   map.setView(d.view.c, d.view.z); follow = true;
   hint('Démo terminée : l\'appli est remise comme avant.', 4000);
 }
+
+// ---------- MÉTÉO ET FOND AU CENTRE DE LA CARTE (quand on zoome quelque part) ----------
+// Vent, vagues et fond au point visé par la croix. Météo = prévision du modèle pour maintenant (mise à jour toutes les 15 min), pas une mesure.
+let ctrT = null, ctrSeq = 0; const ctrCache = new Map();
+const ctrWanted = () => { try{ return !store.get('ctrOff', 0) && map.getZoom() >= 9 && !(gps && follow) && !nav && !demo && $('tour').hidden; }catch(e){ return false; } };
+function ctrHide(){ clearTimeout(ctrT); $('ctrInfo').hidden = true; $('ctrX').hidden = true; }
+map.on('moveend', () => { clearTimeout(ctrT); if (!ctrWanted()) return ctrHide(); $('ctrX').hidden = false; ctrT = setTimeout(ctrLoad, 700); });
+map.on('movestart', () => { if (!$('ctrInfo').hidden) $('ctrInfo').style.opacity = .55; });
+async function ctrLoad(){
+  const c = map.getCenter(), p = [c.lat, c.lng], seq = ++ctrSeq, k = p[0].toFixed(2) + ',' + p[1].toFixed(2), el = $('ctrInfo');
+  el.hidden = false; el.style.opacity = 1;
+  if (!el.innerHTML) el.innerHTML = '<span class="muted">Centre de la carte : chargement…</span>';
+  let w = ctrCache.get(k);
+  if ((!w || Date.now() - w.t > 10*60000) && navigator.onLine){
+    const q = `latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&timezone=auto`;
+    const [a, m] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,temperature_2m&wind_speed_unit=kn`).then(r => r.json()).catch(() => null),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&current=wave_height,swell_wave_height,swell_wave_period,sea_surface_temperature&cell_selection=sea`).then(r => r.json()).catch(() => null)]);
+    if (a && a.current){ w = { t:Date.now(), a:a.current, m:m && m.current }; ctrCache.set(k, w); if (ctrCache.size > 200) ctrCache.delete(ctrCache.keys().next().value); }
+  }
+  const d = await Promise.race([depthAt(p).catch(() => null), new Promise(r => setTimeout(() => r(undefined), 6000))]);
+  if (seq !== ctrSeq || !ctrWanted()) return;
+  const A = w && w.a, M = w && w.m, bits = [];
+  if (A) bits.push(`Vent <b>${n0(A.wind_speed_10m)} nd</b> ${card(A.wind_direction_10m)} · rafales ${n0(A.wind_gusts_10m)} nd${WCODE(A.weather_code) ? ' · ' + esc(WCODE(A.weather_code)) : ''}`);
+  if (M && M.wave_height != null) bits.push(`Vagues <b>${n1(M.wave_height)} m</b>${M.swell_wave_height != null ? ` · houle ${n1(M.swell_wave_height)} m${M.swell_wave_period ? ' / ' + n0(M.swell_wave_period) + ' s' : ''}` : ''}${M.sea_surface_temperature != null ? ` · eau ${n0(M.sea_surface_temperature)} °C` : ''}`);
+  bits.push(d === undefined ? 'Fond : en cours…' : d == null ? 'Fond : inconnu ici' : d < 0 ? 'Fond : terre ou à sec' : `Fond <b>≈ ${n1(d)} m</b> <span class="muted">(estimé, marée comprise)</span>`);
+  if (!A) bits.unshift(navigator.onLine ? '<span class="muted">Météo indisponible pour le moment</span>' : '<span class="muted">Pas de réseau : météo indisponible</span>');
+  el.innerHTML = `<span class="cx" data-cx="1" aria-label="Masquer">✕</span><div class="muted">Au centre (croix) · maintenant</div>${bits.join('<br>')}<div class="muted" style="font-size:11px">Touche pour la météo détaillée</div>`;
+}
+$('ctrInfo').addEventListener('click', e => {
+  if (e.target.closest('[data-cx]')){ store.set('ctrOff', 1); ctrHide(); hint('Infos au centre masquées. Pour les remettre : bouton « ? ».', 5000); return; }
+  const c = map.getCenter(); document.querySelector('.tab[data-t="meteo"]').click(); loadWeather([c.lat, c.lng], 'centre de la carte');
+});
 function onFix(pos){
   if (demo && !pos.demo) return;
   const c = pos.coords, p = [c.latitude, c.longitude], now = pos.timestamp;
@@ -1052,7 +1094,7 @@ function onFix(pos){
   }
   prevFix = { p, t:now };
   gps = { p, sog, cog, acc:c.accuracy };
-  smoothFix(sog, cog); spdTween(spdSm); rotFollow(cogSm, sog);
+  smoothFix(sog, cog); spdTween(spdSm); rotFollow(cogSm, sog); if (follow && !$('ctrInfo').hidden) ctrHide();
   const still = cogSm == null || (sog != null && sog < 0.5);
   $('cog').innerHTML = !still ? pad3(cogSm) + '<small>°</small>' : compass.on && compass.h != null ? pad3(compass.h) + '<small>° bouss.</small>' : '---<small>°</small>';
   $('posLine').textContent = (demo ? 'MODE DÉMO · bateau virtuel · ' : '') + fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
@@ -3371,6 +3413,7 @@ $('helpFab').addEventListener('click', () => { $('legend').hidden = false; });
 $('lgClose').addEventListener('click', () => { $('legend').hidden = true; });
 $('legend').addEventListener('click', e => { if (e.target === $('legend')) $('legend').hidden = true; });
 $('lgTour').addEventListener('click', () => { $('legend').hidden = true; tourStart(); });
+$('ctrOn').addEventListener('click', e => { e.preventDefault(); store.set('ctrOff', 0); $('legend').hidden = true; map.fire('moveend'); });
 $('lgDemo').addEventListener('click', () => { $('legend').hidden = true; demoStart(); });
 $('fsDemo').addEventListener('click', () => demoStart());
 $('firstSteps').hidden = !!store.get('stepsHide', 0);
