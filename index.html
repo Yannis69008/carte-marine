@@ -147,6 +147,35 @@ body.nav #ctrInfo,body.nav #ctrX{display:none}
 .lkR{display:flex;gap:10px;align-items:flex-start}.lkR>span:first-child{flex:0 0 26px;font-size:18px;text-align:center}
 #lakeIn details{border-top:1px solid var(--line);padding-top:6px}#lakeIn summary{cursor:pointer;font-weight:600}
 #lakeIn a.go{color:var(--accent);cursor:pointer}
+#fabTip{position:fixed;z-index:3500;background:#0b1a24;color:#fff;border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;pointer-events:none;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.5)}
+#fabTip[hidden]{display:none}
+#fab,#fab .fab{touch-action:none}
+.balbox{background:var(--panel2);border:1px solid var(--accent);border-radius:12px;padding:9px 11px}
+.balbox summary{cursor:pointer;font-weight:700;color:var(--accent);list-style:none}.balbox summary::-webkit-details-marker{display:none}
+.balbox summary::after{content:' ▾'}.balbox[open] summary::after{content:' ▴'}
+.balc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.balc h4{margin:0;font-size:15px}.balc .chips{display:flex;flex-wrap:wrap;gap:5px}
+.balc .chips span{background:var(--panel2);border-radius:20px;padding:2px 8px;font-size:12px;color:var(--muted)}
+.balc ol{margin:0;padding-left:20px;line-height:1.5;font-size:14px}.balc ol small{color:var(--muted)}
+.balv{border-radius:8px;padding:6px 9px;font-size:13px}.balv.v0{background:#173d2a}.balv.v1{background:#3d3317}.balv.v2{background:#3d1a1a}
+.lhead{background:linear-gradient(135deg,rgba(242,177,52,.18),rgba(79,195,247,.10));border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.lhT{font-family:var(--f-display);font-size:19px;font-weight:700;letter-spacing:.04em}
+.lnext{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--accent);border-radius:12px;padding:10px 12px;color:var(--fg);font-size:15px;font-weight:600}
+.lnext span:first-child{font-size:24px}.lnext small{display:block;color:var(--accent);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.lnext span:last-child{margin-left:auto;font-size:22px;color:var(--accent)}
+.lnext.done{justify-content:center;border-color:var(--ok)}
+.lcat{display:flex;align-items:center;gap:10px;margin:12px 0 2px;padding:8px 10px;border-radius:10px;background:linear-gradient(90deg,rgba(242,177,52,.16),transparent)}
+.lcat .lci{font-size:22px}.lcat .lct{flex:1;font-family:var(--f-display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:14px}
+.lcat .lcn{font-family:var(--f-data);font-size:12px;color:var(--muted)}
+.lico{font-size:20px;width:36px;height:36px;border-radius:10px;background:var(--panel);display:grid;place-items:center}
+.lmeta{font-size:11px;color:var(--muted);white-space:nowrap;font-weight:400}
+.lok{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--ok);color:#00170b;font-weight:700;font-size:13px}
+details.lesson ol.lsteps{list-style:none;counter-reset:st;padding:0;margin:4px 0 12px;display:flex;flex-direction:column;gap:11px}
+details.lesson ol.lsteps li{counter-increment:st;display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;line-height:1.5;font-size:15px}
+details.lesson ol.lsteps li::before{content:counter(st);width:26px;height:26px;border-radius:50%;background:var(--accent);color:#1a1200;font-weight:700;font-size:13px;display:grid;place-items:center}
+details.lesson ol.lsteps b{color:var(--accent);font-weight:600}
+.ltip{display:flex;gap:10px;background:rgba(242,177,52,.12);border-left:3px solid var(--accent);border-radius:8px;padding:9px 11px;margin:0 0 12px;font-size:14px;line-height:1.45}
+.ltip span:first-child{font-size:18px}
+.lvid{font-size:13px;color:var(--muted);text-decoration:underline;cursor:pointer;align-self:center}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -160,8 +189,9 @@ body.nav #ctrInfo,body.nav #ctrX{display:none}
 .obsrow small{display:block;color:var(--muted);font-size:11px}
 .obsrow .od{font-family:var(--f-data);text-align:right;font-weight:600}
 .lsec{font-family:var(--f-display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px}
-details.lesson{background:var(--panel2);border-radius:8px;padding:0 12px}
-details.lesson summary{list-style:none;cursor:pointer;padding:11px 0;display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center;font-weight:600}
+details.lesson{background:var(--panel2);border-radius:12px;padding:0 12px;border:1px solid transparent}
+details.lesson[open]{border-color:var(--line);background:linear-gradient(180deg,var(--panel2),var(--panel))}
+details.lesson summary{list-style:none;cursor:pointer;padding:11px 0;display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;align-items:center;font-weight:600;font-size:15px}
 details.lesson summary::-webkit-details-marker{display:none}
 details.lesson summary small{display:block;font-weight:400;color:var(--muted);font-size:12px}
 details.lesson .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px}
@@ -331,6 +361,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">⇄</span><span>Touche le cadre <b>Vitesse</b> pour passer de nœuds à km/h. Appui long sur un cadre : <b>grand compteur</b></span></div>
     <div class="lgRow"><span class="lgI">▲↻</span><span><b>Pivoter la carte</b> : deux doigts qui tournent (Maj + glisser sur Mac). Touche le bouton pour « cap en haut » ou remettre le nord en haut</span></div>
     <div class="lgRow"><span class="lgI">✛</span><span><b>Croix au centre</b> : quand tu zoomes quelque part, vent, vagues et fond à cet endroit. <a href="#" id="ctrOn">Réafficher</a> si tu l'as masquée</span></div>
+    <div class="lgRow"><span class="lgI">👆</span><span>Pose ou fais glisser ton doigt sur un bouton pour voir son nom</span></div>
     <div class="lgRow"><span class="lgI">🏞️</span><span><b>Lacs</b> : touche un lac puis « Puis-je naviguer ici ? » (règles, mises à l'eau, ports, vent, profondeur)</span></div>
     <div class="lgRow"><span class="lgI">▶</span><span><b>Mode démo</b> : un bateau virtuel avance pour essayer l'appli sans être sur l'eau</span></div>
     <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
@@ -339,6 +370,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 </div>
 <div id="ctrX" hidden></div>
 <div id="ctrInfo" hidden role="button" tabindex="0"></div>
+<div id="fabTip" hidden></div>
 <div id="toolHint" hidden></div>
 <div id="homePanel" hidden>
   <b>Rentrer</b>
@@ -398,6 +430,11 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="pane" id="p-route" hidden>
       <div class="row"><input type="search" id="searchQ" placeholder="Rechercher un port, une ville, une plage… (monde entier)" style="flex:1"><button class="btn" id="searchBtn">Chercher</button></div>
       <div id="searchRes"></div>
+      <details class="balbox" id="balBox"><summary>🏝️ Idées de balades autour de moi</summary>
+        <div class="muted" style="margin:6px 0">Plages, criques, îles, mouillages et phares à rejoindre en bateau, avec un circuit prêt à suivre selon ton temps.</div>
+        <div class="row muted">Temps <select id="balDur"><option value="1">1 heure</option><option value="3" selected>demi-journée</option><option value="6">journée</option></select><button class="btn primary" id="balGo">Trouver des balades</button></div>
+        <div id="balOut" class="pane"></div>
+      </details>
       <div class="row">
         <button class="btn primary" id="routeTool">Tracer une route</button>
         <button class="btn" id="routeUndo">Annuler dernier</button>
@@ -533,6 +570,8 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
         <button class="btn primary" id="repHere">Signaler à ma position</button>
         <button class="btn" id="dangerTool">Placer sur la carte</button>
       </div>
+      <label class="chk"><input type="checkbox" id="repShare"> Partager avec tout le monde (OpenStreetMap) : visible par tous les plaisanciers et les cartographes, qui corrigent la carte</label>
+      <div id="repShareTxt" class="muted" style="font-size:12px">Pour ce qui dure (roche, haut-fond, épave, balise manquante, pont, profondeur, ponton). Public et anonyme : n'écris rien de personnel.</div>
       <div class="row muted">Alerte à <input type="number" id="dangerDist" value="150" min="20" step="10"> m des dangers</div>
       <div id="dangerOut" class="pane"></div>
       <div class="row">
@@ -549,9 +588,10 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 
     <!-- APPRENDRE -->
     <div class="pane" id="p-learn" hidden>
-      <div class="row"><button class="btn primary" id="tourLearn">Visite guidée de l'appli</button></div>
-      <div class="muted">Les bases pour naviguer sereinement : utiliser l'appli, nœuds, manœuvres et règles. Chaque fiche se lit sans réseau ; le bouton « Vidéos » ouvre des démonstrations sur YouTube.</div>
-      <div><div class="bar"><i id="learnBar"></i></div><div id="learnTxt" class="muted" style="margin-top:4px"></div></div>
+      <div class="lhead"><div class="lhT">🎓 Apprendre pas à pas</div><div class="muted">Des fiches courtes, lisibles sans réseau. Coche « J'ai compris » pour suivre tes progrès.</div>
+        <div class="bar"><i id="learnBar"></i></div><div id="learnTxt" class="muted" style="margin-top:4px"></div></div>
+      <div id="learnNext"></div>
+      <div class="row"><button class="btn" id="tourLearn">🧭 Visite guidée de l'appli</button></div>
       <div id="learnList" class="pane"></div>
     </div>
 
@@ -794,7 +834,7 @@ function rotUI(){
   const f = document.getElementById('rotFab'); if (!f) return;
   f.classList.toggle('active', rotMode === 'course');
   f.innerHTML = `<span class="rotN" style="transform:rotate(${mapRot}deg)">▲</span><span class="rotT">${rotMode === 'course' ? 'CAP' : '↻'}</span>`;
-  f.title = rotMode === 'course' ? 'Cap en haut (touche pour remettre le nord en haut)' : mapRot ? 'Remettre le nord en haut' : 'Touche : cap en haut. Deux doigts qui tournent : pivoter la carte';
+  f.dataset.tip = rotMode === 'course' ? 'Cap en haut (touche pour remettre le nord en haut)' : mapRot ? 'Remettre le nord en haut' : 'Touche : cap en haut. Deux doigts qui tournent : pivoter la carte';
 }
 (function(){
   if (!ROT_OK) return;
@@ -846,6 +886,7 @@ const ArcTiles = L.TileLayer.extend({ getTileUrl(c){ const sz = 40075016.6855784
 const arcgisTiles = (url, attr) => new ArcTiles(url, { maxZoom:19, attribution:attr });
 const windLayer = L.layerGroup();
 const repLayer = L.layerGroup();
+const notesLayer = L.layerGroup();   // signalements de la communauté (notes OpenStreetMap)
 const tideStLayer = L.layerGroup(), funLayer = L.layerGroup(), harbLayer = L.layerGroup(), wikiLayer = L.layerGroup();
 const obsLayer = L.layerGroup();
 const zoneLayer = L.layerGroup();
@@ -855,6 +896,7 @@ const OVERLAYS = {
   contours:{ name:'Lignes de sonde / isobathes (EMODnet, plus lent)', on:false, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:contours', format:'image/png', transparent:true, attribution:'© EMODnet Bathymetry' }) },
   wind:    { name:'Flèches de vent sur la carte', on:true, layer: windLayer },
   rep:     { name:'Mes signalements', on:true, layer: repLayer },
+  notes:   { name:'Signalements de la communauté (OpenStreetMap)', on:true, layer: notesLayer },
   tideSt:  { name:'Marégraphes : marée de chaque port (hors ligne)', on:false, layer: tideStLayer },
   harb:    { name:'Ports et fiches détaillées (base OpenSeaMap)', on:true, layer: harbLayer },
   fun:     { name:'Loisirs : plages, plongée, surf, kite, location, pêche… (OpenStreetMap)', on:false, layer: funLayer },
@@ -917,6 +959,7 @@ $('ovList').addEventListener('change', e => {
   if (k === 'obs') drawObsInView();
   if (k === 'tideSt' && e.target.checked) loadTideDb().then(drawTideSt);
   if (['fun', 'harb', 'wiki'].includes(k) && e.target.checked){ funKey = harbKey = wikiKey = ''; loadExtras(); }
+  if (k === 'notes' && e.target.checked){ notesKey = ''; loadNotes(); }
 });
 
 // ---------- onglets / tiroir ----------
@@ -1434,7 +1477,9 @@ function addReport(p){
   const t = $('repType').value, v = parseFloat($('repVal').value), T = RTYPES[t];
   if (T.unit && !isFinite(v)){ hint('Indique la valeur mesurée (en mètres) avant de placer ce signalement.', 5000); return; }
   reports.push({ id:'r' + Date.now() + Math.random().toString(36).slice(2, 6), t, p, v:T.unit ? v : null, note:$('repNote').value.trim().slice(0, 120), d:Date.now() });
+  const r0 = reports[reports.length - 1];
   saveReports(); drawReports(); hint('Signalé : ' + T.l, 3000);
+  if ($('repShare').checked && !$('repShare').disabled) osmNoteSend(r0, T);
   $('repNote').value = '';
 }
 function drawReports(){
@@ -3916,21 +3961,28 @@ document.addEventListener('change', async e => {
     hint(`Vidéo enregistrée (${n0(f.size/1048576)} Mo), lisible sans réseau.`, 4000);
   }catch(err){ hint('Impossible d\'enregistrer la vidéo : ' + (err.message || 'espace insuffisant') + '.', 6000); }
 });
+const CAT_ICO = { 'Utiliser l\'appli (débutant)':'📱', 'Nœuds essentiels':'🪢', 'Manœuvres':'⚓', 'Règles et sécurité':'🛟' };
+const L_ICO = { 'app-premiere':'🚀', 'app-meteo':'🌤️', 'app-maree':'🌊', 'app-route':'🧭', 'app-port':'⚓', 'app-urgence':'🆘', 'app-ancre':'⚓', 'app-boussole':'🧭', 'app-horsligne':'📶',
+  chaise:'🪢', taquet:'🪢', demicles:'🪢', cabestan:'🪢', huit:'🪢', plat:'🪢', ecoute:'🪢', accoster:'🛥️', quitter:'↩️', mouiller:'⚓', mob:'🆘', ecluse:'🚪', bouee:'🔴', balisage:'🚥', priorite:'↔️', vhf:'📻', feux:'💡', meteo:'🌬️' };
+const lMin = i => Math.max(1, Math.round((i.steps.join(' ') + ' ' + (i.tip || '')).split(/\s+/).length/170));
+const lStep = x => { const m = String(x).match(/^(.{3,70}?) : (.+)$/); return m ? `<b>${esc(m[1])}</b> : ${esc(m[2])}` : esc(x); };
 function renderLearn(){
-  const all = LEARN.flatMap(c => c.items), n = all.filter(i => learned[i.id]).length;
+  const all = LEARN.flatMap(c => c.items), n = all.filter(i => learned[i.id]).length, next = all.find(i => !learned[i.id]);
   $('learnBar').style.width = (n/all.length*100) + '%';
-  $('learnTxt').textContent = `${n} fiche(s) apprise(s) sur ${all.length}`;
-  $('learnList').innerHTML = LEARN.map(c => `<div class="lsec">${c.cat}</div>` + c.items.map(i => `
-    <details class="lesson${learned[i.id] ? ' done' : ''}" data-id="${i.id}"><summary><span class="ck">${learned[i.id] ? '✓' : ''}</span><span>${esc(i.t)}<small>${esc(i.why)}${myVids[i.id] ? ' · <span class="vidtag">ta vidéo est enregistrée</span>' : ''}</small></span><span class="muted">▾</span></summary>
+  $('learnTxt').textContent = n ? `${n} fiche${n > 1 ? 's' : ''} comprise${n > 1 ? 's' : ''} sur ${all.length} · continue comme ça !` : `${all.length} fiches · commence par la première, 2 minutes suffisent`;
+  $('learnNext').innerHTML = next ? `<button class="lnext" data-open="${next.id}"><span>${L_ICO[next.id] || '📘'}</span><span><small>${n ? 'Continuer avec' : 'Commencer par'}</small>${esc(next.t)}</span><span>›</span></button>` : '<div class="lnext done">🏆 Bravo, tu as tout vu ! Relis une fiche de temps en temps.</div>';
+  $('learnList').innerHTML = LEARN.map(c => { const dn = c.items.filter(i => learned[i.id]).length;
+    return `<div class="lcat"><span class="lci">${CAT_ICO[c.cat] || '📘'}</span><span class="lct">${esc(c.cat.replace(/ \(débutant\)/, ''))}</span><span class="lcn">${dn}/${c.items.length}</span></div>` + c.items.map(i => `
+    <details class="lesson${learned[i.id] ? ' done' : ''}" data-id="${i.id}"><summary><span class="lico">${L_ICO[i.id] || CAT_ICO[c.cat] || '📘'}</span><span>${esc(i.t)}<small>${esc(i.why)}${myVids[i.id] ? ' · <span class="vidtag">📹 ta vidéo</span>' : ''}</small></span><span class="lmeta">${learned[i.id] ? '<span class="lok">✓</span>' : '⏱ ' + lMin(i) + ' min'}</span></summary>
       ${SCHEMA[i.id] ? `<div class="schema">${SCHEMA[i.id].svg}<div class="cap">${esc(SCHEMA[i.id].cap)}</div></div>` : ''}
       <div class="vidbox" id="vb-${i.id}"></div>
-      <ol>${i.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
-      ${i.tip ? `<div class="tip">À retenir : ${esc(i.tip)}</div>` : ''}
-      <div class="row">${i.act === 'tour' ? '<button class="btn primary" data-tour="1">Lancer la visite guidée</button>' : ''}${i.q ? `<a class="btn primary" href="https://www.youtube.com/results?search_query=${encodeURIComponent(i.q)}" target="_blank" rel="noopener" style="text-decoration:none">Vidéos</a>` : ''}
-      <button class="btn" data-learn="${i.id}">${learned[i.id] ? 'À revoir' : 'J\'ai appris'}</button>
-      <label class="btn" for="vf-${i.id}">${myVids[i.id] ? 'Changer ma vidéo' : 'Ajouter ma vidéo'}</label><input type="file" id="vf-${i.id}" data-vid="${i.id}" accept="video/*" hidden>
-      ${myVids[i.id] ? `<button class="btn" data-vdel="${i.id}">Supprimer la vidéo</button>` : ''}</div></details>`).join('')).join('');
+      <ol class="lsteps">${i.steps.map(x => `<li><span>${lStep(x)}</span></li>`).join('')}</ol>
+      ${i.tip ? `<div class="ltip"><span>💡</span><span><b>À retenir</b><br>${esc(i.tip)}</span></div>` : ''}
+      <div class="row"><button class="btn ${learned[i.id] ? '' : 'primary'}" data-learn="${i.id}">${learned[i.id] ? '↺ À revoir' : '✓ J\'ai compris'}</button>${i.act === 'tour' ? '<button class="btn" data-tour="1">🧭 Visite guidée</button>' : ''}${i.q ? `<a class="btn" href="https://www.youtube.com/results?search_query=${encodeURIComponent(i.q)}" target="_blank" rel="noopener">▶ Vidéos</a>` : ''}
+      <label class="lvid" for="vf-${i.id}">${myVids[i.id] ? 'Changer ma vidéo' : '📹 Ajouter ma vidéo'}</label><input type="file" id="vf-${i.id}" data-vid="${i.id}" accept="video/*" hidden>
+      ${myVids[i.id] ? `<button class="btn" data-vdel="${i.id}">Supprimer la vidéo</button>` : ''}</div></details>`).join(''); }).join('');
 }
+$('learnNext').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (!b) return; const d = document.querySelector(`details[data-id="${b.dataset.open}"]`); if (d){ d.open = true; d.scrollIntoView({ behavior:'smooth', block:'start' }); } });
 $('learnList').addEventListener('click', async e => {
   const vd = e.target.closest('[data-vdel]');
   if (vd){ const id = vd.dataset.vdel; await idbSet('vid_' + id, null); if (vidUrls[id]){ URL.revokeObjectURL(vidUrls[id]); delete vidUrls[id]; } delete myVids[id]; store.set('myVids', myVids); renderLearn(); const d = document.querySelector(`details[data-id="${id}"]`); if (d) d.open = true; return; }
@@ -4088,6 +4140,150 @@ $('lakeBox').addEventListener('click', e => {
   if (b.dataset.lk === 'swiss'){ const cb = $('ov-swissBathy'); if (cb && !cb.checked){ cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles:true })); } $('lakeBox').hidden = true; map.fitBounds([[lastLake.b[0], lastLake.b[1]], [lastLake.b[2], lastLake.b[3]]]); hint('Profondeurs des lacs suisses affichées (Cartes pour les masquer).', 4000); }
 });
 map.getContainer().addEventListener('click', e => { const b = e.target.closest('[data-lakeopen]'); if (b && lastLake){ e.stopPropagation(); map.closePopup(); lakeOpen(lastLake); } });
+
+// ---------- NOM DES BOUTONS : au survol (souris) ou en posant / glissant le doigt ----------
+const TIP_SEL = '#fab .fab, #navBottom .fab, #gpsBtn, #hud .inst';
+const HUD_TIP = { sogBox:'Vitesse (touche : nœuds ⇄ km/h · appui long : grand compteur)' };
+document.querySelectorAll('#hud .inst').forEach((el, i) => { if (!el.dataset.tip) el.dataset.tip = HUD_TIP[el.id] || ['Vitesse', 'Cap suivi par le bateau', 'Vent ici, maintenant', 'Fond estimé sous le bateau (marée comprise)'][i]; });
+$('gpsBtn').dataset.tip = 'Activer ou couper le GPS';
+function tipPrep(){ document.querySelectorAll(TIP_SEL).forEach(b => { if (b.title){ b.dataset.tip = b.title; b.setAttribute('aria-label', b.title); b.removeAttribute('title'); } }); }
+tipPrep(); setTimeout(tipPrep, 1500);
+let tipT = null, tipEl = null;
+function tipShow(el){
+  const t = el.dataset.tip || el.getAttribute('aria-label'); if (!t) return;
+  const tp = $('fabTip'); tp.textContent = t; tp.hidden = false; tipEl = el; clearTimeout(tipT);
+  const r = el.getBoundingClientRect(), w = tp.offsetWidth, h = tp.offsetHeight; let x, y;
+  if (r.top < 150){ x = r.left + r.width/2 - w/2; y = r.bottom + 6; }
+  else if (r.top > innerHeight - 150){ x = r.left + r.width/2 - w/2; y = r.top - h - 6; }
+  else { x = r.left - w - 8; y = r.top + r.height/2 - h/2; if (x < 6) x = r.right + 8; }
+  tp.style.left = Math.max(6, Math.min(innerWidth - w - 6, x)) + 'px'; tp.style.top = Math.max(6, y) + 'px';
+}
+function tipHide(ms){ clearTimeout(tipT); tipT = setTimeout(() => { $('fabTip').hidden = true; tipEl = null; }, ms || 0); }
+document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(TIP_SEL); if (!el) return; tipShow(el); if (e.pointerType !== 'mouse') tipHide(1800); }, true);
+document.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse'){ const el = e.target.closest && e.target.closest(TIP_SEL); if (el && el !== tipEl) tipShow(el); else if (!el && tipEl) tipHide(120); return; }
+  if (!tipEl) return; const under = document.elementFromPoint(e.clientX, e.clientY), b = under && under.closest(TIP_SEL);
+  if (b && b !== tipEl){ tipShow(b); tipHide(1800); }
+}, true);
+
+// ---------- IDÉES DE BALADES : plages, criques, îles, mouillages, phares (OpenStreetMap) ----------
+const balLayer = L.layerGroup().addTo(map); let balIts = [], balOrigin = null;
+const BAL_K = { plage:['🏖️', 'Plage', 2.5], crique:['🏝️', 'Crique / baie', 3], ile:['🏝️', 'Île', 3], mouillage:['⚓', 'Zone de mouillage', 2], phare:['🗼', 'Phare', 1.5], pointe:['⛰️', 'Pointe', 1] };
+function balKind(t){ return t.natural === 'beach' ? 'plage' : t.natural === 'bay' ? 'crique' : /^(island|islet)$/.test(t.place || '') ? 'ile' : t['seamark:type'] === 'anchorage' ? 'mouillage' : t.man_made === 'lighthouse' ? 'phare' : t.natural === 'cape' ? 'pointe' : null; }
+async function balades(){
+  const out = $('balOut'), o = gps ? gps.p.slice() : [map.getCenter().lat, map.getCenter().lng], H = +$('balDur').value || 3, spd = Math.max(3, +$('spd').value || 10);
+  const R = Math.min(30, Math.max(2.5, spd*H*0.4)), budget = spd*H*0.65; balOrigin = o;
+  out.innerHTML = '<div class="muted">Recherche des plus beaux coins autour… (quelques secondes)</div>'; balLayer.clearLayers();
+  const dLat = R/60, dLon = dLat/Math.cos(toRad(o[0])), bb = `(${(o[0]-dLat).toFixed(4)},${(o[1]-dLon).toFixed(4)},${(o[0]+dLat).toFixed(4)},${(o[1]+dLon).toFixed(4)})`;
+  const q = `[out:json][timeout:25];(nwr["natural"="beach"]["name"]${bb};nwr["natural"="bay"]["name"]${bb};nwr["place"~"^(island|islet)$"]["name"]${bb};nwr["seamark:type"="anchorage"]${bb};nwr["man_made"="lighthouse"]["name"]${bb};nwr["natural"="cape"]["name"]${bb};);out center tags bb 400;`;
+  const [j, wx] = await Promise.all([overpass(q, 7*86400000, true).catch(() => null),
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${o[0].toFixed(3)}&longitude=${o[1].toFixed(3)}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=auto`).then(r => r.json()).catch(() => null)]);
+  if (!j){ out.innerHTML = '<div class="muted">Le serveur des lieux ne répond pas (réseau faible ou serveur occupé). Réessaie dans une minute.</div>'; return; }
+  const seen = new Set(), spots = [];
+  (j.elements || []).forEach(e => {
+    const t = e.tags || {}, k = balKind(t); if (!k) return;
+    if (/^(private|no)$/.test(t.access || '')) return;
+    if (e.bounds && (e.bounds.maxlat - e.bounds.minlat > 0.12 || e.bounds.maxlon - e.bounds.minlon > 0.18)) return;   // trop grand (golfe, grande île)
+    const p = e.lat != null ? [e.lat, e.lon] : e.center ? [e.center.lat, e.center.lon] : null; if (!p) return;
+    const d = distNM(o, p); if (d > R || d < 0.15) return;
+    const name = t.name || (k === 'mouillage' ? 'Zone de mouillage' : null); if (!name) return;
+    const key = k + name.toLowerCase(); if (seen.has(key)) return; seen.add(key);
+    let sc = BAL_K[k][2] + (t.wikipedia || t.wikidata ? 2 : 0) + (/sand|fine_gravel/.test(t.surface || '') ? 0.5 : 0) - d/R*1.5;
+    spots.push({ p, name, k, d, sc, t });
+  });
+  if (!spots.length){ out.innerHTML = `<div class="muted">Aucune plage, crique, île ou mouillage répertorié à moins de ${n0(R)} milles. Déplace la carte vers la côte ou un lac, ou choisis plus de temps.</div>`; return; }
+  spots.sort((a, b) => b.sc - a.sc);
+  const top = spots.slice(0, 12), maxStops = H <= 1.5 ? 1 : H <= 4 ? 3 : 4, its = [], sigs = new Set();
+  const loopLen = st => { let L0 = 0, a = o; st.forEach(x => { L0 += distNM(a, x.p); a = x.p; }); return (L0 + distNM(a, o))*1.25; };
+  for (const seed of top){
+    if (its.length >= 3) break;
+    let st = [seed]; if (loopLen(st) > budget) continue;
+    while (st.length < maxStops){
+      const last = st[st.length - 1];
+      const cand = top.filter(x => !st.includes(x)).map(x => ({ x, v:x.sc - distNM(last.p, x.p)/Math.max(1, R)*2 })).sort((a, b) => b.v - a.v).map(c => c.x).find(x => loopLen(st.concat(x)) <= budget);
+      if (!cand) break; st.push(cand);
+    }
+    // ordre de visite : le plus proche d'abord, puis de proche en proche
+    const ord = [], rest = st.slice(); let a = o; while (rest.length){ rest.sort((u, v) => distNM(a, u.p) - distNM(a, v.p)); const nx = rest.shift(); ord.push(nx); a = nx.p; }
+    const sig = ord.map(x => x.name).sort().join('|'); if (sigs.has(sig)) continue; sigs.add(sig);
+    its.push({ stops:ord, nm:loopLen(ord) });
+  }
+  balIts = its;
+  const A = wx && wx.current, th = TH();
+  const vl = !A ? null : (A.wind_gusts_10m >= th.g || A.wind_speed_10m >= th.w) ? 2 : (A.wind_gusts_10m >= th.g*0.75 || A.wind_speed_10m >= th.w*0.75) ? 1 : 0;
+  const wTxt = !A ? '<div class="muted">Météo indisponible : vérifie-la avant de partir (onglet Météo).</div>' : `<div class="balv v${vl}">${vl === 2 ? '🔴 Vent trop fort pour ton bateau maintenant' : vl === 1 ? '🟠 Vent soutenu : choisis une balade courte et abritée' : '🟢 Vent maniable maintenant'} : ${n0(A.wind_speed_10m)} nd de ${card(A.wind_direction_10m)}, rafales ${n0(A.wind_gusts_10m)} nd.<br>Les coins tournés vers le ${card(A.wind_direction_10m)} prennent le vent et les vagues : préfère ceux tournés vers le ${card((A.wind_direction_10m + 180) % 360)} (à l'abri).</div>`;
+  const hm = h => h < 1 ? Math.round(h*60) + ' min' : Math.floor(h) + ' h ' + String(Math.round((h % 1)*60)).padStart(2, '0');
+  out.innerHTML = wTxt + its.map((it, i) => `<div class="balc"><h4>${['Balade', 'Autre idée', 'Encore une'][i]} : ${it.stops.map(x => esc(x.name)).join(' → ')}</h4>
+    <div class="chips"><span>≈ ${n1(it.nm)} milles</span><span>≈ ${hm(it.nm/spd)} de navigation à ${n0(spd)} nd</span><span>${it.stops.length} arrêt${it.stops.length > 1 ? 's' : ''}</span></div>
+    <ol>${it.stops.map(x => `<li>${BAL_K[x.k][0]} <b>${esc(x.name)}</b> <small>${BAL_K[x.k][1]} · ${fmtD(distNM(o, x.p))} de ton point de départ${x.t.wikipedia ? ' · connu (Wikipédia)' : ''}</small></li>`).join('')}</ol>
+    <div class="row"><button class="btn" data-balv="${i}">Voir sur la carte</button><button class="btn primary" data-balu="${i}">Faire cette balade</button></div></div>`).join('')
+    + `<div class="muted" style="font-size:12px">Idées tirées d'OpenStreetMap. Distances calculées avec 25 % de détours. Vérifie sur place l'accès, la profondeur, les zones de baignade (vitesse réduite près des plages) et l'interdiction éventuelle de mouiller.</div>`;
+}
+function balShow(it){
+  balLayer.clearLayers(); const pts = [balOrigin].concat(it.stops.map(x => x.p), [balOrigin]);
+  L.polyline(pts, { color:'#f2b134', weight:3, dashArray:'8 7', opacity:.9, interactive:false }).addTo(balLayer);
+  it.stops.forEach((x, i) => L.marker(x.p, { icon:pin((i + 1) + '. ' + x.name, '#f2b134') }).addTo(balLayer));
+  follow = false; $('followBtn').classList.remove('active'); map.fitBounds(L.latLngBounds(pts), { padding:[50, 50] });
+}
+$('balGo').addEventListener('click', balades);
+$('balOut').addEventListener('click', async e => {
+  const v = e.target.closest('[data-balv]'), u = e.target.closest('[data-balu]');
+  if (v){ balShow(balIts[+v.dataset.balv]); $('sheet').classList.add('collapsed'); return; }
+  if (!u) return;
+  const it = balIts[+u.dataset.balu], pts = [balOrigin].concat(it.stops.map(x => x.p), [balOrigin]);
+  let path = [pts[0]], cut = 0;
+  if (inGridZone(pts[0], pts[1])){
+    for (let i = 1; i < pts.length; i++){
+      u.textContent = `Calcul du passage ${i}/${pts.length - 1}…`;
+      const r = await seaRoute(pts[i-1], pts[i]).catch(() => ({}));
+      if (Array.isArray(r.path)) path = path.concat(r.path); else { path.push(pts[i]); cut++; }
+    }
+  } else { path = pts; cut = pts.length - 1; }
+  route = path; saveRoute(); drawRoute(); balLayer.clearLayers(); balShow(it); balLayer.clearLayers();
+  it.stops.forEach((x, i) => L.marker(x.p, { icon:pin((i + 1) + '. ' + x.name, '#f2b134') }).addTo(balLayer));
+  u.textContent = 'Balade chargée ✓';
+  hint(cut ? `Balade chargée comme route. ${cut} tronçon(s) en ligne droite (pas de profondeurs ici) : vérifie qu'ils ne coupent pas la terre. Puis « Vérifier ma sortie ».` : 'Balade chargée comme route, en évitant la terre et les hauts-fonds. Touche « Vérifier ma sortie » avant de partir, ou « Démarrer la navigation ».', 9000);
+});
+
+// ---------- SIGNALEMENTS DE LA COMMUNAUTÉ : notes OpenStreetMap (publiques, gratuites, sans compte) ----------
+// Lire : les notes « nautiques » autour de toi. Écrire : un signalement durable devient une note que les cartographes corrigent.
+const REP_SHARE_OK = new Set(['rock', 'sand', 'wreck', 'buoy', 'lowbr', 'depth', 'port', 'anchor', 'works']);
+function repShareUI(){ const ok = REP_SHARE_OK.has($('repType').value); $('repShare').disabled = !ok; if (!ok) $('repShare').checked = false;
+  $('repShareTxt').textContent = ok ? 'Public et anonyme : n\'écris rien de personnel. Les cartographes d\'OpenStreetMap vérifient et corrigent la carte.' : 'Ce type d\'info est temporaire (débris, filets, courant) : il reste sur ton téléphone. Partager des alertes temporaires demanderait un serveur dédié.'; }
+$('repType').addEventListener('change', repShareUI); setTimeout(repShareUI, 0);
+async function osmNoteSend(r, T){
+  const txt = `[Ma Carte Marine] ${T.l}${r.v != null ? ' : ' + r.v + ' m' : ''}${r.note ? ' - ' + r.note : ''}. Signalé par un plaisancier ${gps && distNM(gps.p, r.p) < 0.02 ? 'sur place (GPS ±' + Math.round(gps.acc) + ' m)' : 'depuis la carte'}. #CarteMarine`;
+  if (!confirm('Partager ce signalement sur OpenStreetMap ?\\n\\n« ' + txt + ' »\\n\\nIl sera public (sans ton nom) et visible par tous.')) return;
+  try{
+    const res = await fetch('https://api.openstreetmap.org/api/0.6/notes.json', { method:'POST', body:new URLSearchParams({ lat:r.p[0].toFixed(6), lon:r.p[1].toFixed(6), text:txt }) });
+    if (!res.ok) throw new Error(res.status);
+    const j = await res.json(); r.osm = j && j.properties && j.properties.id; saveReports();
+    hint('Partagé avec la communauté ✓ Les autres plaisanciers le voient, et les cartographes vont corriger la carte.', 7000); notesKey = ''; loadNotes();
+  }catch(e){
+    hint('Envoi impossible (réseau ?). Ouverture d\'OpenStreetMap pour le signaler à la main…', 6000);
+    window.open(`https://www.openstreetmap.org/note/new#map=18/${r.p[0].toFixed(5)}/${r.p[1].toFixed(5)}`, '_blank', 'noopener');
+  }
+}
+let notesKey = '', notesT = null;
+const NAUT_RX = /bateau|navig|port\b|ponton|quai|écluse|ecluse|pont|bouée|bouee|balise|roche|rocher|haut[- ]fond|profondeur|mouillage|cale|chenal|épave|epave|marina|plaisance|phare|amarr|kayak|voile|carte ?marine|#cartemarine|boat|harbou?r|buoy|beacon|wreck|slipway|pier|jetty|anchor|lock|depth|shoal|marina|hafen|schleuse|boje|porto|boa|faro|puerto|muelle/i;
+async function loadNotes(){
+  if (!map.hasLayer(notesLayer) || map.getZoom() < 10){ notesLayer.clearLayers(); notesKey = ''; return; }
+  const b = map.getBounds(); if ((b.getNorth() - b.getSouth())*(b.getEast() - b.getWest()) > 20) return;
+  const k = viewKey(13); if (k === notesKey) return; notesKey = k;
+  try{
+    const j = await fetch(`https://api.openstreetmap.org/api/0.6/notes.json?bbox=${b.getWest().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getNorth().toFixed(4)}&limit=200&closed=14`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    notesLayer.clearLayers();
+    (j.features || []).forEach(f => {
+      const pr = f.properties || {}, cm = pr.comments || [], first = cm[0] ? cm[0].text || '' : '';
+      if (!NAUT_RX.test(cm.map(c => c.text || '').join(' '))) return;
+      const ours = /#CarteMarine|\[Ma Carte Marine\]/i.test(first), open = pr.status === 'open';
+      const p = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
+      L.marker(p, { icon:pin((open ? '💬 ' : '✓ ') + (ours ? 'plaisancier' : 'signalement'), open ? (ours ? '#ffb74d' : '#ffe082') : '#90a4ae') })
+        .bindPopup(() => `<b>${ours ? 'Signalement d\'un plaisancier' : 'Signalement de la communauté'}</b> <span class="muted">(OpenStreetMap)</span><br>${esc(first.replace(/\[Ma Carte Marine\]\s*/, '').slice(0, 400))}<br><span class="muted">${pr.date_created ? new Date(pr.date_created.replace(' UTC', 'Z').replace(' ', 'T')).toLocaleDateString('fr-FR') : ''} · ${open ? 'pas encore traité' : 'résolu par les cartographes'}${cm.length > 1 ? ' · ' + (cm.length - 1) + ' réponse(s)' : ''}</span><br><a href="https://www.openstreetmap.org/note/${pr.id}" target="_blank" rel="noopener">Voir, confirmer ou commenter</a>`).addTo(notesLayer);
+    });
+  }catch(e){ notesKey = ''; }
+}
+map.on('moveend', () => { clearTimeout(notesT); notesT = setTimeout(loadNotes, 1500); });
 async function identifyAt(ll){
   const p = [ll.lat, ll.lng], z = map.getZoom(), mpp = 156543.03*Math.cos(toRad(p[0]))/Math.pow(2, z), R = Math.max(15, Math.min(600, 34*mpp));
   const base = `<span class="muted">${fmtPos(p)}${gps ? ` · ${fmtD(distNM(gps.p, p))} au ${pad3(bearing(gps.p, p))}° du bateau` : ''}</span>`;
