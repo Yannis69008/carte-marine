@@ -188,6 +188,7 @@ details.lesson ol.lsteps b{color:var(--accent);font-weight:600}
 .bfD{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;font-size:11px;font-weight:700;color:#0b1a24;margin-right:6px}
 .srow .sico{font-size:18px;margin-right:8px}
 .srow{display:flex;align-items:center;text-align:left}
+.lpm{display:flex;flex-direction:column;gap:6px;margin-top:8px}.lpm .btn{text-align:left;margin:0}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -382,6 +383,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">⇄</span><span>Touche le cadre <b>Vitesse</b> pour passer de nœuds à km/h. Appui long sur un cadre : <b>grand compteur</b></span></div>
     <div class="lgRow"><span class="lgI">▲↻</span><span><b>Pivoter la carte</b> : deux doigts qui tournent (Maj + glisser sur Mac). Touche le bouton pour « cap en haut » ou remettre le nord en haut</span></div>
     <div class="lgRow"><span class="lgI">✛</span><span><b>Croix au centre</b> : quand tu zoomes quelque part, vent, vagues et fond à cet endroit. <a href="#" id="ctrOn">Réafficher</a> si tu l'as masquée</span></div>
+    <div class="lgRow"><span class="lgI">✋</span><span><b>Appui long</b> sur la carte (clic droit sur Mac) : y aller, ajouter à la route, météo, infos ou signaler à cet endroit</span></div>
     <div class="lgRow"><span class="lgI">👆</span><span>Pose ou fais glisser ton doigt sur un bouton pour voir son nom</span></div>
     <div class="lgRow"><span class="lgI">🏞️</span><span><b>Lacs</b> : touche un lac puis « Puis-je naviguer ici ? » (règles, mises à l'eau, ports, vent, profondeur)</span></div>
     <div class="lgRow"><span class="lgI">▶</span><span><b>Mode démo</b> : un bateau virtuel avance pour essayer l'appli sans être sur l'eau</span></div>
@@ -785,7 +787,7 @@ const RISK_TXT = ['Conditions maniables','Prudence','Dangereux pour une petite u
 
 // ---------- carte ----------
 const last = store.get('view', { c:[43.25, 5.3], z:10 });
-const map = L.map('map', { zoomControl:false, attributionControl:true, preferCanvas:true, zoomSnap:0.5, wheelPxPerZoomLevel:90, bounceAtZoomLimits:false }).setView(last.c, last.z);
+const map = L.map('map', { tapHold:true, zoomControl:false, attributionControl:true, preferCanvas:true, zoomSnap:0.5, wheelPxPerZoomLevel:90, bounceAtZoomLimits:false }).setView(last.c, last.z);
 ['gesturestart','gesturechange','gestureend'].forEach(ev => document.addEventListener(ev, e => { if (!e.target.closest || !e.target.closest('#map')) e.preventDefault(); }, { passive:false }));
 // Ordinateur (souris) : les images de carte se chargent pendant qu'on fait glisser et une marge autour est préparée.
 // Téléphone : chargement à l'arrêt du geste (plus économe), avec une petite marge.
@@ -1036,6 +1038,29 @@ map.on('click', e => {
   else {
     identifyAt(e.latlng);
   }
+});
+
+
+// ---------- APPUI LONG SUR LA CARTE (ou clic droit) : « Y aller », météo, route, signaler ----------
+let lpPt = null, repPoint = null;
+map.on('contextmenu', e => {
+  if (tool) return;
+  const p = [e.latlng.lat, e.latlng.lng]; lpPt = p;
+  try{ navigator.vibrate && navigator.vibrate(25); }catch(err){}
+  const from = gps ? gps.p : null;
+  L.popup({ maxWidth:280 }).setLatLng(e.latlng).setContent(`<b>Ce point</b><br><span class="muted">${fmtPos(p)}${from ? ` · ${fmtD(distNM(from, p))} au ${pad3(bearing(from, p))}°` : ''}</span>
+    <div class="lpm"><button class="btn primary" data-lp="go">🧭 Y aller</button><button class="btn" data-lp="route">➕ Ajouter à ma route</button><button class="btn" data-lp="wx">🌤️ Météo ici</button><button class="btn" data-lp="info">🔎 Qu'y a-t-il ici ?</button><button class="btn" data-lp="rep">⚑ Signaler ici</button></div>`).openOn(map);
+});
+map.getContainer().addEventListener('click', e => {
+  const g = e.target.closest('[data-goto],[data-gowx]');
+  if (g){ e.stopPropagation(); const v = (g.dataset.goto || g.dataset.gowx).split(',').map(Number); map.closePopup(); if (g.dataset.goto) goTo(v); else { document.querySelector('.tab[data-t="meteo"]').click(); loadWeather(v, 'point choisi'); } return; }
+  const b = e.target.closest('[data-lp]'); if (!b || !lpPt) return; e.stopPropagation(); const p = lpPt; map.closePopup();
+  const a = b.dataset.lp;
+  if (a === 'go') goTo(p);
+  else if (a === 'route'){ route.push(p); saveRoute(); drawRoute(); hint(`Point ajouté à ta route (${route.length} point${route.length > 1 ? 's' : ''}). Onglet Route pour la vérifier ou la suivre.`, 4000); }
+  else if (a === 'wx'){ document.querySelector('.tab[data-t="meteo"]').click(); loadWeather(p, 'point choisi'); }
+  else if (a === 'info') identifyAt(L.latLng(p[0], p[1]));
+  else if (a === 'rep'){ repPoint = p; document.querySelector('.tab[data-t="secu"]').click(); $('repHere').textContent = 'Signaler au point choisi'; $('repType').focus(); hint('Choisis le type de signalement puis touche « Signaler au point choisi ».', 5000); }
 });
 
 // ---------- GPS ----------
@@ -1550,7 +1575,7 @@ map.on('popupopen', e => {
   if (b) b.addEventListener('click', () => { reports = reports.filter(r => r.id !== b.dataset.rdel); saveReports(); drawReports(); map.closePopup(); });
 });
 $('dangerTool').addEventListener('click', () => setTool('danger', 'Touche la carte à l\'endroit à signaler'));
-$('repHere').addEventListener('click', () => { if (!gps){ hint('Active le GPS pour signaler à ta position, ou utilise « Placer sur la carte ».', 5000); return; } addReport(gps.p.slice()); });
+$('repHere').addEventListener('click', () => { if (repPoint){ const q = repPoint; repPoint = null; $('repHere').textContent = 'Signaler à ma position'; addReport(q); return; } if (!gps){ hint('Active le GPS pour signaler à ta position, ou utilise « Placer sur la carte ».', 5000); return; } addReport(gps.p.slice()); });
 $('repFab').addEventListener('click', () => { document.querySelector('.tab[data-t="secu"]').click(); $('repType').focus(); });
 $('dangerDist').addEventListener('input', drawReports);
 $('repExport').addEventListener('click', () => {
@@ -1817,7 +1842,7 @@ function nearby(c, rNM){
 function obsPopup(o){
   return `<b>${KIND[o.kind]}</b>${o.n ? ' ' + esc(o.n) : ''}<br>` +
     (o.d != null ? `sonde ${n1(o.d)} m<br>` : '') + (o.h != null ? `hauteur libre ${hTxt(o)}<br>` : '') + (o.c ? `${esc(o.c)}<br>` : '') +
-    (o.x ? `<span class="muted">${esc(o.x)}</span><br>` : '') + `<span class="muted">source ${o.src} · ${fmtPos(o.p)}</span>`;
+    (o.x ? `<span class="muted">${esc(o.x)}</span><br>` : '') + `<span class="muted">source ${o.src} · ${fmtPos(o.p)}</span>` + (/^(marina|fuel|lock|slip)/.test(o.kind) ? `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${o.p[0].toFixed(5) + ',' + o.p[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${o.p[0].toFixed(5) + ',' + o.p[1].toFixed(5)}">Météo</button></div>` : '');
 }
 function lowBridge(o){ return (o.kind === 'bridge' || o.kind === 'cable') && o.h != null && o.h < cfg.air + 0.5; }
 function renderObs(label){
@@ -4222,7 +4247,7 @@ async function harbourNear(p, R){
     const out = [];
     txt.replace(/(\r|\n)/g, '').split(/putHarbourMarker\(/).slice(1).forEach(part => {
       const m = part.match(/^\s*(-?\d+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*'([^']*)'\s*,\s*'([^']*)'/); if (!m) return;
-      out.push({ name:m[4], link:m[5], d:distNM(p, [+m[3], +m[2]])*1852 });
+      out.push({ name:m[4], link:m[5], c:[+m[3], +m[2]], d:distNM(p, [+m[3], +m[2]])*1852 });
     });
     return out.sort((a, b) => a.d - b.d);
   }catch(e){ return null; }
@@ -4615,19 +4640,20 @@ async function identifyAt(ll){
   const [j, hb] = await Promise.all([overpass(`[out:json][timeout:15];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];);out center tags 25;`, 3*86400000, true).catch(() => null), harbourNear(p, R)]);
   if (!pop.isOpen()) return;
   const hbItems = (hb || []).filter(h => h.d < Math.max(R*1.6, 300)).slice(0, 2);
-  const els = (j && j.elements || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; })
+  const els = (j && j.elements || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, c, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; })
     .filter(Boolean).filter(x => !['fairway', 'restricted_area', 'cable_submarine', 'pipeline_submarine'].includes(x.t['seamark:type']) || x.d < R/2)
     .sort((a, b) => (b.pt - a.pt) || (a.d - b.d));
   const seen = new Set(), list = els.filter(x => { const key = (x.t['seamark:type'] || x.t.leisure || '') + (x.t['seamark:name'] || x.t.name || ''); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 3);
   list.forEach(x => { if ((x.t['seamark:type'] === 'harbour' || x.t.leisure === 'marina' || x.t.harbour) && !(x.t['seamark:name'] || x.t.name) && hbItems[0]) x.t = Object.assign({}, x.t, { name:hbItems[0].name }); });
   const names = list.map(x => String(x.t['seamark:name'] || x.t.name || '').toLowerCase());
-  const extra = hbItems.filter(h => !names.includes(h.name.toLowerCase())).map(h => `<b>${esc(h.name)}</b><br>Port ou mouillage (base OpenSeaMap)${/^https?:\/\//.test(h.link) ? `<br><a href="${esc(h.link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : ''}`);
+  const extra = hbItems.filter(h => !names.includes(h.name.toLowerCase())).map(h => `<b>${esc(h.name)}</b><br>Port ou mouillage (base OpenSeaMap)${/^https?:\/\//.test(h.link) ? `<br><a href="${esc(h.link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : ''}` + `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${h.c[0].toFixed(5) + ',' + h.c[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${h.c[0].toFixed(5) + ',' + h.c[1].toFixed(5)}">Météo</button></div>`);
   const fail = j === null && hb === null ? '<span class="muted">Le serveur de repères ne répond pas (réseau faible ou serveur occupé). Touche à nouveau dans quelques secondes.</span><br>' : '';
   const none = !list.length && !extra.length && !local && !fail ? '<span class="muted">Aucune balise, aucun feu ni port répertorié à cet endroit. Touche exactement sur le symbole, en zoomant si besoin.</span><br>' : '';
   const lk = await lakeP; if (!pop.isOpen()) return;
   let lakeHtml = '';
   if (lk){ lastLake = lk; lakeHtml = `<b>${esc(lk.tags.name || 'Plan d\'eau')}</b><br><span class="muted">${lk.tags.water === 'reservoir' ? 'Lac de retenue' : lk.tags.water === 'lagoon' ? 'Lagune' : 'Lac'}${lk.km >= 1 ? ' · ≈ ' + n0(lk.km) + ' km' : ''}</span><br><button class="btn primary" data-lakeopen="1" style="margin-top:6px">Puis-je naviguer ici ?</button><hr>`; }
-  pop.setContent(lakeHtml + [].concat(list.map(x => seamarkHtml(x.t)), extra).join('<hr>') + ((list.length || extra.length) ? '<hr>' : '') + fail + (lk ? '' : none) + local + base);
+  const isPort = t => t['seamark:type'] === 'harbour' || t['seamark:type'] === 'small_craft_facility' || t.leisure === 'marina' || t.harbour;
+  pop.setContent(lakeHtml + [].concat(list.map(x => seamarkHtml(x.t) + (isPort(x.t) ? `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${x.c[0].toFixed(5) + ',' + x.c[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${x.c[0].toFixed(5) + ',' + x.c[1].toFixed(5)}">Météo</button></div>` : '')), extra).join('<hr>') + ((list.length || extra.length) ? '<hr>' : '') + fail + (lk ? '' : none) + local + base);
 }
 
 // ---------- DONNÉES OPENSEAMAP EN PLUS + LOISIRS ----------
@@ -4647,7 +4673,7 @@ async function loadHarbours(){
       const m = part.match(/^\s*(-?\d+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*(-?\d+)/); if (!m) return;
       const lat = +m[3], lon = +m[2], name = m[4], link = m[5];
       const mk = z >= 12 ? L.marker([lat, lon], { icon:pin(name.length > 24 ? name.slice(0, 23) + '…' : name, '#3fbf7f') }) : L.circleMarker([lat, lon], { bubblingMouseEvents:false, radius:5, color:'#fff', weight:1.5, fillColor:'#3fbf7f', fillOpacity:1 });
-      mk.bindPopup(() => `<b>${esc(name)}</b><br>Port ou mouillage (base OpenSeaMap)` + (/^https?:\/\//.test(link) ? `<br><a href="${esc(link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : '') + `<br><span class="muted">Touche la carte à côté pour les services, places et VHF.</span>`).addTo(harbLayer);
+      mk.bindPopup(() => `<b>${esc(name)}</b><br>Port ou mouillage (base OpenSeaMap)` + (/^https?:\/\//.test(link) ? `<br><a href="${esc(link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : '') + `<br><span class="muted">Touche la carte à côté pour les services, places et VHF.</span>` + `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${lat.toFixed(5) + ',' + lon.toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${lat.toFixed(5) + ',' + lon.toFixed(5)}">Météo</button></div>`).addTo(harbLayer);
     });
   }catch(e){ harbKey = ''; }
 }
@@ -4675,7 +4701,7 @@ async function loadFun(){
     const name = t.name || '', label = name && map.getZoom() >= 14 ? (name.length > 20 ? name.slice(0, 19) + '…' : name) : f[2];
     const info = [t.description, t.opening_hours ? 'Horaires : ' + t.opening_hours : '', t.phone || t['contact:phone'] ? 'Tél. ' + (t.phone || t['contact:phone']) : '', t.cuisine ? 'Cuisine : ' + t.cuisine.replace(/;/g, ', ') : '', t.surface ? 'Sol : ' + t.surface : ''].filter(Boolean);
     const web = t.website || t['contact:website'];
-    L.marker(p, { icon:pin(label, f[3]) }).bindPopup(() => `<b>${esc(name || f[2])}</b><br>${esc(f[2])}${info.length ? '<br>' + info.map(esc).join('<br>') : ''}${web && /^https?:\/\//.test(web) ? `<br><a href="${esc(web)}" target="_blank" rel="noopener">Site</a>` : ''}`).addTo(funLayer);
+    L.marker(p, { icon:pin(label, f[3]) }).bindPopup(() => `<b>${esc(name || f[2])}</b><br>${esc(f[2])}${info.length ? '<br>' + info.map(esc).join('<br>') : ''}${web && /^https?:\/\//.test(web) ? `<br><a href="${esc(web)}" target="_blank" rel="noopener">Site</a>` : ''}` + `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${p[0].toFixed(5) + ',' + p[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${p[0].toFixed(5) + ',' + p[1].toFixed(5)}">Météo</button></div>`).addTo(funLayer);
   });
 }
 // Curiosités : articles Wikipédia géolocalisés (même source que la carte OpenSeaMap)
