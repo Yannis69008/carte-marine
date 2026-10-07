@@ -1,5 +1,5 @@
 // Carte Marine : fonctionnement hors ligne (appli + cartes téléchargées)
-const SHELL = 'cm-shell-v26', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
+const SHELL = 'cm-shell-v27', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
 const LIBS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
@@ -14,7 +14,7 @@ const LIB_RX = /(cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.goo
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const s = await caches.open(SHELL);
-    await Promise.all(['./', './index.html'].map(u => s.add(u).catch(() => {})));
+    await Promise.all(['./', './index.html', './tide-engine.js', './marees-europe.json'].map(u => s.add(u).catch(() => {})));
     const l = await caches.open(LIB);
     await Promise.all(LIBS.map(u => fetch(u, { mode:'no-cors' }).then(r => l.put(u, r)).catch(() => {})));
     self.skipWaiting();

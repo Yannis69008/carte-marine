@@ -437,7 +437,7 @@ body.nav #toolHint{display:none}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const LIBURL = { shp:'https://unpkg.com/shpjs@4.0.4/dist/shp.min.js', JSZip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', GeoTIFF:'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js' };
+const LIBURL = { shp:'https://unpkg.com/shpjs@4.0.4/dist/shp.min.js', JSZip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', GeoTIFF:'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js', TidePred:'tide-engine.js' };
 const libP = {};
 function needLib(name){
   if (window[name]) return Promise.resolve(window[name]);
@@ -543,7 +543,7 @@ const ArcTiles = L.TileLayer.extend({ getTileUrl(c){ const sz = 40075016.6855784
 const arcgisTiles = (url, attr) => new ArcTiles(url, { maxZoom:19, attribution:attr });
 const windLayer = L.layerGroup();
 const repLayer = L.layerGroup();
-const funLayer = L.layerGroup(), harbLayer = L.layerGroup(), wikiLayer = L.layerGroup();
+const tideStLayer = L.layerGroup(), funLayer = L.layerGroup(), harbLayer = L.layerGroup(), wikiLayer = L.layerGroup();
 const obsLayer = L.layerGroup();
 const zoneLayer = L.layerGroup();
 const OVERLAYS = {
@@ -552,6 +552,7 @@ const OVERLAYS = {
   contours:{ name:'Lignes de sonde / isobathes (EMODnet, plus lent)', on:false, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:contours', format:'image/png', transparent:true, attribution:'© EMODnet Bathymetry' }) },
   wind:    { name:'Flèches de vent sur la carte', on:true, layer: windLayer },
   rep:     { name:'Mes signalements', on:true, layer: repLayer },
+  tideSt:  { name:'Marégraphes : marée de chaque port (hors ligne)', on:false, layer: tideStLayer },
   harb:    { name:'Ports et fiches détaillées (base OpenSeaMap)', on:true, layer: harbLayer },
   fun:     { name:'Loisirs : plages, plongée, surf, kite, location, pêche… (OpenStreetMap)', on:false, layer: funLayer },
   sport:   { name:'Sports nautiques (couche OpenSeaMap)', on:false, layer: L.tileLayer('https://tiles.openseamap.org/sport/{z}/{x}/{y}.png', { maxZoom:19, maxNativeZoom:18, attribution:'© OpenSeaMap' }) },
@@ -610,6 +611,7 @@ $('ovList').addEventListener('change', e => {
   ovState[k] = e.target.checked; store.set('ov', ovState);
   if (k === 'wind' && e.target.checked) loadWindGrid();
   if (k === 'obs') drawObsInView();
+  if (k === 'tideSt' && e.target.checked) loadTideDb().then(drawTideSt);
   if (['fun', 'harb', 'wiki'].includes(k) && e.target.checked){ funKey = harbKey = wikiKey = ''; loadExtras(); }
 });
 
@@ -715,11 +717,13 @@ async function loadWeather(p, label){
     ]);
     if (!w || !w.hourly) throw new Error(w && w.reason || 'réponse vide');
     if (m && m.hourly && m.minutely_15) m.hourly._m15 = m.minutely_15;
+    await tideDbReady();
     renderWeather(p, label, w, (m && m.hourly) ? m : null);
     idbSet('wx', { p, label, w, m:(m && m.hourly) ? m : null, t:Date.now() });
   }catch(e){
     const c = await idbGet('wx');
     if (c && c.w && Date.now() - c.t < 7*86400000){
+      await tideDbReady();
       renderWeather(c.p, c.label, c.w, c.m);
       $('wxOut').insertAdjacentHTML('afterbegin', `<div class="verdict v1"><div><b>Hors ligne</b><div>Prévisions téléchargées le ${new Date(c.t).toLocaleString('fr-FR', { weekday:'short', hour:'2-digit', minute:'2-digit' })} pour ${esc(c.label)}. Elles vieillissent : sois prudent.</div></div></div>`);
     } else $('wxOut').innerHTML = `<div class="verdict v1"><div>Météo indisponible (${e.message}). Au large le réseau se perd souvent : ouvre l'appli avant de partir pour garder les prévisions sur 7 jours.</div></div>`;
@@ -768,7 +772,13 @@ function renderWeather(p, label, w, m){
   const nH = Math.min(48, H.time.length - i0), tt = TH();
   html += `<h3>Vent sur 48 h (nœuds)</h3>` + wxChart(H.time, i0, nH, [{ name:'rafales', v:H.wind_gusts_10m, c:'#ef8a5a', area:true, w:1.5 }, { name:'vent moyen', v:H.wind_speed_10m, c:'#7fd3ff', lim:tt.w }], 'nd');
   if (m && M.wave_height) html += `<h3>Vagues sur 48 h (mètres)</h3>` + wxChart(H.time, i0, nH, [{ name:'vagues', v:M.wave_height, c:'#4fc3f7', area:true, lim:tt.h }, { name:'houle', v:M.swell_wave_height, c:'#b39ddb', dash:true }], 'm');
-  if (m && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)){ const ts = tideSeries(M, p); lastTide = Object.assign({ p, raw:tideSeries(M) }, ts); html += `<h3>Marée</h3><div id="tideBox">${tideNow(ts.T, ts.L, ts.cal)}${tideTable(ts.T, ts.L, ts.q, ts.cal)}</div>` + tideCalUI(ts.cal) + (ts.cal ? '' : tideChart(H.time, M.sea_level_height_msl, i0)); }
+  const hasModel = m && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null), stT = thAt(p);
+  tidePress = H.pressure_msl && H.pressure_msl[i0] != null ? { v:H.pressure_msl[i0], t:Date.now() } : null;
+  if (hasModel || stT){ const ts = tideSeries(hasModel ? M : null, p, stT); lastTide = Object.assign({ p, raw:hasModel ? tideSeries(M) : null }, ts);
+    html += `<h3>Marée</h3><div id="tideBox">${tideNow(ts.T, ts.L, ts.cal)}${tideTable(ts.T, ts.L, ts.q, ts.cal, p)}${surgeTxt(ts.cal)}</div>`;
+    if (ts.cal && ts.cal.auto){ const hT = [], hL = []; for (let k = 0; k <= 48; k++){ const t = Math.floor(now/3600)*3600 + k*3600; hT.push(t); hL.push(thLevel(ts.cal.st, t)); } html += tideChart(hT, hL, 0, true); }
+    else if (!ts.cal) html += tideChart(H.time, M.sea_level_height_msl, i0);
+    html += tideCalUI(ts.cal); }
   else html += '<div id="tideBox"></div>';
   setTimeout(() => noaaTides(p), 0);
   // résumé 7 jours
@@ -798,7 +808,7 @@ function pressTrend(a, i){
   if (d >= 1) return `en hausse +${n1(d)} hPa/3h`;
   return 'stable';
 }
-function tideChart(T, L0, i0){
+function tideChart(T, L0, i0, harm){
   const n = Math.min(48, T.length - i0), xs = [], ys = [];
   for (let i = 0; i < n; i++){ const v = L0[i0+i]; if (v != null){ xs.push(i); ys.push(v); } }
   if (ys.length < 6) return '<div class="muted">Pas de donnée de marée ici.</div>';
@@ -820,7 +830,7 @@ function tideChart(T, L0, i0){
     <path d="${d} L${X(xs[xs.length-1])} ${Hh-pb} L${X(xs[0])} ${Hh-pb} Z" fill="var(--sea)" opacity=".35"/>
     <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>${marks}
     <text x="${pl}" y="${Hh-4}">maintenant</text><text x="${W-pr}" y="${Hh-4}" text-anchor="end">+48 h (m)</text></svg></div>
-    <div class="muted">PM = pleine mer, BM = basse mer. Valeurs de modèle, approximatives près des côtes : vérifie l'annuaire des marées du SHOM pour un passage à faible profondeur.</div>`;
+    <div class="muted">PM = pleine mer, BM = basse mer. ${harm ? 'Hauteurs au-dessus du zéro des cartes, calculées comme l\'annuaire (constantes harmoniques du marégraphe).' : 'Valeurs de modèle, approximatives près des côtes : vérifie l\'annuaire des marées du SHOM pour un passage à faible profondeur.'}</div>`;
 }
 $('wxHere').addEventListener('click', () => {
   if (gps) loadWeather(gps.p, 'position du bateau');
@@ -2316,11 +2326,22 @@ async function loadBrest(){
     idbSet('brest', { t:Date.now(), pm:brestPM });
   }catch(e){ if (c) brestPM = c.pm; }
 }
-function coefAt(t){ if (!brestPM || !brestPM.length) return null; let b = brestPM[0]; brestPM.forEach(x => { if (Math.abs(x.t - t) < Math.abs(b.t - t)) b = x; }); return Math.abs(b.t - t) < 16*3600 ? b.c : null; }
-function tideSeries(M, p){
+function coefAt(t){
+  const bh = thBrest();
+  if (bh){ const ex = bh.semi.getExtremesPrediction({ start:new Date((t - 9*3600)*1000), end:new Date((t + 9*3600)*1000) }).filter(e => e.high);
+    let best = null; ex.forEach(e => { if (!best || Math.abs(e.time/1000 - t) < Math.abs(best.time/1000 - t)) best = e; });
+    if (best) return Math.max(20, Math.min(120, Math.round(100*best.level/3.05))); }
+  if (!brestPM || !brestPM.length) return null; let b = brestPM[0]; brestPM.forEach(x => { if (Math.abs(x.t - t) < Math.abs(b.t - t)) b = x; }); return Math.abs(b.t - t) < 16*3600 ? b.c : null; }
+function tideSeries(M, p, st){
+  const cal = p && tideCalNear(p);
+  if (st && (!cal || st.d < 3 || !M)){
+    const t0 = Math.floor(Date.now()/900000)*900 - 12*3600, T = [], L = [];
+    for (let t = t0; t <= t0 + 8*86400; t += 900){ T.push(t); L.push(thLevel(st, t)); }
+    return { T, L, q:15, cal:{ auto:true, st, name:st.name } };
+  }
+  if (!M) return { T:[], L:[], q:60 };
   const q = M._m15;
   const base = (q && q.sea_level_height_msl && q.sea_level_height_msl.filter(v => v != null).length > 48) ? { T:q.time, L:smooth(q.sea_level_height_msl), q:15 } : { T:M.time, L:M.sea_level_height_msl, q:60 };
-  const cal = p && tideCalNear(p);
   if (!cal) return base;
   return { T:base.T.map(t => t + cal.dt), L:base.L.map(v => v == null ? v : cal.a*v + cal.b), q:base.q, cal };
 }
@@ -2329,6 +2350,7 @@ let lastTide = null;
 const tideCals = () => store.get('tideCal', []);
 function tideCalNear(p){ let best = null; tideCals().forEach(c => { const d = distNM(p, c.p); if (d < 8 && (!best || d < best.d)) best = Object.assign({ d }, c); }); return best; }
 function tideCalUI(cal){
+  if (cal && cal.auto) return `<div class="muted" style="margin-top:6px">Ton port a un annuaire différent ? Tu peux toujours caler la marée à la main : <button class="btn" id="tcShow">Caler sur l'annuaire</button></div><div id="tcBox" hidden>${tideCalUI(null)}</div>`;
   const now = new Date(), d = new Date(now - now.getTimezoneOffset()*60000).toISOString().slice(0, 10);
   return `<div class="pane" style="gap:8px;margin-top:6px">
     <h3>${cal ? 'Marée calée sur l\'annuaire officiel ✓' : 'Rendre la marée précise ici'}</h3>
@@ -2342,7 +2364,7 @@ function tideCalUI(cal){
 }
 function tideCalibrate(){
   const msg = t => { $('tcMsg').textContent = t; };
-  if (!lastTide || !lastTide.raw) return msg('Ouvre d\'abord la météo de ce secteur (avec réseau).');
+  if (!lastTide || !lastTide.raw) return msg('Ouvre d\'abord la météo de ce secteur (avec réseau). Le calage se fait sur le modèle Météo-France, disponible seulement en mer.');
   const day = $('tcD').value, pt = $('tcPt').value, bt = $('tcBt').value, ph = parseFloat($('tcPh').value), bh = parseFloat($('tcBh').value);
   if (!day || !pt || !bt || !isFinite(ph) || !isFinite(bh)) return msg('Remplis le jour, l\'heure et la hauteur de la pleine mer et de la basse mer.');
   if (ph <= bh) return msg('La hauteur de pleine mer doit être plus grande que celle de basse mer.');
@@ -2362,9 +2384,12 @@ function tideCalibrate(){
 }
 document.addEventListener('click', e => {
   if (e.target && e.target.id === 'tcGo') tideCalibrate();
+  if (e.target && e.target.id === 'tcShow'){ $('tcBox').hidden = false; e.target.parentNode.hidden = true; }
   if (e.target && e.target.id === 'tcDel' && lastTide){ store.set('tideCal', tideCals().filter(c => distNM(c.p, lastTide.p) > 8)); $('wxHere').click(); }
 });
 function tideHeightAt(p, t){
+  const st = thAt(p);
+  if (st && st.fr !== 'M' && !(tideCalNear(p) && st.d >= 3)){ const v = thLevel(st, t); return v == null ? null : Math.max(0, v + Math.min(0, surgeM())); }
   if (!lastTide || !lastTide.cal || distNM(p, lastTide.p) > 8) return null;
   const T = lastTide.T, L = lastTide.L;
   for (let i = 0; i < T.length-1; i++) if (t >= T[i] && t <= T[i+1] && L[i] != null && L[i+1] != null) return L[i] + (L[i+1] - L[i])*(t - T[i])/(T[i+1] - T[i]);
@@ -2381,7 +2406,7 @@ function tideNow(T, Lv, cal){
   const f = (now - prev.t)/(next.t - prev.t), hNow = prev.h + (next.h - prev.h)*(1 - Math.cos(Math.PI*f))/2;
   const hour = Math.min(6, Math.floor(f*6) + 1), twelfths = [1, 2, 3, 3, 2, 1][hour-1];
   const left = durTxt((next.t - now)*1000);
-  return `<div class="verdict v0"><div><b>Marée ${rising ? 'montante ↑' : 'descendante ↓'}</b><div>${cal ? n1(hNow) + ' m au-dessus du zéro des cartes' : (hNow >= 0 ? '+' : '') + n1(hNow) + ' m par rapport au niveau moyen'} · ${rising ? 'pleine' : 'basse'} mer dans ${left} à ${new Date(next.t*1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })} · ${hour}e heure de marée : l'eau ${rising ? 'monte' : 'baisse'} d'environ ${n0(range*twelfths/12*100)} cm pendant cette heure (règle des douzièmes)</div></div></div>`;
+  return `<div class="verdict v0"><div><b>Marée ${rising ? 'montante ↑' : 'descendante ↓'}</b><div>${zAbs(cal) ? n1(hNow) + ' m ' + zLbl(cal) : (hNow >= 0 ? '+' : '') + n1(hNow) + ' m par rapport au niveau moyen'} · ${rising ? 'pleine' : 'basse'} mer dans ${left} à ${new Date(next.t*1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })} · ${hour}e heure de marée : l'eau ${rising ? 'monte' : 'baisse'} d'environ ${n0(range*twelfths/12*100)} cm pendant cette heure (règle des douzièmes)</div></div></div>`;
 }
 let noaaStations = null;
 async function noaaTides(p){
@@ -2399,15 +2424,92 @@ async function noaaTides(p){
       <div class="tblWrap"><table><thead><tr><th>Heure</th><th>Marée</th><th>Hauteur</th></tr></thead><tbody>${pr.map(e => `<tr><td>${new Date(e.t*1000).toLocaleDateString('fr-FR', { weekday:'short' })} ${new Date(e.t*1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</td><td>${e.hi ? 'Pleine mer' : 'Basse mer'}</td><td>${n1(e.h)} m</td></tr>`).join('')}</tbody></table></div>`;
   }catch(e){}
 }
-function tideTable(T, Lv, q, cal){
+function tideTable(T, Lv, q, cal, p){
+  const cOk = coefZone(p);
   const now = Date.now()/1000, ex = tideExtremes(T, Lv, now - 3600, now + 3*86400);
   if (ex.length < 2) return '';
-  const rows = ex.map(e => { const c = e.hi ? coefAt(e.t) : null;
-    return `<tr><td>${new Date(e.t*1000).toLocaleDateString('fr-FR', { weekday:'short' })} ${new Date(e.t*1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</td><td>${e.hi ? 'Pleine mer' : 'Basse mer'}</td><td>${cal ? n2h(e.h) : (e.h >= 0 ? '+' : '') + n1(e.h)} m</td><td>${c != null ? c : ''}</td></tr>`; }).join('');
+  const rows = ex.map(e => { const c = e.hi && cOk ? coefAt(e.t) : null;
+    return `<tr><td>${new Date(e.t*1000).toLocaleDateString('fr-FR', { weekday:'short' })} ${new Date(e.t*1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</td><td>${e.hi ? 'Pleine mer' : 'Basse mer'}</td><td>${zAbs(cal) ? n2h(e.h) : (e.h >= 0 ? '+' : '') + n1(e.h)} m</td><td>${c != null ? c : ''}</td></tr>`; }).join('');
   return `<div class="tblWrap"><table><thead><tr><th>Heure</th><th>Marée</th><th>Hauteur</th><th>Coef.</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="muted">${cal ? 'Calées sur l\'annuaire officiel que tu as saisi : précision d\'environ 5 à 10 min et 10 cm près du port de calage. ' : ''}Heures et hauteurs calculées par le modèle de marée de Météo-France (${cal ? 'corrigé localement' : 'par rapport au niveau moyen'}), ${q === 15 ? 'avec un point tous les quarts d\'heure : précision d\'environ 10 à 20 min' : 'avec un point par heure : précision d\'environ 30 min'} et quelques dizaines de cm. Le coefficient est calculé à partir de la marée prévue à Brest, comme le coefficient officiel. Dans les ports et estuaires, vérifie l'annuaire du SHOM.</div>`;
+    <div class="muted">${cal && cal.auto ? harmNote(cal.st) : modelNote(q, cal)}</div>`;
+}
+function modelNote(q, cal){
+  return `${cal ? 'Calées sur l\'annuaire officiel que tu as saisi : précision d\'environ 5 à 10 min et 10 cm près du port de calage. ' : ''}Heures et hauteurs calculées par le modèle de marée de Météo-France (${cal ? 'corrigé localement' : 'par rapport au niveau moyen'}), ${q === 15 ? 'avec un point tous les quarts d\'heure : précision d\'environ 10 à 20 min' : 'avec un point par heure : précision d\'environ 30 min'} et quelques dizaines de cm. Pas de marégraphe de référence à moins de 30 km. Le coefficient est calculé comme le coefficient officiel (marée de Brest). Dans les ports et estuaires, vérifie l'annuaire du SHOM.`;
 }
 setTimeout(loadBrest, 5000);
+
+// ---------- MARÉES PAR CONSTANTES HARMONIQUES (≈ 780 marégraphes d'Europe et d'outre-mer) ----------
+// Même méthode que les annuaires officiels : somme des ondes de marée (M2, S2, K1…) mesurées sur des années au marégraphe.
+let thDb = null, thP = null, tidePress = null;
+const thCache = new Map(), thStore = new Map();
+function loadTideDb(){
+  if (thDb) return Promise.resolve(thDb);
+  return thP = thP || Promise.all([needLib('TidePred'), fetch('marees-europe.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })])
+    .then(([, j]) => { thDb = j; thCache.clear(); return j; }).catch(() => { thP = null; return null; });
+}
+const tideDbReady = () => Promise.race([loadTideDb(), new Promise(r => setTimeout(r, 4000))]);
+function thCons(s){ const out = []; for (let i = 0; i < s[7].length; i += 3) out.push({ name:thDb.names[s[7][i]], amplitude:s[7][i+1]/1000, phase:s[7][i+2]/10 }); return out; }
+// Marée en un point : marégraphe le plus proche, ou mélange des 2-3 plus proches s'ils ont la même marée (même heure de pleine mer).
+function thAt(p){
+  if (!thDb || !p || !window.TidePred) return null;
+  const key = p[0].toFixed(2) + ',' + p[1].toFixed(2);
+  if (thCache.has(key)) return thCache.get(key);
+  const cand = [];
+  for (const s of thDb.s){ if (Math.abs(s[1] - p[0]) > 0.4 || Math.abs(s[2] - p[1]) > 0.7) continue; const d = distNM(p, [s[1], s[2]])*1.852; if (d < 30) cand.push({ s, d }); }
+  cand.sort((a, b) => a.d - b.d);
+  let res = null;
+  if (cand.length){
+    const n0 = cand[0], m2 = s => { for (let i = 0; i < s[7].length; i += 3) if (thDb.names[s[7][i]] === 'M2') return s[7][i+2]/10; return null; }, ph0 = m2(n0.s);
+    let use = [n0];
+    if (n0.d > 2) use = use.concat(cand.slice(1, 3).filter(c => (c.s[4] === 'M') === (n0.s[4] === 'M') && c.d < Math.max(12, n0.d*2.5) && ph0 != null && m2(c.s) != null && Math.abs(((m2(c.s) - ph0 + 540) % 360) - 180) < 20));
+    const w = use.map(c => 1/Math.max(c.d, 0.3)**2), W = w.reduce((a, b) => a + b, 0), acc = new Map();
+    let off = 0;
+    use.forEach((c, i) => { const k = w[i]/W; off += k*c.s[3]; thCons(c.s).forEach(o => { const r = o.phase*Math.PI/180, e = acc.get(o.name) || [0, 0, 0]; e[0] += k*o.amplitude*Math.cos(r); e[1] += k*o.amplitude*Math.sin(r); e[2] += k; acc.set(o.name, e); }); });
+    const cons = []; acc.forEach((e, name) => { const x = e[0]/e[2], y = e[1]/e[2]; cons.push({ name, amplitude:Math.hypot(x, y), phase:(Math.atan2(y, x)*180/Math.PI + 360) % 360 }); });
+    try{ res = { name:n0.s[0], country:n0.s[5], lat:p[0], lon:p[1], d:n0.d, n:use.length, fr:n0.s[4], q:n0.s[6], off, pred:TidePred(cons, { offset:off }) }; }catch(e){ res = null; }
+  }
+  if (thCache.size > 200) thCache.clear();
+  thCache.set(key, res); return res;
+}
+function thLevel(st, t){ try{ return st.pred.getWaterLevelAtTime({ time:new Date(t*1000) }).level; }catch(e){ return null; } }
+function thExtremes(st, t0, t1){ try{ return st.pred.getExtremesPrediction({ start:new Date(t0*1000), end:new Date(t1*1000) }).map(e => ({ t:e.time.getTime()/1000, h:e.level, hi:e.high })); }catch(e){ return []; } }
+let thB = null;
+function thBrest(){
+  if (thB || !thDb || !window.TidePred) return thB;
+  const s = thDb.s.find(x => x[0] === 'Brest'); if (!s) return null;
+  try{ thB = { semi:TidePred(thCons(s).filter(c => /2$/.test(c.name) && !/^(MSQM|2SM2)$/.test(c.name)), { offset:0 }) }; }catch(e){}
+  return thB;
+}
+// Coefficient : notion française, utile de la Manche au golfe de Gascogne.
+const coefZone = p => !p || (p[0] > 42.8 && p[0] < 51.6 && p[1] > -6.5 && p[1] < 3.2 && !(p[0] < 44 && p[1] > 0));
+const zAbs = cal => cal && !(cal.auto && cal.st.fr === 'M');
+const zLbl = cal => cal && cal.auto && cal.st.fr === 'L' ? 'au-dessus de la plus basse mer (≈ zéro des cartes)' : 'au-dessus du zéro des cartes';
+// Pression : chaque hPa sous 1013 fait monter la mer d'environ 1 cm (et l'inverse).
+const surgeM = () => tidePress && Date.now() - tidePress.t < 12*3600000 ? (1013 - tidePress.v)/100 : 0;
+function surgeTxt(cal){
+  const s = surgeM(); if (!cal || Math.abs(s) < 0.05) return '';
+  return `<div class="muted">Pression ${n0(tidePress.v)} hPa : la mer sera environ ${n0(Math.abs(s)*100)} cm plus ${s > 0 ? 'haute' : 'basse'} que l'annuaire (effet baromètre, sans compter le vent).${s < 0 ? ' Pour la sonde, l\'appli en tient compte.' : ' Pour la sonde, l\'appli ne l\'ajoute pas (par prudence).'}</div>`;
+}
+function harmNote(st){
+  const prec = st.d < 3 ? 'précision comparable à l\'annuaire : quelques minutes et moins de 10 cm' : st.d < 12 ? 'précision d\'environ 10 min et 10 à 20 cm (port voisin)' : 'précision d\'environ 15 à 30 min et 20 à 40 cm (marégraphe éloigné)';
+  const where = st.n > 1 ? `interpolées entre ${st.n} marégraphes voisins (le plus proche : ${esc(st.name)}, à ${n1(st.d)} km)` : `du marégraphe de ${esc(st.name)}${st.d >= 1 ? `, à ${n1(st.d)} km` : ''}`;
+  const ref = st.fr === 'M' ? 'Mer presque sans marée ici : hauteurs par rapport au niveau moyen.' : st.fr === 'L' ? 'Hauteurs au-dessus de la plus basse mer astronomique, très proche du zéro des cartes (à 10-30 cm près, du côté prudent).' : 'Hauteurs au-dessus du zéro des cartes, comme dans l\'annuaire.';
+  return `Marées calculées avec les constantes harmoniques ${where} : ${prec}. ${ref} ${coefZone([st.lat, st.lon]) ? 'Coefficients calculés comme le SHOM (marée semi-diurne à Brest, à ±1 près). ' : ''}${st.q ? 'Ce marégraphe a quelques défauts de mesure signalés : vérifie l\'annuaire avant un passage juste. ' : ''}Fonctionne sans réseau, pour n'importe quelle date. Le vent fort et les crues des fleuves peuvent décaler l'eau de plusieurs dizaines de cm. Source : TICON-4 (CC BY 4.0) et Kartverket.`;
+}
+// Couche : marégraphes de référence
+function drawTideSt(){
+  tideStLayer.clearLayers();
+  if (!map.hasLayer(tideStLayer) || !thDb || map.getZoom() < 6) return;
+  const b = map.getBounds().pad(0.1);
+  thDb.s.forEach(s => { if (!b.contains([s[1], s[2]])) return;
+    L.circleMarker([s[1], s[2]], { bubblingMouseEvents:false, radius:5, color:'#fff', weight:1.5, fillColor:'#29b6f6', fillOpacity:1 }).bindPopup(() => {
+      const st = thAt([s[1], s[2]]); if (!st) return esc(s[0]);
+      const now = Date.now()/1000, ex = thExtremes(st, now - 3600, now + 30*3600).slice(0, 5);
+      return `<b>Marée à ${esc(s[0])}</b> (${esc(s[5])})<br>${ex.map(e => `${new Date(e.t*1000).toLocaleString('fr-FR', { weekday:'short', hour:'2-digit', minute:'2-digit' })} : ${e.hi ? 'PM' : 'BM'} ${st.fr === 'M' ? (e.h >= 0 ? '+' : '') : ''}${n2h(e.h)} m${e.hi && coefZone([s[1], s[2]]) && coefAt(e.t) ? ' · coef. ' + coefAt(e.t) : ''}`).join('<br>')}<br><span class="muted">${st.fr === 'M' ? 'par rapport au niveau moyen' : 'au-dessus du zéro des cartes'} · ouvre la météo ici pour le détail</span>`;
+    }).addTo(tideStLayer); });
+}
+map.on('moveend', drawTideSt);
+setTimeout(loadTideDb, 4000);
 
 // ---------- SÉCURITÉ DE SORTIE : bilan avant départ, alertes en route, retour au port ----------
 var riverInfo = null, sunCache = null;
@@ -2441,7 +2543,11 @@ async function briefing(){
     const ss = (w.daily.sunset || []).map(x => x*1000).find(x => x > t0);
     if (ss){ const lvl = t1 > ss ? 2 : t1 > ss - 45*60000 ? 1 : 0;
       add(lvl, 'Coucher du soleil', `à ${fmtT(ss)}` + (lvl === 2 ? ` : ton retour prévu (${fmtT(t1)}) est après la nuit tombée` : lvl ? ` : retour prévu à ${fmtT(t1)}, c'est juste` : ` · retour prévu à ${fmtT(t1)}, avant la nuit`)); }
-    if (M && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)){
+    const stB = thAt(start);
+    if (stB){
+      const ex = thExtremes(stB, t0/1000 - 1800, t1/1000 + 1800);
+      if (ex.length) add(0, 'Marées pendant la sortie', ex.map(e => `${e.hi ? 'pleine mer' : 'basse mer'} ${hhmm(e.t)} (${stB.fr === 'M' ? (e.h >= 0 ? '+' : '') : ''}${n1(e.h)} m${e.hi && coefZone(start) && coefAt(e.t) ? ', coef. ' + coefAt(e.t) : ''})`).join(' · ') + ` · ${stB.n > 1 ? 'interpolé autour de' : 'marégraphe de'} ${stB.name}`);
+    } else if (M && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)){
       const ex = tideExtremes(M.time, M.sea_level_height_msl, t0/1000 - 1800, t1/1000 + 1800);
       if (ex.length) add(0, 'Marées pendant la sortie', ex.map(e => `${e.hi ? 'pleine mer' : 'basse mer'} ${hhmm(e.t)} (${e.h >= 0 ? '+' : ''}${n1(e.h)} m)`).join(' · '));
     }
