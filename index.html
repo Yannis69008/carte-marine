@@ -36,35 +36,39 @@ button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* Bandeau instruments */
-#hud{position:absolute;top:0;left:0;right:0;z-index:1000;padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 6px;
-  background:linear-gradient(var(--bg) 70%, transparent);display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:5px;align-items:stretch}
-.inst{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 8px;min-width:0}
-.inst .k{font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#hud{position:absolute;top:0;left:0;right:0;z-index:1000;padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 8px;
+  background:linear-gradient(var(--bg) 70%, transparent);display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:6px;align-items:stretch}
+body.gpson #hud .inst .v{font-size:21px}
+#chips{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+#chips:not(:has(> :not([hidden]))){display:none}
+#chips > *{flex:0 1 auto;max-width:100%}
+.inst{background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:6px 10px 7px;min-width:0;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.inst .k{white-space:nowrap;font-family:var(--f-display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .inst .v.warn{color:var(--warn)} .inst .v.bad{color:var(--bad)}
-.inst .v{font-family:var(--f-data);font-size:17px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.inst .v{font-family:var(--f-data);font-size:20px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
 .inst .v small{font-size:11px;color:var(--muted);font-weight:400}
-#gpsBtn{background:var(--accent);color:#1a1200;border:0;border-radius:6px;font-family:var(--f-display);font-weight:700;letter-spacing:.06em;padding:0 12px;text-transform:uppercase}
+#gpsBtn{background:var(--accent);color:#1a1200;border:0;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);font-family:var(--f-display);font-weight:700;letter-spacing:.06em;padding:0 12px;text-transform:uppercase}
 #gpsBtn.on{background:var(--ok);color:#00170b}
 #posLine{grid-column:1/-1;font-family:var(--f-data);font-size:11px;color:var(--muted);text-align:center}
 
 /* Boutons flottants */
-#fab{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 96px);z-index:1001;display:flex;flex-direction:column;flex-wrap:wrap-reverse;align-content:flex-start;gap:8px;max-height:calc(100vh - 160px)}
+#fab{position:absolute;right:10px;top:calc(var(--hudH,96px) + 6px);z-index:1001;display:flex;flex-direction:column;flex-wrap:wrap-reverse;align-content:flex-start;gap:8px;max-height:calc(100vh - 160px)}
 .fab{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;font-size:18px}
 .fab.active{background:var(--accent);color:#1a1200}
 #fab .zoomb{width:52px;height:52px;font-size:30px;font-weight:600;line-height:1;background:var(--panel2)}
 #fab .zoomb:active{background:var(--accent);color:#1a1200}
 #mobBtn{background:var(--bad);color:#fff;border:0;font-family:var(--f-display);font-weight:700;font-size:13px}
 
-#toolHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 96px);z-index:1000;
+#toolHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(var(--hudH,96px) + var(--navH,0px) + var(--aH,0px) + 6px);z-index:1000;
   background:var(--accent);color:#1a1200;padding:6px 12px;border-radius:20px;font-weight:600;font-size:13px;max-width:70vw;text-align:center}
-#alertBar{position:absolute;left:10px;right:64px;top:calc(env(safe-area-inset-top,0px) + 140px);z-index:1000;background:var(--bad);color:#fff;
+#alertBar{position:absolute;left:10px;right:64px;top:calc(var(--hudH,96px) + var(--navH,0px) + 6px);z-index:1000;background:var(--bad);color:#fff;
   padding:10px 12px;border-radius:8px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.5)}
 
 /* Tiroir */
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);
   border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,0px);display:flex;flex-direction:column;max-height:58%}
 #sheet.collapsed .body{display:none}
-#compassBox{position:absolute;left:10px;top:calc(env(safe-area-inset-top,0px) + 96px);z-index:1002;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 40px 8px 8px;display:flex;gap:10px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,.45);max-width:calc(100vw - 90px)}
+#compassBox{position:absolute;left:10px;top:calc(var(--hudH,96px) + var(--navH,0px) + var(--aH,0px) + 6px);z-index:1002;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 40px 8px 8px;display:flex;gap:10px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,.45);max-width:calc(100vw - 90px)}
 #compassBox[hidden]{display:none}
 @media (max-width:560px){ #compassBox{flex-direction:column;align-items:flex-start;max-width:calc(100vw - 150px);padding:8px 8px 10px} #cRose{width:92px;height:92px} #cHead{font-size:24px} #cSub{max-width:none;font-size:12px} }
 a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:center}
@@ -97,7 +101,7 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 .portrow .pb{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
 /* Grand écran (Mac, tablette à l'horizontale) : le tiroir devient un panneau à gauche */
 @media (min-width:900px) and (min-height:500px){
-  #sheet{right:auto;width:440px;top:calc(env(safe-area-inset-top,0px) + 100px);max-height:none;border-radius:0 14px 0 0;border-right:1px solid var(--line)}
+  #sheet{right:auto;width:440px;top:calc(var(--hudH,96px) + 10px);max-height:none;border-radius:0 14px 0 0;border-right:1px solid var(--line)}
   #sheet.collapsed{top:auto}
   #sheet .body{flex:1}
 }
@@ -136,7 +140,7 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 #ctrX{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;z-index:900;pointer-events:none}
 #ctrX::before,#ctrX::after{content:'';position:absolute;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
 #ctrX::before{left:12px;top:0;width:2px;height:26px}#ctrX::after{top:12px;left:0;height:2px;width:26px}
-#ctrInfo{position:absolute;left:10px;top:calc(env(safe-area-inset-top,0px) + 104px);z-index:1001;max-width:min(62vw,300px);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 28px 7px 10px;font-size:13px;line-height:1.35;box-shadow:0 2px 10px rgba(0,0,0,.4);cursor:pointer}
+#ctrInfo{position:absolute;left:10px;top:calc(var(--hudH,96px) + var(--aH,0px) + 6px);z-index:1001;max-width:min(62vw,300px);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 28px 7px 10px;font-size:13px;line-height:1.35;box-shadow:0 2px 10px rgba(0,0,0,.4);cursor:pointer}
 #ctrInfo b{color:var(--accent)} #ctrInfo .cx{position:absolute;right:4px;top:2px;padding:2px 6px;color:var(--muted);font-size:15px}
 body.nav #ctrInfo,body.nav #ctrX{display:none}
 #lakeBox{position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px}
@@ -294,7 +298,7 @@ select,input[type=text],input[type=search]{background:var(--panel2);border:1px s
 .srow{text-align:left;background:var(--panel2);border:0;border-radius:6px;padding:8px 10px}
 .srow small{display:block;color:var(--muted);font-size:11px}
 select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;font:inherit}
-#zoneChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--warn);color:var(--warn)}
+#zoneChip{font-size:13px;font-weight:600;padding:4px 12px;border-radius:14px;background:var(--panel2);border:1px solid var(--warn);color:var(--warn)}
 #homePanel{position:absolute;left:16px;right:16px;top:30%;z-index:1100;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.6);max-width:420px;margin:0 auto}
 #homePanel b{font-family:var(--f-display);font-size:20px;letter-spacing:.06em;text-transform:uppercase}
 #homePanel .btn{text-align:left;padding:12px 14px;font-size:16px}
@@ -302,11 +306,11 @@ select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);bor
 .brow{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start;background:var(--panel2);border-radius:6px;padding:8px 10px}
 .brow i{font-style:normal;font-weight:700;text-align:center}
 .brow small{display:block;color:var(--muted);font-size:12px}
-#tripChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--ok);color:var(--ok)}
-#netChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--muted);color:var(--muted)}
+#tripChip{font-size:13px;font-weight:600;padding:4px 12px;border-radius:14px;background:var(--panel2);border:1px solid var(--ok);color:var(--ok)}
+#netChip{font-size:13px;font-weight:600;padding:4px 12px;border-radius:14px;background:var(--panel2);border:1px solid var(--muted);color:var(--muted)}
 .bar{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);width:0}
 #zoneChip.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
-#navTop{position:absolute;left:10px;right:64px;top:calc(env(safe-area-inset-top,0px) + 122px);z-index:1001;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+#navTop{position:absolute;left:10px;right:64px;top:calc(var(--hudH,96px) + 6px);z-index:1001;background:var(--panel);border:1px solid var(--line);border-radius:12px;
   padding:10px 12px;display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.45)}
 #navArrow{width:56px;height:56px;border-radius:50%;background:var(--accent);display:grid;place-items:center}
 #navArrowSvg{transition:transform .4s}
@@ -320,8 +324,6 @@ select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);bor
 #sheet.navsheet{bottom:calc(env(safe-area-inset-bottom,0px) + 74px);max-height:45%;z-index:1002}
 .nb .k{font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .nb .v{font-family:var(--f-data);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-body.nav #alertBar{top:calc(env(safe-area-inset-top,0px) + 250px)}
-body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 .leaflet-popup-content{font-size:13px;margin:10px 12px}
 /* fenêtres d'info aux couleurs de l'appli (texte clair sur fond sombre, boutons bien visibles) */
 .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--fg);border:1px solid var(--line);box-shadow:0 4px 18px rgba(0,0,0,.5)}
@@ -348,9 +350,9 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <div class="inst"><div class="k">Fond</div><div class="v" id="depthNow">--<small> m</small></div></div>
   <button id="gpsBtn">GPS</button>
   <div id="posLine">Position inconnue · touche GPS pour te localiser</div>
-  <div id="tripChip" hidden></div>
+  <div id="chips"><div id="tripChip" hidden></div>
   <div id="netChip" hidden>Hors ligne · cartes et données téléchargées</div>
-  <div id="zoneChip" hidden></div>
+  <div id="zoneChip" hidden></div></div>
 </div>
 
 <div id="fab">
@@ -1117,16 +1119,16 @@ document.addEventListener('visibilitychange', () => { if (watchId && document.vi
 
 $('gpsBtn').addEventListener('click', () => {
   if (demo){ demoStop(); return; }
-  if (watchId){ navigator.geolocation.clearWatch(watchId); watchId = null; $('gpsBtn').classList.remove('on'); $('gpsBtn').textContent = 'GPS'; return; }
+  if (watchId){ navigator.geolocation.clearWatch(watchId); watchId = null; $('gpsBtn').classList.remove('on'); document.body.classList.remove('gpson'); $('gpsBtn').textContent = 'GPS'; return; }
   if (!navigator.geolocation){ $('posLine').textContent = 'Ce navigateur ne donne pas accès au GPS.'; return; }
   $('posLine').textContent = 'Recherche du signal GPS…';
   watchId = navigator.geolocation.watchPosition(onFix, err => {
     $('posLine').textContent = err.code === 1
       ? 'Accès à la position refusé. Autorise la localisation pour ce site dans les réglages du navigateur.'
       : 'Signal GPS indisponible pour le moment.';
-    if (err.code === 1){ try{ navigator.geolocation.clearWatch(watchId); }catch(e){} watchId = null; $('gpsBtn').classList.remove('on'); $('gpsBtn').textContent = 'GPS'; }
+    if (err.code === 1){ try{ navigator.geolocation.clearWatch(watchId); }catch(e){} watchId = null; $('gpsBtn').classList.remove('on'); document.body.classList.remove('gpson'); $('gpsBtn').textContent = 'GPS'; }
   }, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
-  $('gpsBtn').classList.add('on'); $('gpsBtn').textContent = 'GPS ON'; keepAwake();
+  $('gpsBtn').classList.add('on'); document.body.classList.add('gpson'); $('gpsBtn').textContent = 'GPS ON'; keepAwake();
 });
 
 // Affichage de la vitesse : lissée (le GPS « tremble » de 0,1 à 0,3 nd), animée, en nœuds ou km/h.
@@ -1157,7 +1159,7 @@ function demoStart(){
   if (watchId && watchId !== -999){ try{ navigator.geolocation.clearWatch(watchId); }catch(e){} }
   const seg = DEMO_PATH.slice(1).map((q, i) => ({ a:DEMO_PATH[i], b:q, L:distNM(DEMO_PATH[i], q)*1852 }));
   demo = { s:0, dir:1, t:0, seg, tot:seg.reduce((a, x) => a + x.L, 0), view:{ c:map.getCenter(), z:map.getZoom() }, anchor, hadTrip:!!trip, tm:null };
-  watchId = -999; $('gpsBtn').classList.add('on'); $('gpsBtn').textContent = 'DÉMO ✕';
+  watchId = -999; $('gpsBtn').classList.add('on'); document.body.classList.add('gpson'); $('gpsBtn').textContent = 'DÉMO ✕';
   map.setView(DEMO_PATH[0], 13); follow = true; $('followBtn').classList.add('active'); keepAwake();
   demo.tm = setInterval(demoTick, 1000); demoTick();
   hint('MODE DÉMO : bateau virtuel, 10 fois plus rapide que la réalité. Touche « DÉMO ✕ » en haut pour quitter.', 6000);
@@ -1179,7 +1181,7 @@ function demoStop(){
   if (!demo) return;
   clearInterval(demo.tm); const d = demo; demo = null;
   if (nav) stopNav();
-  watchId = null; $('gpsBtn').classList.remove('on'); $('gpsBtn').textContent = 'GPS';
+  watchId = null; $('gpsBtn').classList.remove('on'); document.body.classList.remove('gpson'); $('gpsBtn').textContent = 'GPS';
   if (boat){ map.removeLayer(boat); boat = null; } if (accCircle){ map.removeLayer(accCircle); accCircle = null; }
   gps = null; prevFix = null; spdSm = null; cogSm = null; spdTween(null);
   track.length = 0; trackLine.setLatLngs([]);
@@ -1192,6 +1194,23 @@ function demoStop(){
   map.setView(d.view.c, d.view.z); follow = true;
   hint('Démo terminée : l\'appli est remise comme avant.', 4000);
 }
+
+// hauteurs dynamiques : les boutons, alertes et cartes d'info se placent sous le bandeau, quelle que soit sa hauteur
+(function(){
+  const root = document.documentElement.style, hud = $('hud');
+  const vis = el => el && !el.hidden && el.offsetParent !== null;
+  function lay(){
+    try{
+      root.setProperty('--hudH', Math.round(hud.getBoundingClientRect().bottom) + 'px');
+      root.setProperty('--navH', vis($('navTop')) ? ($('navTop').offsetHeight + 8) + 'px' : '0px');
+      root.setProperty('--aH', vis($('alertBar')) ? ($('alertBar').offsetHeight + 8) + 'px' : '0px');
+      if (typeof fabFit === 'function') fabFit();
+    }catch(e){}
+  }
+  if (window.ResizeObserver){ const ro = new ResizeObserver(lay); [hud, $('navTop'), $('alertBar'), $('sheet')].forEach(e => e && ro.observe(e)); }
+  const mo = new MutationObserver(lay); [hud, $('navTop'), $('alertBar'), $('sheet')].forEach(e => e && mo.observe(e, { attributes:true, childList:true, subtree:true, characterData:true }));
+  window.addEventListener('resize', lay); lay(); setTimeout(lay, 600);
+})();
 
 // ---------- MÉTÉO ET FOND AU CENTRE DE LA CARTE (quand on zoome quelque part) ----------
 // Vent, vagues et fond au point visé par la croix. Météo = prévision du modèle pour maintenant (mise à jour toutes les 15 min), pas une mesure.
@@ -1273,7 +1292,7 @@ async function ctrLoad(){
   if (!A) bits.unshift(navigator.onLine ? '<span class="muted">Météo indisponible pour le moment</span>' : '<span class="muted">Pas de réseau : météo indisponible</span>');
   if (!gps){   // pas de GPS : le bandeau du haut montre le vent et le fond au centre de la carte
     const wk = document.querySelector('#windNow').parentNode.firstChild, dk = document.querySelector('#depthNow').parentNode.firstChild;
-    wk.textContent = 'Vent centre'; dk.textContent = 'Fond centre';
+    wk.textContent = 'Vent ✛'; dk.textContent = 'Fond ✛';
     if (A) $('windNow').innerHTML = `${n0(A.wind_speed_10m)}<small> nd ${card(A.wind_direction_10m)}</small>`;
     if (d != null && d >= 0){ const th0 = tideHeightAt(p, Date.now()/1000); $('depthNow').className = 'v'; $('depthNow').innerHTML = '≈' + n1(d) + '<small>' + (th0 != null ? ' m ↕' : ' m') + '</small>'; }
     else if (d === undefined || d == null){ $('depthNow').innerHTML = '--<small> m</small>'; }
@@ -4762,7 +4781,7 @@ async function identifyAt(ll){
     const wait = !final ? '<br><span class="muted">Recherche de compléments…</span>' : '';
     const fail = final && failed >= 2 && !list.length ? '<span class="muted">Les serveurs de repères ne répondent pas (réseau faible ou serveurs saturés). Touche à nouveau dans un moment.</span><br>' : '';
     const none = final && !failed && !list.length && !local && !lake ? '<span class="muted">Aucune balise, aucun feu ni port répertorié ici. Touche bien sur le symbole (zoome si besoin).</span><br>' : '';
-    pop.setContent(lakeHtml + body + (list.length ? '<hr>' : '') + fail + none + local + wxHtml + depthHtml + base + wait);
+    pop.setContent(lakeHtml + body + (list.length ? '<hr>' : '') + fail + none + local + wxHtml + depthHtml + (list.some(x => isPort(x.t)) ? '' : goBtns(p)) + base + wait);
   };
   const take = v => { settled++; if (v === null) failed++; else { items = items.concat(v); got++; } render(settled >= 2); };
   pO.then(take); pA.then(take);
