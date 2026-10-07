@@ -71,12 +71,21 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 #cHead{font:600 30px/1 var(--f-data);color:var(--fg)}
 #cSub{font-size:13px;max-width:190px;margin-top:4px}
 #cRot{transition:transform .25s linear}
+.ctip{margin-top:8px;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;max-width:260px}
+.cwarn{margin-top:6px;font-size:12px;font-weight:600;color:var(--warn)}
 #aisBox{position:fixed;inset:0;z-index:2500;background:var(--bg);display:flex;flex-direction:column}
 #aisBox[hidden]{display:none}
 .aisBar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 6px}
 .aisBar b{flex:1 1 100%;font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase}
 .aisNote{padding:0 10px 6px;font-size:12px}
 #aisFrame{flex:1;border:0;width:100%;background:#fff}
+#tour{position:fixed;inset:0;z-index:2800}
+#tour[hidden]{display:none}
+#tourHole{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.66);border:2px solid var(--accent);transition:all .25s;pointer-events:none}
+#tourBox{position:fixed;left:12px;right:12px;max-width:440px;margin:0 auto;background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;box-shadow:0 6px 30px rgba(0,0,0,.5);font-size:14px;line-height:1.4;max-height:calc(100vh - 120px);overflow:auto}
+#tourT{display:block;font-family:var(--f-display);font-size:18px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin:2px 0 4px}
+#tourD b{color:var(--accent)}
+#tourStep{font-size:12px}
 #welcome{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:16px}
 #welcome .wbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:520px;max-height:90vh;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:10px}
 #welcome h2{margin:0;font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
@@ -410,7 +419,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
         <div><b>112</b><span>Urgence européenne</span></div>
       </div>
       <div id="mobOut" class="muted">Homme à la mer : appuie sur MOB pour marquer la position et afficher le cap pour y revenir.</div>
-      <div class="row"><button class="btn" id="wAgain">Revoir l'avertissement et les conseils</button></div>
+      <div class="row"><button class="btn" id="wAgain">Revoir l'avertissement et les conseils</button><button class="btn" id="tourSecu">Visite guidée</button></div>
 
       <h3>Alarme de mouillage</h3>
       <div class="muted">Une fois l'ancre posée, appuie sur « Jeter l'ancre ici ». Si le bateau sort du cercle (l'ancre chasse), le téléphone sonne, vibre et parle. Laisse l'appli ouverte, écran allumé et branché.</div>
@@ -442,7 +451,8 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 
     <!-- APPRENDRE -->
     <div class="pane" id="p-learn" hidden>
-      <div class="muted">Les bases pour naviguer sereinement : nœuds, manœuvres et règles. Chaque fiche se lit sans réseau ; le bouton « Vidéos » ouvre des démonstrations sur YouTube.</div>
+      <div class="row"><button class="btn primary" id="tourLearn">Visite guidée de l'appli</button></div>
+      <div class="muted">Les bases pour naviguer sereinement : utiliser l'appli, nœuds, manœuvres et règles. Chaque fiche se lit sans réseau ; le bouton « Vidéos » ouvre des démonstrations sur YouTube.</div>
       <div><div class="bar"><i id="learnBar"></i></div><div id="learnTxt" class="muted" style="margin-top:4px"></div></div>
       <div id="learnList" class="pane"></div>
     </div>
@@ -485,7 +495,9 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <text y="48" text-anchor="middle" fill="var(--fg)" style="font:600 12px var(--f-display)">S</text><text x="-40" y="5" text-anchor="middle" fill="var(--fg)" style="font:600 12px var(--f-display)">O</text>
     <path id="cTarget" d="M0 -54 L6 -42 L-6 -42 Z" fill="var(--ok)" visibility="hidden"/></g>
     <path d="M0 -58 L7 -40 L-7 -40 Z" fill="var(--accent)"/></svg>
-  <div id="cTxt"><div id="cHead">---°</div><div id="cSub" class="muted">Touche « Activer »</div><button class="btn" id="cAsk" hidden>Activer la boussole</button></div>
+  <div id="cTxt"><div id="cHead">---°</div><div id="cSub" class="muted">Touche « Activer »</div><button class="btn" id="cAsk" hidden>Activer la boussole</button>
+    <div id="cTip" class="ctip" hidden><b>Rappel boussole</b><br>Le moteur, la console, les haut-parleurs et le métal faussent la boussole, comme une vraie : tiens le téléphone à au moins 50 cm. Si rien ne s'affiche ou si le cap semble faux, fais un grand 8 en l'air avec le téléphone pour la recaler.<br><button class="btn" id="cTipOk" style="margin-top:6px">Compris</button></div>
+    <div id="cWarn" class="cwarn" hidden></div></div>
   <button class="fab" id="cClose" title="Fermer" style="position:absolute;top:6px;right:6px;width:30px;height:30px;font-size:14px">✕</button>
 </div>
 <div id="aisBox" hidden>
@@ -495,6 +507,8 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <div class="muted aisNote">Positions reçues par Internet, parfois avec quelques minutes de retard, et seulement avec du réseau : au large ce n'est pas une sécurité, rien ne remplace un vrai récepteur AIS et la veille. Si la carte reste vide, touche « Ouvrir le site ».</div>
   <iframe id="aisFrame" title="Carte AIS" referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
 </div>
+<div id="tour" hidden><div id="tourHole"></div><div id="tourBox"><div id="tourStep" class="muted"></div><b id="tourT"></b><div id="tourD"></div>
+  <div class="row" style="margin-top:8px"><button class="btn" id="tourPrev">Précédent</button><button class="btn primary" id="tourNext">Suivant</button><button class="btn" id="tourEnd">Quitter</button></div></div></div>
 <div id="welcome" hidden>
   <div class="wbox">
     <h2>Bienvenue à bord</h2>
@@ -507,7 +521,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     </ul>
     <p class="muted" id="wInstall"></p>
     <label class="chk"><input type="checkbox" id="wOk"> J'ai compris : je garde une carte officielle et je reste attentif.</label>
-    <button class="btn primary" id="wGo" disabled>C'est parti</button>
+    <div class="row"><button class="btn primary" id="wGo" disabled>Visite guidée (2 min)</button><button class="btn" id="wSkip" disabled>Plus tard</button></div>
   </div>
 </div>
 <script>
@@ -2851,8 +2865,9 @@ function showWelcome(){
   $('wInstall').textContent = standalone ? '' : ios ? 'Astuce : dans Safari, touche le bouton Partager puis « Sur l\'écran d\'accueil » : l\'appli s\'ouvre alors en plein écran, comme une vraie appli.' : 'Astuce : installe l\'appli depuis le menu du navigateur (« Installer » ou « Ajouter à l\'écran d\'accueil »).';
   $('welcome').hidden = false;
 }
-$('wOk').addEventListener('change', () => { $('wGo').disabled = !$('wOk').checked; });
-$('wGo').addEventListener('click', () => { store.set('welcome', 1); $('welcome').hidden = true; });
+$('wOk').addEventListener('change', () => { $('wGo').disabled = $('wSkip').disabled = !$('wOk').checked; });
+$('wGo').addEventListener('click', () => { store.set('welcome', 1); $('welcome').hidden = true; tourStart(); });
+$('wSkip').addEventListener('click', () => { store.set('welcome', 1); $('welcome').hidden = true; hint('La visite guidée est dans l\'onglet Apprendre.', 5000); });
 if (!store.get('welcome', 0)) showWelcome();
 $('wAgain').addEventListener('click', showWelcome);
 
@@ -2872,7 +2887,7 @@ const compass = { on:false, h:null, x:0, y:0, t:0, src:'' };
 (() => { let g = ''; for (let a = 0; a < 360; a += 10){ const r1 = a % 30 ? 50 : 46, t = a*Math.PI/180; g += `<line x1="${(Math.sin(t)*r1).toFixed(1)}" y1="${(-Math.cos(t)*r1).toFixed(1)}" x2="${(Math.sin(t)*55).toFixed(1)}" y2="${(-Math.cos(t)*55).toFixed(1)}" stroke="var(--muted)" stroke-width="${a % 30 ? 1 : 2}"/>`; } $('cTicks').innerHTML = g; })();
 function onOri(e){
   let h = null, mag = true;
-  if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)){ h = e.webkitCompassHeading; compass.src = 'ios'; }
+  if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)){ h = e.webkitCompassHeading; compass.src = 'ios'; compass.acc = e.webkitCompassAccuracy; }
   else if ((e.absolute || e.type === 'deviceorientationabsolute') && e.alpha != null){ h = 360 - e.alpha; compass.src = 'abs'; }
   if (h == null) return;
   const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
@@ -2893,10 +2908,12 @@ let compTimer = null, lastTurnSay = 0;
 function compassDraw(){
   if (!compass.on) return;
   const h = compass.h;
-  if (h == null || Date.now() - compass.t > 3000){ $('cHead').textContent = '---°'; $('cSub').textContent = compass.t ? 'Plus de signal de la boussole.' : 'En attente du capteur… Fais un 8 avec le téléphone si rien ne vient.'; return; }
+  if (h == null || Date.now() - compass.t > 3000){ $('cHead').textContent = '---°'; $('cSub').textContent = compass.t ? 'Plus de signal de la boussole. Fais un grand 8 avec le téléphone.' : 'En attente du capteur… Fais un grand 8 avec le téléphone si rien ne vient.'; return; }
   compass.disp = compass.disp == null ? h : compass.disp + (((h - compass.disp) % 360) + 540) % 360 - 180;
   $('cRot').style.transform = `rotate(${-compass.disp}deg)`;
   $('cHead').textContent = pad3(h) + '°';
+  const ac = compass.acc, bad = ac != null && (ac < 0 || ac > 25);
+  $('cWarn').hidden = !bad; if (bad) $('cWarn').textContent = ac < 0 ? '⚠ Boussole à recaler : fais un grand 8 avec le téléphone.' : `⚠ Boussole imprécise (±${Math.round(ac)}°) : éloigne-la du métal et fais un 8.`;
   const tg = compassTarget(), here = herePos();
   if (tg){ const b = bearing(here, tg.p), d = distNM(here, tg.p), rel = ((b - h + 540) % 360) - 180;
     $('cTarget').setAttribute('visibility', 'visible'); $('cTarget').setAttribute('transform', `rotate(${b})`);
@@ -2922,9 +2939,10 @@ async function compassStart(){
 $('compassFab').addEventListener('click', () => {
   const box = $('compassBox');
   if (!box.hidden){ box.hidden = true; compass.on = false; clearInterval(compTimer); $('compassFab').classList.remove('active'); return; }
-  box.hidden = false; $('compassFab').classList.add('active'); compassStart();
+  box.hidden = false; $('compassFab').classList.add('active'); $('cTip').hidden = !!store.get('cTipSeen', 0); compassStart();
 });
 $('cAsk').addEventListener('click', compassStart);
+$('cTipOk').addEventListener('click', () => { store.set('cTipSeen', 1); $('cTip').hidden = true; });
 $('cClose').addEventListener('click', () => { $('compassFab').click(); });
 
 // ---------- BATEAUX AUTOUR (AIS par Internet, cartes intégrables officielles) ----------
@@ -2944,6 +2962,57 @@ function aisShow(src){
 $('aisFab').addEventListener('click', () => aisShow());
 document.querySelectorAll('[data-ais]').forEach(b => b.addEventListener('click', () => aisShow(b.dataset.ais)));
 $('aisClose').addEventListener('click', () => { $('aisBox').hidden = true; $('aisFrame').removeAttribute('src'); });
+
+// ---------- VISITE GUIDÉE (pour débutants) ----------
+const TOUR = [
+  { el:'hud', t:'Le tableau de bord', d:'<b>Vitesse</b> en nœuds (1 nœud = 1,85 km/h). <b>Cap</b> : la direction où va le bateau (0° = nord, 90° = est, 180° = sud, 270° = ouest). <b>Vent ici</b> et sa direction. <b>Sonde</b> : la profondeur estimée sous le bateau, marée comprise près des côtes.' },
+  { el:'gpsBtn', t:'Commence toujours par ici', d:'Touche <b>GPS</b> et autorise la localisation : ton bateau apparaît sur la carte, la vitesse et le cap s\'affichent. Le bouton passe au vert quand le GPS marche.' },
+  { el:'map', t:'La carte', d:'Pince avec deux doigts pour zoomer, glisse pour te déplacer. <b>Touche une bouée, un feu, un port ou un pont</b> : l\'appli t\'explique ce que c\'est (par exemple « bouée tribord, laisse-la à droite en rentrant au port »).', pad:-60 },
+  { el:'mobBtn', t:'Homme à la mer', d:'Si quelqu\'un tombe à l\'eau, <b>appuie tout de suite</b> : la position est marquée et l\'appli te montre la distance et la direction pour revenir. Puis appelle les secours : VHF canal 16 ou le 196.' },
+  { el:'homeFab', t:'Rentrer au port', d:'Au port de départ ou au plus proche. En mer, l\'appli calcule un passage qui évite la terre et les hauts-fonds, et te guide à la voix.' },
+  { el:'followBtn', t:'Suivre le bateau', d:'Allumé (orange), la carte reste centrée sur toi. Touche-le pour te balader librement sur la carte, re-touche pour revenir sur le bateau.' },
+  { el:'compassFab', t:'La boussole', d:'Le cap de l\'avant du téléphone, même à l\'arrêt, et la direction à prendre vers un point. <b>Éloigne le téléphone du moteur et du métal</b>, et fais un grand 8 en l\'air si elle semble fausse.' },
+  { el:'aisFab', t:'Les bateaux autour', d:'Les cargos, ferries et autres bateaux équipés AIS, avec Internet seulement : pratique près des côtes, mais pas une sécurité au large.' },
+  { el:'repFab', t:'Signaler', d:'Une roche, des filets, une profondeur mesurée, un bon mouillage… Note-le : ça s\'affiche sur ta carte et l\'appli te prévient la prochaine fois.' },
+  { el:'searchFab', t:'Chercher un lieu', d:'Un port, une plage, une ville, partout dans le monde.' },
+  { el:'nightBtn', t:'Mode nuit', d:'L\'écran passe en rouge sombre pour ne pas t\'éblouir : tu continues à voir les feux des bouées et des autres bateaux.' },
+  { tab:'meteo', t:'Météo et marées', d:'Le verdict en couleur : <b>vert</b> = maniable, <b>orange</b> = prudence, <b>rouge</b> = reste au port. Règle « Mon bateau supporte » selon ton bateau et ton expérience. En dessous : vent, rafales, vagues, et les marées (pleines et basses mers, coefficients).' },
+  { tab:'route', t:'Préparer ta sortie', d:'<b>Tracer une route</b> en touchant la carte, <b>Passage sûr automatique</b> pour éviter les hauts-fonds, puis <b>Vérifier ma sortie</b> avant chaque départ (météo, marées, ponts, fonds, carburant, coucher du soleil). Ici aussi : <b>Trouver un port</b> et la navigation guidée à la voix.' },
+  { tab:'log', t:'Tes sorties', d:'Démarre l\'enregistrement en partant : trace sur la carte, distance, vitesses, durée, carburant. Tu peux exporter la trace.' },
+  { tab:'obst', t:'Règle ton bateau ici', d:'<b>Important :</b> indique ton <b>tirant d\'eau</b> (la profondeur de la coque et du moteur sous l\'eau) et ta <b>hauteur hors d\'eau</b> (pour passer sous les ponts). L\'appli s\'en sert pour toutes ses alertes. En dessous : les dangers autour de toi.' },
+  { tab:'river', t:'Fleuves et canaux', d:'Le niveau de l\'eau en direct, les crues, les écluses et la hauteur des ponts.' },
+  { tab:'secu', t:'Sécurité', d:'Les numéros d\'urgence (VHF 16, 196, 112), l\'alarme de mouillage qui sonne si l\'ancre chasse, et tes signalements.' },
+  { tab:'learn', t:'Apprendre', d:'Des fiches simples pour débuter : utiliser l\'appli, nœuds, manœuvres de port, règles de route, balisage. Elles marchent sans réseau.' },
+  { tab:'couches', t:'Hors ligne et couches', d:'<b>Avant de partir</b>, télécharge ta zone : au large, le réseau disparaît. Ici tu choisis aussi le fond de carte et les couches (ports, plages, plongée, marégraphes…).' },
+  { t:'Ta première sortie en 6 étapes', d:'1. <b>Obstacles</b> : règle tirant d\'eau et hauteur.<br>2. <b>Couches</b> : télécharge ta zone.<br>3. <b>Route</b> : trace où tu vas, puis « Vérifier ma sortie ».<br>4. Préviens un proche de ton heure de retour.<br>5. Touche <b>GPS</b>, puis « Démarrer » dans Sorties.<br>6. Garde l\'écran allumé et un œil dehors : l\'appli aide, c\'est toi le capitaine. Bonne navigation !' }
+];
+let tourI = 0;
+function tourShow(){
+  const st = TOUR[tourI], hole = $('tourHole'), box = $('tourBox');
+  if (st.tab){ $('sheet').hidden = false; $('sheet').classList.remove('collapsed'); const tb = document.querySelector(`.tab[data-t="${st.tab}"]`); if (tb){ tb.click(); tb.scrollIntoView({ inline:'center', block:'nearest' }); } }
+  $('tourStep').textContent = `Étape ${tourI + 1} sur ${TOUR.length}`;
+  $('tourT').textContent = st.t; $('tourD').innerHTML = st.d;
+  $('tourPrev').disabled = tourI === 0; $('tourNext').textContent = tourI === TOUR.length - 1 ? 'Terminer' : 'Suivant';
+  requestAnimationFrame(() => {
+    const el = st.el ? $(st.el) : st.tab ? $('sheet') : null;
+    if (el && el.offsetParent !== null){
+      const r = el.getBoundingClientRect(), pd = st.pad || 6;
+      Object.assign(hole.style, { display:'block', left:(r.left - pd) + 'px', top:(r.top - pd) + 'px', width:(r.width + 2*pd) + 'px', height:(r.height + 2*pd) + 'px' });
+      const below = r.top + r.height/2 < innerHeight/2;
+      box.style.top = below ? Math.min(innerHeight - 260, r.bottom + pd + 12) + 'px' : 'auto';
+      box.style.bottom = below ? 'auto' : Math.min(innerHeight - 200, innerHeight - r.top + pd + 12) + 'px';
+      if (st.tab){ box.style.bottom = 'auto'; box.style.top = 'calc(env(safe-area-inset-top,0px) + 70px)'; }
+    } else { Object.assign(hole.style, { display:'block', left:'50%', top:'50%', width:'0px', height:'0px' }); box.style.top = '18%'; box.style.bottom = 'auto'; }
+  });
+}
+function tourStart(){ tourI = 0; $('tour').hidden = false; tourShow(); }
+function tourStop(){ $('tour').hidden = true; store.set('tourDone', 1); const tb = document.querySelector('.tab[data-t="meteo"]'); if (tb) tb.click(); }
+$('tourNext').addEventListener('click', () => { if (tourI >= TOUR.length - 1) return tourStop(); tourI++; tourShow(); });
+$('tourPrev').addEventListener('click', () => { if (tourI > 0){ tourI--; tourShow(); } });
+$('tourEnd').addEventListener('click', tourStop);
+addEventListener('resize', () => { if (!$('tour').hidden) tourShow(); });
+$('tourLearn').addEventListener('click', tourStart);
+$('tourSecu').addEventListener('click', tourStart);
 
 // ---------- SÉCURITÉ DE SORTIE : bilan avant départ, alertes en route, retour au port ----------
 var riverInfo = null, sunCache = null;
@@ -3186,6 +3255,75 @@ const SCHEMA = {
 };
 
 const LEARN = [
+  { cat:'Utiliser l\'appli (débutant)', items:[
+    { id:'app-premiere', t:'Ma première sortie avec l\'appli', why:'Les 8 gestes à faire avant et pendant chaque sortie, dans l\'ordre.', act:'tour', steps:[
+      'Onglet Obstacles : indique le tirant d\'eau de ton bateau (la partie sous l\'eau, moteur relevé ou non) et sa hauteur hors d\'eau. Une seule fois.',
+      'Onglet Couches, « Hors ligne » : télécharge la zone où tu vas naviguer, avec du réseau, la veille ou au port.',
+      'Onglet Route : touche « Tracer une route », pose tes points sur la carte, puis « Passage sûr automatique » si tu vas en mer.',
+      'Toujours dans Route : choisis l\'heure de départ et la durée, puis « Vérifier ma sortie ». Lis chaque ligne orange ou rouge.',
+      'Préviens un proche : où tu vas et à quelle heure tu rentres.',
+      'Au départ : touche GPS, puis « Démarrer » dans l\'onglet Sorties pour enregistrer ta trace.',
+      'En route : « Naviguer sur ma route » te guide à la voix. Garde l\'écran allumé et le téléphone chargé (une batterie externe aide).',
+      'Regarde dehors autant que l\'écran : bouées, autres bateaux, baigneurs, météo qui change.'],
+      tip:'L\'appli aide à décider et à se repérer ; c\'est toi le capitaine. Garde une carte papier ou officielle à bord.' },
+    { id:'app-meteo', t:'Lire la météo et décider de partir', why:'Comprendre le verdict, le vent, les rafales et les vagues.', steps:[
+      'Onglet Météo, « Météo ici » : le cadre de couleur dit tout de suite si c\'est maniable (vert), à prendre avec prudence (orange) ou à éviter (rouge).',
+      'Règle « Mon bateau supporte » : pour un petit bateau à moteur ou un débutant, commence par 15 nœuds de vent, 20 de rafales et 0,8 m de vagues.',
+      'Regarde les rafales plus que le vent moyen : ce sont elles qui surprennent.',
+      'Le cadre « Dégradation vers… » annonce que ça se gâte : rentre avant cette heure.',
+      'Le tableau des 7 jours aide à choisir le meilleur jour.',
+      'Vent de terre (qui souffle de la côte vers le large) : la mer paraît calme près du bord mais se creuse au large, et rentrer devient dur. Méfiance.'],
+      tip:'Dans le doute, ne sors pas : le bon marin est celui qui rentre.', q:'lire météo marine débutant bateau' },
+    { id:'app-maree', t:'Comprendre les marées dans l\'appli', why:'Pleine mer, basse mer, coefficient, hauteur d\'eau.', steps:[
+      'Onglet Météo, partie Marée : l\'appli dit si la mer monte ou descend, et quand arrive la prochaine pleine mer (PM) ou basse mer (BM).',
+      'Les hauteurs sont données au-dessus du « zéro des cartes », comme dans l\'annuaire : la profondeur réelle = la profondeur de la carte + cette hauteur.',
+      'La « Sonde » du tableau de bord fait ce calcul pour toi près des côtes.',
+      'Le coefficient (de 20 à 120) dit si la marée est forte : au-dessus de 90, gros courants et très basses mers.',
+      'Règle des douzièmes : l\'eau monte ou baisse surtout pendant les 3e et 4e heures de la marée.',
+      'Pour passer un endroit peu profond, vise la mi-marée montante : s\'il touche, l\'eau qui monte te libère.'],
+      tip:'Le bilan « Vérifier ma sortie » contrôle la profondeur de ta route au moment le plus bas de la marée.', q:'comprendre les marées coefficient bateau débutant' },
+    { id:'app-route', t:'Tracer une route et se faire guider', why:'De la carte au guidage vocal, comme un GPS de voiture.', steps:[
+      'Onglet Route, « Tracer une route » : touche la carte pour poser des points, re-touche le bouton pour finir.',
+      '« Passage sûr automatique » recalcule ta route pour éviter la terre, les hauts-fonds et les roches connues (en Europe).',
+      'Sous la carte : distance en milles, cap à suivre, durée et carburant estimés.',
+      '« Naviguer sur ma route » lance le guidage : flèche, distance, heure d\'arrivée, alertes vocales (ponts, dangers, fonds faibles).',
+      '« Aller à un point » : touche simplement l\'endroit où tu veux aller sur la carte.',
+      'Sur les fleuves, « Itinéraire par le fleuve » suit les rivières et canaux.'],
+      tip:'Vérifie toujours sur la carte que la route ne passe pas sur un danger.' },
+    { id:'app-port', t:'Trouver un port et y entrer', why:'Carburant, place pour la nuit, capitainerie.', steps:[
+      'Onglet Route, « Ports autour de moi » : la liste des ports avec distance, canal VHF, places visiteurs et carburant (coche « avec carburant » si besoin).',
+      '« Appeler » ou VHF canal 9 (en France) : préviens la capitainerie avant d\'arriver et demande une place.',
+      'Prépare les pare-battages et les amarres avant d\'entrer.',
+      'Dans le port : vitesse très lente (3 nœuds maximum en général), pas de vague.',
+      'En entrant, garde les bouées et balises vertes à droite et les rouges à gauche (en Europe).'],
+      tip:'Touche le symbole du port sur la carte pour voir ses infos.', q:'entrer dans un port bateau débutant' },
+    { id:'app-urgence', t:'En cas d\'urgence', why:'Les bons réflexes avec l\'appli.', steps:[
+      'Quelqu\'un tombe à l\'eau : appuie sur MOB immédiatement, crie « un homme à la mer », désigne quelqu\'un qui ne le quitte pas des yeux.',
+      'Suis la direction affichée (et la boussole, bouton N) pour revenir sur lui, moteur au point mort près de la personne.',
+      'Appelle les secours : VHF canal 16 (« Mayday » si danger de mort), ou le 196 depuis un portable, ou le 112.',
+      'Donne ta position : elle est écrite sous le tableau de bord (latitude et longitude).',
+      'Panne ou météo qui tourne : bouton ⌂ pour rentrer au port le plus proche.'],
+      tip:'Onglet Sécurité : les numéros sont toujours affichés, même sans réseau.' },
+    { id:'app-ancre', t:'Mouiller avec l\'alarme', why:'Dormir ou se baigner tranquille.', steps:[
+      'Choisis un endroit abrité du vent, avec un fond de sable ou de vase si possible.',
+      'Laisse filer au moins 3 fois la profondeur en chaîne (5 fois avec un bout).',
+      'Onglet Sécurité, règle le rayon (la longueur de chaîne plus la longueur du bateau), puis « Jeter l\'ancre ici » au-dessus de l\'ancre.',
+      'Laisse l\'appli ouverte, écran allumé et téléphone branché : si le bateau sort du cercle, il sonne et parle.',
+      'Touche l\'écran une fois après avoir posé l\'ancre pour autoriser le son.'],
+      tip:'Un site web ne peut pas sonner écran éteint : garde-le allumé.', q:'mouiller ancre bateau débutant' },
+    { id:'app-boussole', t:'Utiliser la boussole', why:'Le cap même à l\'arrêt, et la direction d\'un point.', steps:[
+      'Touche le bouton N, puis autorise l\'accès au capteur (une seule fois sur iPhone).',
+      'Tiens le téléphone à plat, le haut vers l\'avant du bateau.',
+      'Éloigne-le du moteur, de la console, des haut-parleurs et des objets en métal : ils faussent la boussole, comme une vraie.',
+      'Si rien ne s\'affiche ou si le cap semble faux, fais un grand 8 en l\'air avec le téléphone pour la recaler.',
+      'La flèche verte montre la direction de la personne à la mer, de ton prochain point ou de ton port, avec « tourne de … à droite / à gauche ».'],
+      tip:'En route, le cap GPS (bateau qui avance) est plus fiable que la boussole du téléphone.' },
+    { id:'app-horsligne', t:'Naviguer sans réseau', why:'Au large, il n\'y a souvent plus de 4G.', steps:[
+      'Avec du réseau (au port, la veille), onglet Couches, « Hors ligne » : choisis le niveau de détail puis « Télécharger cette zone ».',
+      'Ouvre aussi la météo et les marées du secteur : elles restent en mémoire.',
+      'Teste en mode avion avant de partir : la carte, les roches, les bouées et les marées doivent s\'afficher.',
+      'Sans réseau, l\'appli l\'indique en haut (« Hors ligne ») et utilise ce qui est téléchargé.'],
+      tip:'Les marées sont calculées sans réseau pour n\'importe quelle date.' } ] },
   { cat:'Nœuds essentiels', items:[
     { id:'chaise', t:'Nœud de chaise', why:'Une boucle fixe qui ne glisse pas et se défait facilement : amarrer sur une bitte, un anneau, faire une boucle de sauvetage.', steps:[
       'Sur la partie qui tient, fais une petite boucle (le « trou du lapin »), le brin libre passant par-dessus.',
@@ -3342,7 +3480,7 @@ function renderLearn(){
       <div class="vidbox" id="vb-${i.id}"></div>
       <ol>${i.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
       ${i.tip ? `<div class="tip">À retenir : ${esc(i.tip)}</div>` : ''}
-      <div class="row"><a class="btn primary" href="https://www.youtube.com/results?search_query=${encodeURIComponent(i.q)}" target="_blank" rel="noopener" style="text-decoration:none">Vidéos</a>
+      <div class="row">${i.act === 'tour' ? '<button class="btn primary" data-tour="1">Lancer la visite guidée</button>' : ''}${i.q ? `<a class="btn primary" href="https://www.youtube.com/results?search_query=${encodeURIComponent(i.q)}" target="_blank" rel="noopener" style="text-decoration:none">Vidéos</a>` : ''}
       <button class="btn" data-learn="${i.id}">${learned[i.id] ? 'À revoir' : 'J\'ai appris'}</button>
       <label class="btn" for="vf-${i.id}">${myVids[i.id] ? 'Changer ma vidéo' : 'Ajouter ma vidéo'}</label><input type="file" id="vf-${i.id}" data-vid="${i.id}" accept="video/*" hidden>
       ${myVids[i.id] ? `<button class="btn" data-vdel="${i.id}">Supprimer la vidéo</button>` : ''}</div></details>`).join('')).join('');
@@ -3350,6 +3488,7 @@ function renderLearn(){
 $('learnList').addEventListener('click', async e => {
   const vd = e.target.closest('[data-vdel]');
   if (vd){ const id = vd.dataset.vdel; await idbSet('vid_' + id, null); if (vidUrls[id]){ URL.revokeObjectURL(vidUrls[id]); delete vidUrls[id]; } delete myVids[id]; store.set('myVids', myVids); renderLearn(); const d = document.querySelector(`details[data-id="${id}"]`); if (d) d.open = true; return; }
+  if (e.target.closest('[data-tour]')){ tourStart(); return; }
   const b = e.target.closest('[data-learn]'); if (!b) return; const id = b.dataset.learn; learned[id] = !learned[id]; store.set('learned', learned); const open = id; renderLearn(); const d = document.querySelector(`details[data-id="${open}"]`); if (d) d.open = true; });
 renderLearn();
 
