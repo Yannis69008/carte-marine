@@ -193,6 +193,7 @@ details.lesson ol.lsteps b{color:var(--accent);font-weight:600}
 #rockWarn[hidden]{display:none}
 .rkBox{border-color:#ff8a3d!important}.rkWhy{background:rgba(255,138,61,.14);border-radius:8px;padding:8px 10px;font-weight:600;line-height:1.4}
 .rkL{display:flex;flex-direction:column;gap:7px;font-size:14px;line-height:1.4}
+.idDepth{background:var(--panel2);border-radius:8px;padding:6px 8px;margin:4px 0 6px;line-height:1.45}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -1065,8 +1066,10 @@ map.on('contextmenu', e => {
   if (tool) return;
   const p = [e.latlng.lat, e.latlng.lng]; lpPt = p;
   try{ navigator.vibrate && navigator.vibrate(25); }catch(err){}
+  setTimeout(() => depthNowAt(p).then(d => d === undefined ? ['Fond : pas de réponse (réseau)'] : d != null && d < 0 ? ['Fond : terre, ou eaux intérieures sans données'] : ctrDepthLines(p, d)).then(l => { const el = document.getElementById('lpDepth'); if (el && lpPt === p) el.innerHTML = '📏 ' + l.join('<br>'); }).catch(() => {}), 0);
   const from = gps ? gps.p : null;
   L.popup({ maxWidth:280 }).setLatLng(e.latlng).setContent(`<b>Ce point</b><br><span class="muted">${fmtPos(p)}${from ? ` · ${fmtD(distNM(from, p))} au ${pad3(bearing(from, p))}°` : ''}</span>
+    <div class="idDepth" id="lpDepth">📏 Fond : calcul…</div>
     <div class="lpm"><button class="btn primary" data-lp="go">🧭 Y aller</button><button class="btn" data-lp="route">➕ Ajouter à ma route</button><button class="btn" data-lp="wx">🌤️ Météo ici</button><button class="btn" data-lp="info">🔎 Qu'y a-t-il ici ?</button><button class="btn" data-lp="rep">⚑ Signaler ici</button></div>`).openOn(map);
 });
 map.getContainer().addEventListener('click', e => {
@@ -1196,6 +1199,11 @@ function ctrHide(){ clearTimeout(ctrT); $('ctrInfo').hidden = true; $('ctrX').hi
 map.on('moveend', () => { clearTimeout(ctrT); if (!ctrWanted()) return ctrHide(); $('ctrX').hidden = false; ctrT = setTimeout(ctrLoad, 700); });
 map.on('movestart', () => { if (!$('ctrInfo').hidden) $('ctrInfo').style.opacity = .55; });
 // Fond au centre avec la marée du moment, et ce qu'il restera à la prochaine basse mer
+// fond au point, la marée étant chargée d'abord (sinon fond et marée ne seraient pas cohérents)
+async function depthNowAt(p){
+  await Promise.race([Promise.resolve(tideDbReady(p)).catch(() => {}), new Promise(r => setTimeout(r, 3000))]);
+  return Promise.race([depthAt(p).catch(() => null), new Promise(r => setTimeout(() => r(undefined), 7000))]);
+}
 async function ctrDepthLines(p, d){
   if (d === undefined) return ['Fond : en cours…'];
   if (d == null) return ['Fond : inconnu ici'];
@@ -4715,7 +4723,11 @@ async function identifyAt(ll){
   const toItems = els => (els || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, c, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; }).filter(Boolean);
   const pO = overpass(qS, 3*86400000, true).then(j => j ? toItems(j.elements) : null).catch(() => null);
   const pA = osmApiNear(p, Math.min(R, 300)).catch(() => null);
-  let items = [], got = 0, lake = null, settled = 0, failed = 0;
+  let items = [], got = 0, lake = null, settled = 0, failed = 0, depthHtml = '<span class="muted">Fond : calcul…</span><br>';
+  // fond au point touché, avec la marée du moment et la prochaine basse mer
+  depthNowAt(p)
+    .then(d => d === undefined ? ['Fond : pas de réponse (réseau)'] : d != null && d < 0 ? ['Fond : terre, ou eaux intérieures sans données de profondeur'] : ctrDepthLines(p, d))
+    .then(lines => { depthHtml = '<div class="idDepth">📏 ' + lines.join('<br>') + '</div>'; render(settled >= 2); }).catch(() => { depthHtml = ''; });
   const isPort = t => t['seamark:type'] === 'harbour' || t['seamark:type'] === 'small_craft_facility' || t.leisure === 'marina' || t.harbour;
   const goBtns = c => `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${c[0].toFixed(5)},${c[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${c[0].toFixed(5)},${c[1].toFixed(5)}">Météo</button></div>`;
   const render = final => {
@@ -4727,7 +4739,7 @@ async function identifyAt(ll){
     const wait = !final ? '<br><span class="muted">Recherche de compléments…</span>' : '';
     const fail = final && failed >= 2 && !list.length ? '<span class="muted">Les serveurs de repères ne répondent pas (réseau faible ou serveurs saturés). Touche à nouveau dans un moment.</span><br>' : '';
     const none = final && !failed && !list.length && !local && !lake ? '<span class="muted">Aucune balise, aucun feu ni port répertorié ici. Touche bien sur le symbole (zoome si besoin).</span><br>' : '';
-    pop.setContent(lakeHtml + body + (list.length ? '<hr>' : '') + fail + none + local + base + wait);
+    pop.setContent(lakeHtml + body + (list.length ? '<hr>' : '') + fail + none + local + depthHtml + base + wait);
   };
   const take = v => { settled++; if (v === null) failed++; else { items = items.concat(v); got++; } render(settled >= 2); };
   pO.then(take); pA.then(take);
