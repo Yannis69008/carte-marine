@@ -1758,7 +1758,7 @@ $('shomFile').addEventListener('change', async e => {
 });
 
 // --- OpenStreetMap / OpenSeaMap via Overpass
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
 function osmKind(t){
   const s = t['seamark:type'];
   if (['wreck','rock','obstruction','bridge'].includes(s)) return s;
@@ -1785,7 +1785,8 @@ async function overpass(q, ttl, force){
   if (!force) await opSlot();
   for (const url of OVERPASS){
     try{
-      const r = await fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } });
+      const ac = new AbortController(), to = setTimeout(() => ac.abort(), 14000);
+      const r = await fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, signal:ac.signal }).finally(() => clearTimeout(to));
       if (r.status === 429 || r.status === 503 || r.status === 504){ opPause = Date.now() + 60000; continue; }
       if (!r.ok) continue;
       const j = await r.json();
@@ -4443,17 +4444,36 @@ map.on('moveend', () => { clearTimeout(lakesT); lakesT = setTimeout(loadLakes, 1
 // Données ouvertes : OpenStreetMap (lac, accès bateau/moteur, mises à l'eau, ports, carburant), Open-Meteo (vent, altitude),
 // swisstopo (profondeurs des lacs suisses). La réglementation officielle dépend de chaque lac : on le dit et on aide à la trouver.
 let lastLake = null;
-async function lakeAt(p){
-  const q = `[out:json][timeout:20];is_in(${p[0].toFixed(5)},${p[1].toFixed(5)})->.a;(way(pivot.a)["natural"="water"];rel(pivot.a)["natural"="water"];way(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];rel(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];)->.w;.w out tags bb;area.a["ISO3166-1"]->.c;.c out tags;`;
-  const j = await overpass(q, 30*86400000, true).catch(() => null);
-  if (!j || !j.elements) return null;
-  const cc = (j.elements.find(e => e.tags && e.tags['ISO3166-1']) || {}).tags;
-  const w = j.elements.filter(e => e.bounds && e.tags && !/^(river|canal|stream|ditch|wastewater|stream_pool|fish_pass|moat)$/.test(e.tags.water || '') && (e.tags.natural === 'water' || e.tags.water))
+function lakeFromEls(els, p){
+  const cc = (els.find(e => e.tags && e.tags['ISO3166-1']) || {}).tags;
+  const w = els.filter(e => e.bounds && e.tags && !/^(river|canal|stream|ditch|wastewater|stream_pool|fish_pass|moat)$/.test(e.tags.water || '') && (e.tags.natural === 'water' || e.tags.water))
     .map(e => ({ tags:e.tags, type:e.type, id:e.id, b:[e.bounds.minlat, e.bounds.minlon, e.bounds.maxlat, e.bounds.maxlon] }))
     .sort((a, b) => (a.b[2]-a.b[0])*(a.b[3]-a.b[1]) - (b.b[2]-b.b[0])*(b.b[3]-b.b[1]));
   if (!w.length) return null;
   const L0 = w.find(x => x.tags.name) || w[0];
   return Object.assign(L0, { p, cc:cc ? cc['ISO3166-1'] : null, country:cc ? (cc['name:fr'] || cc.name) : null, km:distNM([L0.b[0], L0.b[1]], [L0.b[2], L0.b[3]])*1.852 });
+}
+// Secours si Overpass est saturé : l'API principale d'OpenStreetMap, sur un tout petit carré autour du doigt
+async function osmApiNear(p, R){
+  try{
+    const d = Math.max(R, 80)*1.6/111120, dl = d/Math.cos(toRad(p[0]));
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 10000);
+    const txt = await fetch(`https://api.openstreetmap.org/api/0.6/map?bbox=${(p[1]-dl).toFixed(5)},${(p[0]-d).toFixed(5)},${(p[1]+dl).toFixed(5)},${(p[0]+d).toFixed(5)}`, { signal:ac.signal }).then(r => r.ok ? r.text() : null).finally(() => clearTimeout(to));
+    if (!txt) return null;
+    const doc = new DOMParser().parseFromString(txt, 'application/xml'), nodes = new Map(), out = [];
+    const tagsOf = el => { const t = {}; [...el.getElementsByTagName('tag')].forEach(g => t[g.getAttribute('k')] = g.getAttribute('v')); return t; };
+    const want = t => t['seamark:type'] || t.leisure === 'marina' || t.harbour;
+    [...doc.getElementsByTagName('node')].forEach(n => { const c = [+n.getAttribute('lat'), +n.getAttribute('lon')]; nodes.set(n.getAttribute('id'), c); const t = tagsOf(n); if (want(t)) out.push({ t, c, d:distNM(p, c)*1852, pt:true }); });
+    [...doc.getElementsByTagName('way')].forEach(w => { const t = tagsOf(w); if (!want(t)) return; const pts = [...w.getElementsByTagName('nd')].map(nd => nodes.get(nd.getAttribute('ref'))).filter(Boolean); if (!pts.length) return;
+      const c = [pts.reduce((a, q) => a + q[0], 0)/pts.length, pts.reduce((a, q) => a + q[1], 0)/pts.length]; out.push({ t, c, d:distNM(p, c)*1852, pt:false }); });
+    return out;
+  }catch(e){ return null; }
+}
+async function lakeAt(p){
+  const q = `[out:json][timeout:20];is_in(${p[0].toFixed(5)},${p[1].toFixed(5)})->.a;(way(pivot.a)["natural"="water"];rel(pivot.a)["natural"="water"];way(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];rel(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];)->.w;.w out tags bb;area.a["ISO3166-1"]->.c;.c out tags;`;
+  const j = await overpass(q, 30*86400000, true).catch(() => null);
+  if (!j || !j.elements) return null;
+  return lakeFromEls(j.elements, p);
 }
 function lakeVerdict(L, pois){
   const t = L.tags, motor = (+$('conso').value || 0) > 0, name = t.name || 'ce plan d\'eau';
@@ -4671,8 +4691,14 @@ async function identifyAt(ll){
   const pop = L.popup({ maxWidth:290 }).setLatLng(ll).setContent(local + base + (navigator.onLine ? '<br><span class="muted">Recherche de ce qu\'il y a ici…</span>' : '')).openOn(map);
   if (!navigator.onLine) return;
   const a = `(around:${Math.round(R)},${p[0].toFixed(6)},${p[1].toFixed(6)})`;
-  const lakeP = lakeAt(p);
-  const [j, hb] = await Promise.all([overpass(`[out:json][timeout:15];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];);out center tags 25;`, 3*86400000, true).catch(() => null), harbourNear(p, R)]);
+  const ll5 = `${p[0].toFixed(5)},${p[1].toFixed(5)}`;
+  const qI = `[out:json][timeout:20];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];)->.s;.s out center tags 25;is_in(${ll5})->.a;(way(pivot.a)["natural"="water"];rel(pivot.a)["natural"="water"];way(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];rel(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];)->.w;.w out tags bb;area.a["ISO3166-1"]->.c;.c out tags;`;
+  let j0 = await overpass(qI, 3*86400000, true).catch(() => null);
+  if (!j0 && pop.isOpen()){ pop.setContent(local + base + '<br><span class="muted">Serveur occupé, nouvel essai…</span>'); await new Promise(r => setTimeout(r, 1500)); j0 = await overpass(qI, 3*86400000, true).catch(() => null); }
+  const hb = null;
+  let j = j0 ? { elements:j0.elements.filter(e => !e.bounds && !(e.tags && e.tags['ISO3166-1']) && !(e.type === 'area')) } : null;
+  const lakeP = Promise.resolve(j0 ? lakeFromEls(j0.elements, p) : null);
+  if (!j && pop.isOpen()){ const api = await osmApiNear(p, R); if (api) j = { elements:api.map(x => ({ tags:x.t, lat:x.c[0], lon:x.c[1], type:x.pt ? 'node' : 'way' })) }; }
   if (!pop.isOpen()) return;
   const hbItems = (hb || []).filter(h => h.d < Math.max(R*1.6, 300)).slice(0, 2);
   const els = (j && j.elements || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, c, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; })
