@@ -1185,7 +1185,8 @@ async function ctrDepthLines(p, d){
   await Promise.race([Promise.resolve(tideDbReady(p)).catch(() => {}), new Promise(r => setTimeout(r, 3000))]);
   const now = Date.now()/1000, th = tideHeightAt(p, now);
   const withTide = th != null && repDepth(p) == null && iencDepth(p) == null;
-  if (!withTide) return [`Fond <b>≈ ${n1(d)} m</b> <span class="muted">(estimé${th == null ? ', marée non calculée ici' : ''})</span>`];
+  const ds0 = depthStats.get(p[0].toFixed(4) + ',' + p[1].toFixed(4));
+  if (!withTide) return [`Fond <b>≈ ${n1(d)} m</b> <span class="muted">(estimé${th == null ? ', marée non calculée ici' : ''}${ds0 && ds0.hi - ds0.lo > 1 ? ', entre ' + n1(ds0.lo) + ' et ' + n1(ds0.hi) + ' m dans le secteur, valeur la plus faible affichée' : ''})</span>`];
   const chart = d - th, need = cfg.draft + cfg.margin;
   let lo = null, hi = null, prev = th;
   for (let k = 1; k <= 90 && !(lo && hi); k++){
@@ -1195,6 +1196,7 @@ async function ctrDepthLines(p, d){
   const v1 = tideHeightAt(p, now + 600), sens = v1 == null ? '' : v1 > th ? ', mer montante' : ', mer descendante';
   const col = x => x < cfg.draft ? '#ef5350' : x < need ? 'var(--warn)' : 'inherit';
   const out = [`Fond <b>≈ ${n1(d)} m</b> maintenant <span class="muted">(marée ${th >= 0 ? '+' : ''}${n1(th)} m${sens})</span>`];
+  const ds = depthStats.get(p[0].toFixed(4) + ',' + p[1].toFixed(4)); if (ds && ds.hi - ds.lo > 1) out.push(`<span class="muted">Sur la carte, ce secteur varie de ${n1(ds.lo)} à ${n1(ds.hi)} m : l'appli affiche la valeur la plus faible.</span>`);
   const ev = [];
   if (lo){ const x = chart + lo.v; ev.push(`<span style="color:${col(x)}">basse mer ${hhmm(lo.t)} : ≈ ${n1(Math.max(0, x))} m${x < need ? ' ⚠' : ''}</span>`); }
   if (hi) ev.push(`pleine mer ${hhmm(hi.t)} : ≈ ${n1(chart + hi.v)} m`);
@@ -1935,6 +1937,7 @@ map.on('moveend', () => {
 
 // --- profondeur (EMODnet) et alerte fond faible
 const depthCache = new Map();
+const depthStats = new Map();   // écart de profondeur dans la case EMODnet (le plus faible / le plus fort)
 async function depthAt(p, t){
   const th = () => tideHeightAt(p, t || Date.now()/1000) || 0;
   const dr = repDepth(p); if (dr != null) return dr;
@@ -1945,7 +1948,7 @@ async function depthAt(p, t){
   let d = null;
   try{
     const j = await fetch(`https://rest.emodnet-bathymetry.eu/depth_sample?geom=POINT(${p[1].toFixed(5)}%20${p[0].toFixed(5)})`).then(r => r.json());
-    if (typeof j.avg === 'number') d = -j.avg;
+    if (typeof j.avg === 'number'){ d = -(typeof j.max === 'number' ? Math.max(j.avg, j.max) : j.avg); if (typeof j.min === 'number' && typeof j.max === 'number') depthStats.set(key, { lo:-j.max, hi:-j.min, n:j.elementarySurfaces || 0 }); }
   }catch(e){}
   if (d == null){
     try{
@@ -1990,7 +1993,7 @@ function sampleGrid(g, p){
     let sh = null; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++){ const v = at(Math.round(fy) + dr, Math.round(fx) + dc); if (v != null && (sh == null || v > sh)) sh = v; }
     return sh == null ? null : -sh;
   }
-  const v = q[0]*(1-tx)*(1-ty) + q[1]*tx*(1-ty) + q[2]*(1-tx)*ty + q[3]*tx*ty;
+  const v = Math.max(q[0], q[1], q[2], q[3]);   // prudent : la moins profonde des 4 cases autour
   return -v;
 }
 function gridDepth(p){
@@ -3410,8 +3413,8 @@ async function seaRoute(from, to, opt){
     if (o.kind === 'weir' || o.kind === 'dam') return;
     if (o.d != null && o.d >= need + 2) return;
     const [r, c] = rc(o.p); if (r < 0 || c < 0 || r >= h || c >= w) return;
-    const rr = Math.max(1, Math.ceil(70/Math.min(mX, mY)));
-    for (let dr = -rr; dr <= rr; dr++) for (let dc = -rr; dc <= rr; dc++){ const R = r + dr, C = c + dc; if (R >= 0 && C >= 0 && R < h && C < w && Math.hypot(dr*mY, dc*mX) <= 70 + Math.max(mX, mY)/2){ block[R*w + C] = 1; } }
+    const rr = Math.max(1, Math.ceil(100/Math.min(mX, mY)));
+    for (let dr = -rr; dr <= rr; dr++) for (let dc = -rr; dc <= rr; dc++){ const R = r + dr, C = c + dc; if (R >= 0 && C >= 0 && R < h && C < w && Math.hypot(dr*mY, dc*mX) <= 100 + Math.max(mX, mY)/2){ block[R*w + C] = 1; } }
     nHaz++;
   });
   // distance à ce qui est bloqué (terre, hauts-fonds, dangers) : on s'en écarte, surtout près des plages
@@ -3443,7 +3446,7 @@ async function seaRoute(from, to, opt){
     const r = Math.floor(i/w), c = i % w;
     for (const [dr, dc] of D8){ const R = r + dr, C = c + dc; if (R < 0 || C < 0 || R >= h || C >= w) continue; const j = R*w + C; if (block[j] || done[j]) continue;
       if (dr && dc && (block[r*w + C] || block[R*w + c])) continue;
-      const cost = Math.hypot(dr*mY, dc*mX)*(near[j] ? 1.8 : dep[j] < need + 2 ? 1.3 : 1)*(sd[j] < 300 ? 1.2 : 1)*(fair[j] ? 0.7 : 1), ng = gS[i] + cost;
+      const cost = Math.hypot(dr*mY, dc*mX)*(near[j] ? 3 : dep[j] < need + 2 ? 1.4 : 1)*(sd[j] < 250 ? 1.4 : sd[j] < 400 ? 1.15 : 1)*(fair[j] ? 0.7 : 1), ng = gS[i] + cost;
       if (ng < gS[j]){ gS[j] = ng; prev[j] = i; push(j, ng + H(j)); } }
   }
   if (!found) return { err:'pas de passage assez profond pour ton tirant d\'eau entre ces deux points' };
@@ -3458,10 +3461,12 @@ async function seaRoute(from, to, opt){
   if (s0.d > 0) path.unshift(ll(Math.floor(s0.i/w), s0.i % w));
   let tot = distNM(from, path[0]); for (let i = 1; i < path.length; i++) tot += distNM(path[i-1], path[i]);
   const direct = distNM(from, to), minD = Math.min(...cells.map(i => dep[i]));
+  const nearM = Math.round(cells.filter(i => near[i]).length*Math.min(mX, mY));
+  const nearTxt = nearM >= 100 ? ` ⚠ Environ ${nearM >= 1000 ? n1(nearM/1000) + ' km' : nearM + ' m'} du trajet passent à moins de 100 m d'un haut-fond, d'un danger ou de la côte (passe étroite) : ralentis et passe à vue, en suivant le balisage.` : '';
   const short = `Passage calculé : ${fmtD(tot)}${tot > direct*1.05 ? ` (ligne droite ${fmtD(direct)})` : ''}, ${path.length} point(s).`;
   const extra = [vecOk ? `trait de côte et îlots OpenStreetMap pris en compte${nZone ? ', ' + nZone + ' zone(s) interdite(s) évitée(s)' : ''}${nFair ? ', chenaux balisés suivis quand c\'est possible' : ''}` : 'trait de côte détaillé non chargé (réseau ou serveur) : vérifie près des côtes', tideMin != null ? `marée comptée : au moins +${n1(tideMin)} m d'eau pendant ta sortie, donc ${n1(need)} m d'eau suffisent au lieu de ${n1(need0)} m (refais le calcul si tu pars plus tard)` : '', g.world ? 'hors Europe : relief mondial SRTM15+ (cases d\'environ 450 m), à vérifier sur la carte officielle' : ''].filter(Boolean).join(' · ');
   const coarse = Math.max(mX, mY) > 300 ? ` Trajet long : profondeurs simplifiées (cases de ${Math.round(Math.max(mX, mY))} m), les petites îles et roches peuvent manquer, suis le balisage près des côtes.` : '';
-  const msg = `${short} ${extra}.${coarse} Au moins ${n1(Math.max(need, minD))} m d'eau ${tideMin != null ? 'sur la carte (zéro des cartes), plus la marée' : 'même aux plus basses mers'} selon les profondeurs ${g.world ? 'SRTM15+' : 'EMODnet'} (cases de ${Math.round(Math.max(mX, mY))} m), pour ${n1(cfg.draft)} m de tirant d'eau + ${n1(cfg.margin)} m de marge${nHaz ? `, en évitant ${nHaz} roche(s)/épave(s) connue(s)` : ''}.` +
+  const msg = `${short} ${extra}.${nearTxt}${coarse} Au moins ${n1(Math.max(need, minD))} m d'eau ${tideMin != null ? 'sur la carte (zéro des cartes), plus la marée' : 'même aux plus basses mers'} selon les profondeurs ${g.world ? 'SRTM15+' : 'EMODnet'} (cases de ${Math.round(Math.max(mX, mY))} m), pour ${n1(cfg.draft)} m de tirant d'eau + ${n1(cfg.margin)} m de marge${nHaz ? `, en évitant ${nHaz} roche(s)/épave(s) connue(s)` : ''}.` +
     `${s0.d > 0 ? ` Sortie du port au moteur et à vue (${Math.round(s0.d)} m peu profonds ou non cartographiés).` : ''}${s1.d > 0 ? ` Fin du trajet à vue sur ${Math.round(s1.d)} m (port ou zone peu profonde).` : ''} Les petites roches isolées et les bancs mobiles peuvent manquer : garde un œil sur la carte et le balisage.`;
   return { path, msg, short };
 }
