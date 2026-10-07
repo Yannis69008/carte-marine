@@ -197,6 +197,8 @@ body.nav #toolHint{display:none}
         <button class="btn primary" id="wxHere">Météo ici (bateau / centre)</button>
         <button class="btn" id="wxTap">Touche un point</button>
       </div>
+      <div class="row muted">Mon bateau supporte : vent <input type="number" id="thW" min="5" step="1"> nd · rafales <input type="number" id="thG" min="5" step="1"> nd · vagues <input type="number" id="thH" min="0.2" step="0.1"> m</div>
+      <div class="row muted" style="gap:10px"><span>Vent et vagues sur la carte :</span><input type="range" id="wxHour" min="0" max="47" value="0" style="flex:1;min-width:140px"><b id="wxHourTxt">maintenant</b></div>
       <div id="wxOut" class="pane"><div class="muted">Chargement de la météo marine…</div></div>
     </div>
 
@@ -240,7 +242,7 @@ body.nav #toolHint{display:none}
       <div class="muted">1. SHOM : épaves et obstructions officielles (France, licence CC BY-SA 4.0)<br>
         2. OpenStreetMap / OpenSeaMap : roches, épaves, obstructions, écluses, barrages, ponts, ports et carburant<br>
         3. IGN (BD TOPO) : ponts, écluses et barrages officiels, trait de côte, cours d'eau<br>
-        4. EMODnet : profondeur (grille d'environ 115 m, imprécise près des côtes, marée non incluse)</div>
+        4. Profondeur : tes relevés, puis cartes IENC officielles, puis grille EMODnet téléchargée (≈ 115 m, Europe), puis GEBCO (monde). Marée non incluse.</div>
       <div id="shomStatus" class="muted"></div>
       <div id="shomManual" hidden>
         <div class="row">
@@ -294,6 +296,12 @@ body.nav #toolHint{display:none}
       </div>
       <div id="mobOut" class="muted">Homme à la mer : appuie sur MOB pour marquer la position et afficher le cap pour y revenir.</div>
 
+      <h3>Alarme de mouillage</h3>
+      <div class="muted">Une fois l'ancre posée, appuie sur « Jeter l'ancre ici ». Si le bateau sort du cercle (l'ancre chasse), le téléphone sonne, vibre et parle. Laisse l'appli ouverte, écran allumé et branché.</div>
+      <div class="row muted">Rayon d'évitage <input type="number" id="anchR" value="40" min="10" step="5"> m</div>
+      <div class="row"><button class="btn primary" id="anchSet">Jeter l'ancre ici</button><button class="btn" id="anchOff" hidden>Lever l'ancre</button></div>
+      <div id="anchOut" class="muted"></div>
+
       <h3>Signaler un problème ou une info</h3>
       <div class="muted">Roche, banc de sable, filets, pont mesuré, profondeur relevée, bon mouillage… Tout s'affiche sur la carte, entre dans la liste des obstacles et dans les annonces de navigation. Les dangers déclenchent une alerte quand tu t'en approches.</div>
       <div class="row"><select id="repType"></select></div>
@@ -340,6 +348,7 @@ body.nav #toolHint{display:none}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <script>
 "use strict";
 // ---------- utilitaires ----------
@@ -379,13 +388,41 @@ const n1 = v => v == null ? '–' : (Math.round(v*10)/10).toLocaleString('fr-FR'
 const n0 = v => v == null ? '–' : Math.round(v);
 
 // Niveau de risque pour une petite unité (bateau à moteur ~5-7 m)
-function risk(w, g, h){
-  let lvl = 0; const why = [];
-  const up = (l, t) => { if (l > lvl) lvl = l; why.push(t); };
-  if (w >= 22) up(2, `vent ${n0(w)} nd (force ${beaufort(w)})`); else if (w >= 16) up(1, `vent ${n0(w)} nd (force ${beaufort(w)})`);
-  if (g >= 28) up(2, `rafales ${n0(g)} nd`); else if (g >= 20) up(1, `rafales ${n0(g)} nd`);
-  if (h != null){ if (h >= 2) up(2, `vagues ${n1(h)} m`); else if (h >= 1) up(1, `vagues ${n1(h)} m`); }
+const TH = () => { const c = (typeof cfg !== 'undefined' && cfg) || {}; return { w:c.thW || 22, g:c.thG || 28, h:c.thH || 2 }; };
+function risk(w, g, h, code, cape, vis){
+  let lvl = 0; const why = [], t = TH();
+  const up = (l, txt) => { if (l > lvl) lvl = l; why.push(txt); };
+  if (w >= t.w) up(2, `vent ${n0(w)} nd (force ${beaufort(w)})`); else if (w >= t.w*0.72) up(1, `vent ${n0(w)} nd (force ${beaufort(w)})`);
+  if (g >= t.g) up(2, `rafales ${n0(g)} nd`); else if (g >= t.g*0.72) up(1, `rafales ${n0(g)} nd`);
+  if (h != null){ if (h >= t.h) up(2, `vagues ${n1(h)} m`); else if (h >= t.h*0.5) up(1, `vagues ${n1(h)} m`); }
+  if (code >= 95) up(2, 'orage'); else if (cape != null && cape > 1200) up(1, 'risque d\'orage');
+  if (vis != null && vis < 1000) up(vis < 300 ? 2 : 1, `brouillard (visibilité ${vis < 1000 ? Math.round(vis) + ' m' : ''})`);
   return { lvl, why };
+}
+function seaState(h){
+  if (h == null) return '';
+  return h < 0.1 ? 'mer calme' : h < 0.5 ? 'mer belle' : h < 1.25 ? 'mer peu agitée' : h < 2.5 ? 'mer agitée' : h < 4 ? 'mer forte' : h < 6 ? 'mer très forte' : h < 9 ? 'mer grosse' : 'mer très grosse';
+}
+const WCODE = c => c == null ? '' : c >= 95 ? 'orage' : c >= 80 ? 'averses' : c >= 71 ? 'neige' : c >= 61 ? 'pluie' : c >= 51 ? 'bruine' : c >= 45 ? 'brouillard' : c >= 3 ? 'couvert' : c >= 1 ? 'nuageux' : 'dégagé';
+function wxChart(T, i0, n, series, unit){
+  const W = 340, Hh = 120, pl = 28, pr = 6, pt = 10, pb = 18;
+  const all = series.flatMap(s => s.v.slice(i0, i0+n)).filter(v => v != null);
+  if (!all.length) return '';
+  const mx = Math.max(1, ...all)*1.1, X = i => pl + (i - i0)/(n-1)*(W-pl-pr), Y = v => pt + (1 - v/mx)*(Hh-pt-pb);
+  let g = '';
+  [0, 0.5, 1].forEach(f => { const v = mx*f; g += `<line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl-4}" y="${Y(v)+3}" text-anchor="end">${unit === 'm' ? n1(v) : n0(v)}</text>`; });
+  for (let i = i0; i < i0+n; i++){ const d = new Date(T[i]*1000); if (d.getHours() === 0) g += `<line x1="${X(i)}" x2="${X(i)}" y1="${pt}" y2="${Hh-pb}" stroke="var(--line)" stroke-dasharray="2 3"/><text x="${X(i)+3}" y="${Hh-5}">${d.toLocaleDateString('fr-FR', { weekday:'short' })}</text>`; }
+  series.forEach(s => {
+    let d = '', first = true;
+    for (let i = i0; i < i0+n; i++){ const v = s.v[i]; if (v == null) continue; d += (first ? 'M' : 'L') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1); first = false; }
+    if (s.area) g += `<path d="${d} L${X(i0+n-1)} ${Hh-pb} L${X(i0)} ${Hh-pb} Z" fill="${s.c}" opacity=".25"/>`;
+    g += `<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${s.w || 2}"${s.dash ? ' stroke-dasharray="4 3"' : ''}/>`;
+  });
+  const lim = (series.find(x => x.lim) || {}).lim;
+  if (lim && lim < mx) g += `<line x1="${pl}" x2="${W-pr}" y1="${Y(lim)}" y2="${Y(lim)}" stroke="var(--bad)" stroke-dasharray="5 4"/>`;
+  g += `<line x1="${X(i0)}" x2="${X(i0)}" y1="${pt}" y2="${Hh-pb}" stroke="var(--accent)"/>`;
+  return `<div class="tblWrap" style="border:0"><svg viewBox="0 0 ${W} ${Hh}" width="100%" style="max-width:560px;display:block">${g}</svg></div>
+    <div class="muted">${series.map(s => `<span style="color:${s.c}">━</span> ${s.name}`).join(' · ')}${lim && lim < mx ? ' · <span style="color:var(--bad)">┅</span> ta limite' : ''}</div>`;
 }
 const RISK_TXT = ['Conditions maniables','Prudence','Dangereux pour une petite unité'];
 
@@ -530,7 +567,7 @@ function onFix(pos){
   else { boat.setLatLng(p).setIcon(boatIcon(cog)); accCircle.setLatLng(p).setRadius(c.accuracy); }
   if (follow) map.panTo(p, { animate:true });
   if (!track.length || distNM(track[track.length-1], p) > 0.01){ track.push(p); if (track.length > 5000) track.shift(); trackLine.setLatLngs(track); }
-  checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver(); navUpdate(); zoneUpdate();
+  checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver(); navUpdate(); zoneUpdate(); anchorCheck();
 }
 $('followBtn').classList.add('active');
 $('followBtn').addEventListener('click', () => { follow = !follow; $('followBtn').classList.toggle('active', follow); if (follow && gps) map.panTo(gps.p); });
@@ -541,7 +578,7 @@ if (store.get('night', false)) document.body.classList.add('night');
 $('nightBtn').addEventListener('click', () => store.set('night', document.body.classList.toggle('night')));
 
 // ---------- MÉTÉO ----------
-const W_HOURLY = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,visibility,pressure_msl,precipitation,temperature_2m';
+const W_HOURLY = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,visibility,pressure_msl,precipitation,temperature_2m,cape';
 const M_HOURLY = 'wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,sea_surface_temperature,sea_level_height_msl,ocean_current_velocity,ocean_current_direction';
 let wxBusy = false;
 async function loadWeather(p, label){
@@ -576,10 +613,10 @@ function renderWeather(p, label, w, m){
   // pire situation sur les 6 prochaines heures
   let worst = { lvl:-1 }, worstI = i0;
   for (let i = i0; i < Math.min(i0+6, H.time.length); i++){
-    const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], g(M.wave_height, i));
+    const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], g(M.wave_height, i), g(H.weather_code, i), g(H.cape, i), g(H.visibility, i));
     if (r.lvl > worst.lvl){ worst = r; worstI = i; }
   }
-  const curr = risk(ws, wg, wh);
+  const curr = risk(ws, wg, wh, g(H.weather_code, i0), g(H.cape, i0), H.visibility[i0]);
 
   const cur = g(M.ocean_current_velocity, i0);
   const vis = H.visibility[i0];
@@ -587,7 +624,8 @@ function renderWeather(p, label, w, m){
   const cells = [
     ['Vent', `${arrow(wd)} ${n0(ws)} nd`, `${card(wd)} · force ${beaufort(ws)} · ${BF_TXT[beaufort(ws)]}`],
     ['Rafales', `${n0(wg)} nd`, `force ${beaufort(wg)}`],
-    ['Vagues', m ? `${n1(wh)} m` : '–', m ? `période ${n0(g(M.wave_period,i0))} s · ${card(g(M.wave_direction,i0)||0)}` : 'pas de donnée ici'],
+    ['Vagues', m ? `${n1(wh)} m` : '–', m ? `${seaState(wh)} · période ${n0(g(M.wave_period,i0))} s · de ${card(g(M.wave_direction,i0)||0)}` : 'pas de donnée ici'],
+    ['Ciel', WCODE(g(H.weather_code, i0)) || '–', g(H.cape, i0) > 1200 ? 'air instable, orages possibles' : (H.precipitation[i0] ? n1(H.precipitation[i0]) + ' mm/h' : '')],
     ['Houle', m ? `${n1(g(M.swell_wave_height,i0))} m` : '–', m ? `${n0(g(M.swell_wave_period,i0))} s · de ${card(g(M.swell_wave_direction,i0)||0)}` : ''],
     ['Mer du vent', m ? `${n1(g(M.wind_wave_height,i0))} m` : '–', 'clapot local'],
     ['Courant', cur != null ? `${n1(cur/1.852)} nd` : '–', cur != null ? `vers ${card(g(M.ocean_current_direction,i0)||0)}` : ''],
@@ -602,15 +640,27 @@ function renderWeather(p, label, w, m){
   if (worst.lvl > curr.lvl) html += `<div class="verdict v${worst.lvl}"><div><b>Dégradation vers ${hhmm(H.time[worstI])}</b><div class="muted" style="color:inherit">${worst.why.join(' · ')}</div></div></div>`;
   html += `<div class="grid">${cells.map(c => `<div class="cell"><div class="k">${c[0]}</div><div class="v">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('')}</div>`;
 
+  const nH = Math.min(48, H.time.length - i0), tt = TH();
+  html += `<h3>Vent sur 48 h (nœuds)</h3>` + wxChart(H.time, i0, nH, [{ name:'rafales', v:H.wind_gusts_10m, c:'#ef8a5a', area:true, w:1.5 }, { name:'vent moyen', v:H.wind_speed_10m, c:'#7fd3ff', lim:tt.w }], 'nd');
+  if (m && M.wave_height) html += `<h3>Vagues sur 48 h (mètres)</h3>` + wxChart(H.time, i0, nH, [{ name:'vagues', v:M.wave_height, c:'#4fc3f7', area:true, lim:tt.h }, { name:'houle', v:M.swell_wave_height, c:'#b39ddb', dash:true }], 'm');
   if (m && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)) html += `<h3>Marée (niveau de la mer, modèle)</h3>` + tideChart(H.time, M.sea_level_height_msl, i0);
+  // résumé 7 jours
+  const days = {};
+  H.time.forEach((t, i) => { if (t < now - 3600) return; const k = new Date(t*1000).toDateString(); const d = days[k] = days[k] || { t, w:0, g:0, h:0, dir:[], code:0, lvl:0, r:0 };
+    const hr = new Date(t*1000).getHours(); if (hr < 6 || hr > 21) return;
+    d.w = Math.max(d.w, H.wind_speed_10m[i] || 0); d.g = Math.max(d.g, H.wind_gusts_10m[i] || 0); d.h = Math.max(d.h, g(M.wave_height, i) || 0); d.dir.push(H.wind_direction_10m[i]); d.code = Math.max(d.code, g(H.weather_code, i) || 0); d.r += H.precipitation[i] || 0;
+    d.lvl = Math.max(d.lvl, risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], g(M.wave_height, i), g(H.weather_code, i), g(H.cape, i), g(H.visibility, i)).lvl); });
+  html += `<h3>Les 7 prochains jours (de 6 h à 21 h)</h3><div class="tblWrap"><table><thead><tr><th>Jour</th><th>Vent max</th><th>Raf.</th><th>Vagues</th><th>Ciel</th></tr></thead><tbody>` +
+    Object.values(days).slice(0, 7).map(d => { const md = d.dir.length ? d.dir[Math.floor(d.dir.length/2)] : 0;
+      return `<tr class="l${d.lvl}"><td>${new Date(d.t*1000).toLocaleDateString('fr-FR', { weekday:'short', day:'numeric' })}</td><td>${arrow(md, 10)} ${n0(d.w)} ${card(md)}</td><td>${n0(d.g)}</td><td>${m ? n1(d.h) : '–'}</td><td>${WCODE(d.code)}${d.r >= 1 ? ' ' + n0(d.r) + ' mm' : ''}</td></tr>`; }).join('') + `</tbody></table></div>`;
 
   html += `<h3>Prévisions heure par heure</h3><div class="tblWrap"><table><thead><tr><th>Heure</th><th>Vent</th><th>Raf.</th><th>Vagues</th><th>Pér.</th><th>Houle</th><th>Pluie</th></tr></thead><tbody>`;
   for (let i = i0; i < Math.min(i0+48, H.time.length); i++){
-    const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], g(M.wave_height, i));
+    const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], g(M.wave_height, i), g(H.weather_code, i), g(H.cape, i), g(H.visibility, i));
     html += `<tr class="l${r.lvl}"><td>${dayH(H.time[i])}</td><td>${arrow(H.wind_direction_10m[i],10)} ${n0(H.wind_speed_10m[i])} ${card(H.wind_direction_10m[i])}</td><td>${n0(H.wind_gusts_10m[i])}</td><td>${n1(g(M.wave_height,i))}</td><td>${n0(g(M.wave_period,i))}</td><td>${n1(g(M.swell_wave_height,i))}</td><td>${H.precipitation[i] ? n1(H.precipitation[i]) : ''}</td></tr>`;
   }
   html += `</tbody></table></div>
-  <div class="muted">Vent en nœuds, vagues en mètres, période en secondes. Bande orange = prudence, rouge = dangereux. Seuils pensés pour un bateau à moteur de 5 à 7 m : vent 16 nd / 22 nd, rafales 20 / 28 nd, vagues 1 m / 2 m. Source : Open-Meteo (modèles Météo-France et ECMWF). Vérifie aussi le BMS et la météo côtière de Météo-France.</div>`;
+  <div class="muted">Vent en nœuds, vagues en mètres, période en secondes. Bande orange = prudence, rouge = dangereux. Seuils réglés pour ton bateau (en haut de l'onglet) : orange à partir de 70 % de ta limite de vent et de rafales et de la moitié de ta limite de vagues, rouge à ta limite, plus les orages et le brouillard. Source : Open-Meteo (meilleur modèle disponible selon la zone, AROME de Météo-France en France). Vérifie aussi le BMS et la météo côtière de Météo-France.</div>`;
   $('wxOut').innerHTML = html;
 }
 function pressTrend(a, i){
@@ -653,26 +703,45 @@ $('wxTap').addEventListener('click', () => setTool('wx', 'Touche la carte pour l
 
 // flèches de vent sur la carte
 let windTimer = null;
+let windData = null;
 async function loadWindGrid(){
   if (!map.hasLayer(windLayer)) return;
-  const b = map.getBounds(), N = 4, lats = [], lons = [];
+  const b = map.getBounds(), N = 5, lats = [], lons = [];
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++){
     lats.push((b.getSouth() + (i+.5)/N*(b.getNorth()-b.getSouth())).toFixed(3));
     lons.push((b.getWest() + (j+.5)/N*(b.getEast()-b.getWest())).toFixed(3));
   }
   try{
-    let r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn`).then(r => r.json());
-    if (!Array.isArray(r)) r = [r];
-    windLayer.clearLayers();
-    r.forEach((d, k) => {
-      if (!d.current) return;
-      const s = d.current.wind_speed_10m, dir = d.current.wind_direction_10m, gu = d.current.wind_gusts_10m;
-      const col = s >= 22 ? '#ef5350' : s >= 16 ? '#f2b134' : s >= 10 ? '#7fd3ff' : '#c9f2d9';
-      L.marker([+lats[k], +lons[k]], { interactive:false, icon:L.divIcon({ className:'', iconSize:[44,44], iconAnchor:[22,22],
-        html:`<div class="wind-ico"><svg width="26" height="26" viewBox="0 0 12 12" style="transform:rotate(${dir+180}deg)"><path d="M6 0 L10 9 L6 7 L2 9 Z" fill="${col}" stroke="#000" stroke-width=".6"/></svg>${Math.round(s)}<span style="opacity:.8">/${Math.round(gu)}</span></div>` }) }).addTo(windLayer);
-    });
+    const q = `latitude=${lats}&longitude=${lons}&forecast_hours=48&timeformat=unixtime`;
+    let [r, mr] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn`).then(r => r.json()),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&hourly=wave_height,wave_direction`).then(r => r.json()).catch(() => null)
+    ]);
+    if (!Array.isArray(r)) r = [r]; if (mr && !Array.isArray(mr)) mr = [mr];
+    windData = { lats, lons, r, mr };
+    drawWindGrid();
   }catch(e){}
 }
+function drawWindGrid(){
+  windLayer.clearLayers();
+  if (!windData) return;
+  const hIdx = +$('wxHour').value, now = Date.now()/1000;
+  windData.r.forEach((d, k) => {
+    if (!d.hourly) return;
+    let i = d.hourly.time.findIndex(t => t > now - 1800); if (i < 0) i = 0; i = Math.min(d.hourly.time.length-1, i + hIdx);
+    const s = d.hourly.wind_speed_10m[i], dir = d.hourly.wind_direction_10m[i], gu = d.hourly.wind_gusts_10m[i];
+    const m = windData.mr && windData.mr[k] && windData.mr[k].hourly, wh = m ? m.wave_height[i] : null;
+    if (s == null) return;
+    const t = TH(), col = s >= t.w || gu >= t.g ? '#ef5350' : s >= t.w*0.72 ? '#f2b134' : s >= 10 ? '#7fd3ff' : '#c9f2d9';
+    L.marker([+windData.lats[k], +windData.lons[k]], { interactive:false, icon:L.divIcon({ className:'', iconSize:[50,54], iconAnchor:[25,27],
+      html:`<div class="wind-ico"><svg width="26" height="26" viewBox="0 0 12 12" style="transform:rotate(${dir+180}deg)"><path d="M6 0 L10 9 L6 7 L2 9 Z" fill="${col}" stroke="#000" stroke-width=".6"/></svg>${Math.round(s)}<span style="opacity:.8">/${Math.round(gu)}</span>${wh != null ? `<span style="color:#9be7ff">${n1(wh)} m</span>` : ''}</div>` }) }).addTo(windLayer);
+  });
+}
+$('wxHour').addEventListener('input', () => {
+  const h = +$('wxHour').value, d = new Date(Date.now() + h*3600000);
+  $('wxHourTxt').textContent = h ? d.toLocaleDateString('fr-FR', { weekday:'short' }) + ' ' + d.getHours() + ' h' : 'maintenant';
+  drawWindGrid();
+});
 map.on('moveend', () => { clearTimeout(windTimer); windTimer = setTimeout(loadWindGrid, 700); });
 
 // ---------- ROUTE ----------
@@ -850,7 +919,9 @@ const HAZ = new Set(['wreck','rock','obstruction','weir','dam','danger']);
 KIND.depth = 'Profondeur relevée'; KCOL.depth = '#4fc3f7'; KIND.danger = 'Danger signalé'; KCOL.danger = '#ef5350';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let shomPts = [], osmPts = [], obsNear = [], obsCenter = null, obsT = 0, obsBusy = false;
-const cfg = Object.assign({ draft:0.7, margin:1, r:2, air:2 }, store.get('cfg', {}));
+const cfg = Object.assign({ draft:0.7, margin:1, r:2, air:2, thW:22, thG:28, thH:2 }, store.get('cfg', {}));
+$('thW').value = cfg.thW; $('thG').value = cfg.thG; $('thH').value = cfg.thH;
+[['thW','thW'],['thG','thG'],['thH','thH']].forEach(([id, k]) => $(id).addEventListener('change', () => { const v = parseFloat($(id).value); if (isFinite(v) && v > 0){ cfg[k] = v; store.set('cfg', cfg); drawWindGrid(); } }));
 $('draft').value = cfg.draft; $('margin').value = cfg.margin; $('obsR').value = cfg.r; $('air').value = cfg.air;
 [['draft','draft'],['margin','margin'],['obsR','r'],['air','air']].forEach(([id, k]) => $(id).addEventListener('input', () => {
   const v = parseFloat($(id).value); if (isFinite(v)) { cfg[k] = v; store.set('cfg', cfg); }
@@ -935,6 +1006,7 @@ function osmKind(t){
   if (t.waterway === 'fuel') return 'fuel';
   if (t.leisure === 'marina') return 'marina';
   if (t.leisure === 'slipway') return 'slipway';
+  if (t.natural === 'reef' || t.natural === 'shoal' || t.natural === 'rock') return 'rock';
   return null;
 }
 function findKind(arr, p, kinds, tol){ return arr.find(s => kinds.includes(s.kind) && Math.abs(s.p[0]-p[0]) < tol && Math.abs(s.p[1]-p[1]) < tol*1.5); }
@@ -947,7 +1019,7 @@ async function overpass(q){
 }
 function osmQueries(sel, bb){
   return [
-    `[out:json][timeout:30];(nwr${sel}["seamark:type"~"^(wreck|rock|obstruction|bridge)$"];nwr${sel}["waterway"~"^(lock_gate|weir|dam|fuel)$"];nwr${sel}["lock"="yes"];nwr${sel}["leisure"~"^(marina|slipway)$"];);out center tags 1500;`,
+    `[out:json][timeout:30];(nwr${sel}["seamark:type"~"^(wreck|rock|obstruction|bridge)$"];nwr${sel}["waterway"~"^(lock_gate|weir|dam|fuel)$"];nwr${sel}["lock"="yes"];nwr${sel}["leisure"~"^(marina|slipway)$"];nwr${sel}["natural"~"^(reef|shoal)$"];node${sel}["natural"="rock"];);out center tags 1500;`,
     `[out:json][timeout:30];way["waterway"~"^(river|canal)$"]${bb}->.w;way(around.w:0)["bridge"]["bridge"!="no"]${bb};out center tags 800;`
   ];
 }
@@ -973,7 +1045,7 @@ function osmParse(j, jb, ref){
     if (kind === 'bridge' && (t.highway || t.railway)) dims.push(t.railway ? 'pont ferroviaire' : 'pont routier');
     out.push({ p, kind, n:t['seamark:name'] || t.name || t['bridge:name'] || t['lock_name'] || null, d:(kind === 'wreck' || kind === 'rock' || kind === 'obstruction') && isFinite(dv) ? dv : null,
       h:kind === 'bridge' && isFinite(hv) ? hv : null,
-      c:t['seamark:' + kind + ':category'] || t['seamark:' + kind + ':water_level'] || null, x:dims.join(' · '), src:'OSM' });
+      c:t['seamark:' + kind + ':category'] || t['seamark:' + kind + ':water_level'] || ({ reef:'récif', shoal:'haut-fond', rock:'rocher' })[t.natural] || null, x:dims.join(' · '), src:'OSM' });
   });
   return out;
 }
@@ -1097,7 +1169,9 @@ map.on('moveend', () => {
 // --- profondeur (EMODnet) et alerte fond faible
 const depthCache = new Map();
 async function depthAt(p){
+  const dr = repDepth(p); if (dr != null) return dr;
   const di = iencDepth(p); if (di != null) return di;
+  const dg = gridDepth(p); if (dg !== undefined) return dg;
   const key = p[0].toFixed(4) + ',' + p[1].toFixed(4);
   if (depthCache.has(key)) return depthCache.get(key);
   let d = null;
@@ -1122,22 +1196,87 @@ async function depthAt(p){
   if (depthCache.size > 300) depthCache.clear();
   depthCache.set(key, d); return d;
 }
+// --- grilles de profondeur EMODnet téléchargées (≈ 115 m, fonctionnent sans réseau)
+let autoGrid = null, gridBusy = false;
+function repDepth(p){
+  let best = null, bd = 0.035;
+  for (const o of repPts){ if (o.kind !== 'depth' || o.d == null) continue; const d = distNM(p, o.p); if (d < bd){ bd = d; best = o.d; } }
+  return best;
+}
+function coastDistM(p){
+  const ref = (typeof coastOff !== 'undefined' && coastOff.length) ? coastOff : (typeof coast !== 'undefined' ? coast : []);
+  let d = Infinity;
+  for (const l of ref) for (let i = 0; i < l.length-1; i++){ const a = l[i], b = l[i+1];
+    if (Math.abs(a[0]-p[0]) > 0.02 && Math.abs(b[0]-p[0]) > 0.02) continue; const r = projSeg(p, a, b).d*1852; if (r < d) d = r; }
+  return d;
+}
+function sampleGrid(g, p){
+  if (!g || p[0] < g.b[0] || p[0] > g.b[2] || p[1] < g.b[1] || p[1] > g.b[3]) return undefined;
+  const ok = v => v != null && !isNaN(v) && !(g.nd != null && Math.abs(v - g.nd) < 1e-3) && Math.abs(v) < 12000;
+  const at = (r, c) => { r = Math.max(0, Math.min(g.h-1, r)); c = Math.max(0, Math.min(g.w-1, c)); const v = g.data[r*g.w + c]; return ok(v) ? v : null; };
+  const fx = (p[1]-g.b[1])/(g.b[3]-g.b[1])*g.w - 0.5, fy = (g.b[2]-p[0])/(g.b[2]-g.b[0])*g.h - 0.5;
+  const c0 = Math.floor(fx), r0 = Math.floor(fy), tx = fx - c0, ty = fy - r0;
+  const q = [at(r0, c0), at(r0, c0+1), at(r0+1, c0), at(r0+1, c0+1)];
+  // Près des côtes : valeur prudente (la plus faible des cases voisines) au lieu de la moyenne.
+  if (coastDistM(p) < 250 || q.some(v => v == null || v > 0)){
+    let sh = null; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++){ const v = at(Math.round(fy) + dr, Math.round(fx) + dc); if (v != null && (sh == null || v > sh)) sh = v; }
+    return sh == null ? null : -sh;
+  }
+  const v = q[0]*(1-tx)*(1-ty) + q[1]*tx*(1-ty) + q[2]*(1-tx)*ty + q[3]*tx*ty;
+  return -v;
+}
+function gridDepth(p){
+  let v = sampleGrid(autoGrid, p); if (v !== undefined) return v;
+  for (const z of offZones){ v = sampleGrid(z.grid, p); if (v !== undefined) return v; }
+  return undefined;
+}
+async function fetchGrid(S, W, N, E){
+  if (typeof GeoTIFF === 'undefined' || S < 11 || N > 89 || W < -70.4 || E > 42.9) return null;
+  const u = `https://ows.emodnet-bathymetry.eu/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=emodnet__mean&format=image/tiff&subset=Lat(${S.toFixed(5)},${N.toFixed(5)})&subset=Long(${W.toFixed(5)},${E.toFixed(5)})`;
+  const ab = await fetch(u).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+  const tif = await GeoTIFF.fromArrayBuffer(ab), img = await tif.getImage();
+  const bb = img.getBoundingBox(), ras = await img.readRasters({ interleave:true });
+  const nd = img.getGDALNoData ? img.getGDALNoData() : null;
+  return { b:[bb[1], bb[0], bb[3], bb[2]], w:img.getWidth(), h:img.getHeight(), data:Float32Array.from(ras), nd };
+}
+async function ensureAutoGrid(p){
+  if (gridBusy || !navigator.onLine) return;
+  if (autoGrid && p[0] > autoGrid.b[0]+0.01 && p[0] < autoGrid.b[2]-0.01 && p[1] > autoGrid.b[1]+0.015 && p[1] < autoGrid.b[3]-0.015) return;
+  gridBusy = true;
+  try{
+    const dLon = 0.06/Math.cos(toRad(p[0]));
+    const g = await fetchGrid(p[0]-0.06, p[1]-dLon, p[0]+0.06, p[1]+dLon);
+    if (g){ autoGrid = g; idbSet('autogrid', g); depthCache.clear(); }
+  }catch(e){}
+  gridBusy = false;
+}
+idbGet('autogrid').then(g => { if (g && g.data && !autoGrid) autoGrid = g; });
+
 let lastDepthT = 0, depthBusy = false;
 async function updateDepth(){
-  if (!gps || depthBusy || Date.now() - lastDepthT < 8000) return;
+  if (!gps) return;
+  ensureAutoGrid(gps.p);
+  const fast = gridDepth(gps.p) !== undefined || iencDepth(gps.p) != null;
+  if (depthBusy || Date.now() - lastDepthT < (fast ? 2000 : 8000)) return;
   depthBusy = true; lastDepthT = Date.now();
   try{
-    const pts = [gps.p];
-    if (gps.cog != null && gps.sog != null && gps.sog > 1.5) [0.08, 0.2, 0.4].forEach(nm => pts.push(dest(gps.p, gps.cog, nm)));
+    const moving = gps.cog != null && gps.sog != null && gps.sog > 1.5;
+    const steps = moving ? (fast ? [0.03, 0.06, 0.1, 0.15, 0.2, 0.27, 0.35, 0.45] : [0.08, 0.2, 0.4]) : [];
+    const pts = [gps.p].concat(steps.map(nm => dest(gps.p, gps.cog, nm)));
     const ds = await Promise.all(pts.map(depthAt));
-    const here = ds[0], ahead = ds.filter(v => v != null);
-    const el = $('depthNow');
+    const here = ds[0], el = $('depthNow');
     if (here == null){ el.className = 'v'; el.innerHTML = '--<small> m</small>'; setAlert('depth', null); }
     else {
-      const need = cfg.draft + cfg.margin, minD = Math.min(...ahead);
+      const need = cfg.draft + cfg.margin;
+      let minD = here, at = 0;
+      ds.forEach((v, i) => { if (v != null && v < minD){ minD = v; at = i ? steps[i-1] : 0; } });
       el.className = 'v' + (minD < cfg.draft ? ' bad' : minD < need ? ' warn' : '');
-      el.innerHTML = (here < 0 ? 'sec' : n1(here)) + '<small> m</small>';
-      setAlert('depth', minD < need ? `⚠ FOND FAIBLE : environ ${n1(Math.max(minD, 0))} m devant (tirant d'eau ${n1(cfg.draft)} m + marge ${n1(cfg.margin)} m).` : null);
+      const nc = coastDistM(gps.p) < 300;
+      el.innerHTML = (here < 0 ? 'sec' : (nc ? '≈' : '') + n1(here)) + '<small> m</small>';
+      el.title = nc ? 'Près de la côte : valeur prudente, la plus faible des environs' : '';
+      const where = at ? `à ${Math.round(at*1852/10)*10} m devant` : 'sous le bateau';
+      setAlert('depth', minD < need ? `⚠ FOND FAIBLE : environ ${n1(Math.max(minD, 0))} m ${where} (tirant d'eau ${n1(cfg.draft)} m + marge ${n1(cfg.margin)} m).` : null);
+      if (minD < need && nav && !nav.said['fond' + Math.round(minD*2)]){ nav.said['fond' + Math.round(minD*2)] = 1; say(`Attention, fond faible ${where}`); }
     }
   }catch(e){}
   depthBusy = false;
@@ -1749,6 +1888,7 @@ async function offDownload(){
       pts, coast:cj ? (cj.elements || []).filter(e => e.geometry).map(e => e.geometry.filter(Boolean).map(g => [g.lat, g.lon])) : [],
       coastOff:co ? [].concat(...co.filter(f => !Object.values(f.properties || {}).some(v => /salure|transvers/i.test(String(v)))).map(f => geoLines(f.geometry))) : [] };
   }catch(e){}
+  if (zone){ try{ $('offTxt').textContent = 'Téléchargement de la grille de profondeur…'; zone.grid = await fetchGrid(pl.b[0], pl.b[1], pl.b[2], pl.b[3]); }catch(e){} }
   done = 1; step();
   let i = 0;
   const worker = async () => {
@@ -1762,11 +1902,11 @@ async function offDownload(){
   step();
   if (zone){ offZones = offZones.filter(z => !(z.b.join() === zone.b.join())).concat(zone); await idbSet('zones', offZones); }
   $('offGo').hidden = false; $('offStop').hidden = true;
-  $('offTxt').textContent = offStop ? 'Téléchargement arrêté. Ce qui a été téléchargé reste disponible.' : `Zone prête pour la navigation hors ligne : ${zone ? zone.pts.length : 0} obstacles et ${(done - 1 - fail).toLocaleString('fr-FR')} images de carte.` + (fail ? ` ${fail} images n'ont pas pu être téléchargées.` : '');
+  $('offTxt').textContent = offStop ? 'Téléchargement arrêté. Ce qui a été téléchargé reste disponible.' : `Zone prête pour la navigation hors ligne : ${zone ? zone.pts.length : 0} obstacles, ${zone && zone.grid ? 'grille de profondeur, ' : ''}${(done - 1 - fail).toLocaleString('fr-FR')} images de carte.` + (fail ? ` ${fail} images n'ont pas pu être téléchargées.` : '');
   renderZones(); offUsage();
 }
 function renderZones(){
-  $('offList').innerHTML = offZones.length ? offZones.map((z, i) => `<div class="reprow"><span class="dot" style="background:var(--accent)"></span><span>Zone du ${new Date(z.t).toLocaleDateString('fr-FR')} · zoom ${z.z}<small>${(z.pts || []).length} obstacles · ${(z.n || 0).toLocaleString('fr-FR')} images · ${n1((z.b[2]-z.b[0])*111)} × ${n1((z.b[3]-z.b[1])*111*Math.cos(toRad(z.b[0])))} km</small></span><span class="row" style="gap:4px"><button class="btn" data-zgo="${i}">Voir</button><button class="btn" data-zdel="${i}">✕</button></span></div>`).join('')
+  $('offList').innerHTML = offZones.length ? offZones.map((z, i) => `<div class="reprow"><span class="dot" style="background:var(--accent)"></span><span>Zone du ${new Date(z.t).toLocaleDateString('fr-FR')} · zoom ${z.z}<small>${(z.pts || []).length} obstacles · ${z.grid ? 'profondeurs · ' : ''}${(z.n || 0).toLocaleString('fr-FR')} images · ${n1((z.b[2]-z.b[0])*111)} × ${n1((z.b[3]-z.b[1])*111*Math.cos(toRad(z.b[0])))} km</small></span><span class="row" style="gap:4px"><button class="btn" data-zgo="${i}">Voir</button><button class="btn" data-zdel="${i}">✕</button></span></div>`).join('')
     : '<div class="muted">Aucune zone téléchargée.</div>';
 }
 $('offList').addEventListener('click', async e => {
@@ -1794,6 +1934,32 @@ function netState(){
 window.addEventListener('online', () => { netState(); if (!shomPts.length) loadShom(false); });
 window.addEventListener('offline', netState);
 (async () => { const z = await idbGet('zones'); if (Array.isArray(z)) offZones = z; renderZones(); netState(); })();
+
+// ---------- ALARME DE MOUILLAGE ----------
+let anchor = store.get('anchor', null), actx = null, anchLayer = L.layerGroup().addTo(map), lastBeep = 0;
+function beep(){ if (!actx) return; try{ const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 880; o.type = 'square'; g.gain.value = 0.35; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.35); }catch(e){} }
+function drawAnchor(){
+  anchLayer.clearLayers(); $('anchOff').hidden = !anchor; $('anchSet').textContent = anchor ? 'Replacer l\'ancre ici' : 'Jeter l\'ancre ici';
+  if (!anchor){ $('anchOut').textContent = ''; setAlert('anchor', null); return; }
+  L.circle(anchor.p, { radius:anchor.r, color:'#3fbf7f', weight:2, dashArray:'6 5', fillOpacity:.06, interactive:false }).addTo(anchLayer);
+  L.marker(anchor.p, { interactive:false, icon:L.divIcon({ className:'', iconSize:[0,0], html:'<div class="mk" style="--c:#3fbf7f">Ancre</div>' }) }).addTo(anchLayer);
+}
+function anchorCheck(){
+  if (!anchor || !gps) return;
+  const d = distNM(gps.p, anchor.p)*1852, out = d > anchor.r;
+  $('anchOut').textContent = `Bateau à ${Math.round(d)} m de l'ancre (limite ${anchor.r} m) · précision GPS ±${Math.round(gps.acc)} m` + (gps.acc > anchor.r/2 ? ' : précision insuffisante, agrandis le rayon.' : '');
+  setAlert('anchor', out ? `⚠ L'ANCRE CHASSE : bateau à ${Math.round(d)} m de l'ancre (limite ${anchor.r} m).` : null);
+  if (out && Date.now() - lastBeep > 4000){ lastBeep = Date.now(); beep(); setTimeout(beep, 500); try{ navigator.vibrate && navigator.vibrate([600, 200, 600]); }catch(e){} say('Attention, l\'ancre chasse'); }
+}
+$('anchSet').addEventListener('click', () => {
+  try{ actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume && actx.resume(); }catch(e){}
+  if (!gps){ hint('Active d\'abord le GPS.', 4000); if (!watchId) $('gpsBtn').click(); return; }
+  anchor = { p:gps.p.slice(), r:Math.max(10, +$('anchR').value || 40), t:Date.now() }; store.set('anchor', anchor); drawAnchor(); anchorCheck(); say('Alarme de mouillage activée');
+});
+$('anchOff').addEventListener('click', () => { anchor = null; store.set('anchor', null); drawAnchor(); });
+$('anchR').addEventListener('change', () => { if (anchor){ anchor.r = Math.max(10, +$('anchR').value || 40); store.set('anchor', anchor); drawAnchor(); } });
+if (anchor) $('anchR').value = anchor.r;
+drawAnchor();
 
 // ---------- démarrage ----------
 loadShom(false); loadIenc(); drawReports();

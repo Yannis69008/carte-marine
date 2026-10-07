@@ -1,14 +1,15 @@
 // Carte Marine : fonctionnement hors ligne (appli + cartes téléchargées)
-const SHELL = 'cm-shell-v9', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
+const SHELL = 'cm-shell-v11', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
 const LIBS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/shpjs@4.0.4/dist/shp.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js',
   'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Barlow:wght@400;500;600&display=swap'
 ];
 const TILE_RX = /(tile\.openstreetmap\.org|tiles\.openseamap\.org|server\.arcgisonline\.com|services\.data\.shom\.fr\/INSPIRE\/wmts|data\.geopf\.fr\/wmts|wms\.gebco\.net|ows\.emodnet-bathymetry\.eu\/wms|gis\.charttools\.noaa\.gov)/;
-const LIB_RX = /(unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)/;
+const LIB_RX = /(cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)/;
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
