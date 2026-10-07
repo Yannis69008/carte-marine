@@ -176,6 +176,16 @@ details.lesson ol.lsteps b{color:var(--accent);font-weight:600}
 .ltip{display:flex;gap:10px;background:rgba(242,177,52,.12);border-left:3px solid var(--accent);border-radius:8px;padding:9px 11px;margin:0 0 12px;font-size:14px;line-height:1.45}
 .ltip span:first-child{font-size:18px}
 .lvid{font-size:13px;color:var(--muted);text-decoration:underline;cursor:pointer;align-self:center}
+.bfBox{background:var(--panel2);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:7px}
+.bfRow{display:grid;grid-template-columns:repeat(13,1fr);gap:2px}
+.bfS{height:26px;border-radius:4px;display:grid;place-items:center;opacity:.45;position:relative}
+.bfS span{font-size:11px;font-weight:700;color:#0b1a24}
+.bfS.on{opacity:1;outline:2px solid #fff;transform:scaleY(1.15)}.bfS.gust{opacity:.85;outline:2px dashed #fff}
+.bfLeg{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--fg)}.bfLeg .g{color:var(--warn)}.bfLeg .l{color:var(--muted)}
+.bfTxt{font-size:14px;line-height:1.5}
+.bfBox details summary{cursor:pointer;font-size:13px;color:var(--accent)}
+.bfAll{display:flex;flex-direction:column;gap:6px;margin-top:6px;font-size:13px}.bfAll small{color:var(--muted)}
+.bfD{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;font-size:11px;font-weight:700;color:#0b1a24;margin-right:6px}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -703,6 +713,20 @@ function beaufort(kn){
   const lim = [1,4,7,11,17,22,28,34,41,48,56,64];
   let f = 0; while (f < lim.length && kn >= lim[f]) f++; return f;
 }
+
+// Échelle de Beaufort expliquée pour les plaisanciers
+const BF_KN = ['< 1', '1-3', '4-6', '7-10', '11-16', '17-21', '22-27', '28-33', '34-40', '41-47', '48-55', '56-63', '64 +'];
+const BF_COL = ['#7fb3d5', '#76c7c0', '#5fd38d', '#8bd35f', '#c6d93c', '#f2c94c', '#f2994a', '#eb6b3d', '#e04545', '#c43a6e', '#9b3fb5', '#7a3fc4', '#5a2d91'];
+const BF_MER = ['Mer d\'huile, comme un miroir.', 'Rides sur l\'eau, pas d\'écume.', 'Vaguelettes, crêtes lisses.', 'Petites vagues, quelques moutons épars.', 'Petites vagues qui s\'allongent, moutons nombreux.', 'Vagues modérées, moutons partout, embruns possibles.', 'Lames qui se forment, crêtes d\'écume blanche étendues, embruns.', 'La mer grossit, l\'écume est soufflée en traînées.', 'Lames hautes, tourbillons d\'écume, mer très dure.', 'Grosses lames, la mer déferle, visibilité réduite par les embruns.', 'Très grosses lames, la mer devient blanche.', 'Lames exceptionnellement hautes.', 'Air plein d\'écume et d\'embruns, mer entièrement blanche.'];
+const BF_BAT = ['Parfait pour tout le monde (à la voile, pas assez de vent).', 'Idéal pour débuter, au moteur comme en kayak.', 'Idéal pour débuter, très agréable.', 'Agréable, parfait pour la voile légère.', 'Encore agréable, ça commence à secouer un petit bateau à moteur.', 'Limite pour un débutant ou un petit bateau : ça mouille et ça tape.', 'Déconseillé aux débutants et aux petits bateaux : restez au port.', 'Dangereux pour la plaisance : restez au port.', 'Danger : restez au port.', 'Danger grave : restez au port.', 'Tempête : restez à terre.', 'Tempête violente : restez à terre.', 'Ouragan : restez à l\'abri.'];
+function bfScale(ws, wg){
+  const f = beaufort(ws), fg = beaufort(wg), lim = beaufort(TH().w);
+  const seg = BF_COL.map((c, i) => `<div class="bfS${i === f ? ' on' : ''}${i === fg && fg !== f ? ' gust' : ''}" style="background:${c}" title="Force ${i} : ${BF_TXT[i]} (${BF_KN[i]} nd)"><span>${i}</span></div>`).join('');
+  return `<h3>Échelle du vent (Beaufort)</h3><div class="bfBox"><div class="bfRow">${seg}</div>
+    <div class="bfLeg"><span>▲ vent moyen : force ${f}</span>${fg !== f ? `<span class="g">▲ rafales : force ${fg}</span>` : ''}<span class="l">| ta limite : force ${lim}</span></div>
+    <div class="bfTxt"><b style="color:${BF_COL[f]}">Force ${f} · ${BF_TXT[f]}</b> <span class="muted">(${BF_KN[f]} nœuds)</span><br>🌊 ${BF_MER[f]}<br>⛵ ${BF_BAT[f]}${fg > f ? `<br><span class="muted">En rafales, force ${fg} (${BF_TXT[fg].toLowerCase()}) : ${BF_BAT[fg].charAt(0).toLowerCase() + BF_BAT[fg].slice(1)}</span>` : ''}</div>
+    <details><summary>Voir toute l'échelle</summary><div class="bfAll">${BF_TXT.map((t, i) => `<div><span class="bfD" style="background:${BF_COL[i]}">${i}</span><b>${t}</b> <span class="muted">${BF_KN[i]} nd</span><br><small>${BF_BAT[i]}</small></div>`).join('')}</div></details></div>`;
+}
 const BF_TXT = ['Calme','Très légère brise','Légère brise','Petite brise','Jolie brise','Bonne brise','Vent frais','Grand frais','Coup de vent','Fort coup de vent','Tempête','Violente tempête','Ouragan'];
 const arrow = (dir, size=12) => `<svg class="arr" width="${size}" height="${size}" viewBox="0 0 12 12" style="transform:rotate(${dir+180}deg)"><path d="M6 0 L10 9 L6 7 L2 9 Z" fill="currentColor"/></svg>`;
 const n1 = v => v == null ? '–' : (Math.round(v*10)/10).toLocaleString('fr-FR');
@@ -886,7 +910,8 @@ const ArcTiles = L.TileLayer.extend({ getTileUrl(c){ const sz = 40075016.6855784
 const arcgisTiles = (url, attr) => new ArcTiles(url, { maxZoom:19, attribution:attr });
 const windLayer = L.layerGroup();
 const repLayer = L.layerGroup();
-const notesLayer = L.layerGroup();   // signalements de la communauté (notes OpenStreetMap)
+const notesLayer = L.layerGroup();
+const lakesLayer = L.layerGroup();   // lacs navigables ou non   // signalements de la communauté (notes OpenStreetMap)
 const tideStLayer = L.layerGroup(), funLayer = L.layerGroup(), harbLayer = L.layerGroup(), wikiLayer = L.layerGroup();
 const obsLayer = L.layerGroup();
 const zoneLayer = L.layerGroup();
@@ -897,6 +922,7 @@ const OVERLAYS = {
   wind:    { name:'Flèches de vent sur la carte', on:true, layer: windLayer },
   rep:     { name:'Mes signalements', on:true, layer: repLayer },
   notes:   { name:'Signalements de la communauté (OpenStreetMap)', on:true, layer: notesLayer },
+  lakes:   { name:'Lacs : navigable ou non (🟢 🟠 🔴)', on:true, layer: lakesLayer },
   tideSt:  { name:'Marégraphes : marée de chaque port (hors ligne)', on:false, layer: tideStLayer },
   harb:    { name:'Ports et fiches détaillées (base OpenSeaMap)', on:true, layer: harbLayer },
   fun:     { name:'Loisirs : plages, plongée, surf, kite, location, pêche… (OpenStreetMap)', on:false, layer: funLayer },
@@ -960,6 +986,7 @@ $('ovList').addEventListener('change', e => {
   if (k === 'tideSt' && e.target.checked) loadTideDb().then(drawTideSt);
   if (['fun', 'harb', 'wiki'].includes(k) && e.target.checked){ funKey = harbKey = wikiKey = ''; loadExtras(); }
   if (k === 'notes' && e.target.checked){ notesKey = ''; loadNotes(); }
+  if (k === 'lakes' && e.target.checked){ lakesKey = ''; loadLakes(); }
 });
 
 // ---------- onglets / tiroir ----------
@@ -1301,9 +1328,11 @@ function renderWeather(p, label, w, m){
   <div class="verdict v${curr.lvl}"><div><b>${RISK_TXT[curr.lvl]}</b><div class="muted" style="color:inherit">${curr.why.length ? curr.why.join(' · ') : 'vent et mer modérés en ce moment'}</div><div style="margin-top:3px">Vent ${n0(ws)} nd (rafales ${n0(wg)})${hasW && wh != null ? ` · vagues ${n1(wh)} m` : ''}${hasS && g(M.swell_wave_height,i0) != null ? ` · houle ${n1(g(M.swell_wave_height,i0))} m / ${n0(g(M.swell_wave_period,i0))} s` : ''}</div></div></div>`;
   if (worst.lvl > curr.lvl) html += `<div class="verdict v${worst.lvl}"><div><b>Dégradation vers ${hhmm(H.time[worstI])}</b><div class="muted" style="color:inherit">${worst.why.join(' · ')}</div></div></div>`;
   if (!hasW) html += `<div class="verdict v1"><div><b>Pas de vagues ni de houle à cet endroit</b><div class="muted" style="color:inherit">${m ? 'Le point est sur terre, sur un lac, un fleuve ou trop loin de la mer : les modèles de vagues ne couvrent que la mer.' : 'Données de mer indisponibles pour le moment (réseau ou serveur).'} Pour la mer, touche « Touche un point » puis un endroit en mer.</div></div></div>`;
+  const bfHtml = bfScale(ws, wg);
   html += `<div class="grid">${cells.map(c => `<div class="cell"><div class="k">${c[0]}</div><div class="v">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('')}</div>`;
 
   const nH = Math.min(48, H.time.length - i0), tt = TH();
+  html += bfHtml;
   html += `<h3>Vent sur 48 h (nœuds)</h3>` + wxChart(H.time, i0, nH, [{ name:'rafales', v:H.wind_gusts_10m, c:'#ef8a5a', area:true, w:1.5 }, { name:'vent moyen', v:H.wind_speed_10m, c:'#7fd3ff', lim:tt.w }], 'nd');
   if (hasW) html += `<h3>Vagues et houle sur 48 h (mètres)</h3>` + wxChart(H.time, i0, nH, [{ name:'vagues', v:M.wave_height, c:'#4fc3f7', area:true, lim:tt.h }, { name:'houle', v:M.swell_wave_height, c:'#b39ddb', dash:true }], 'm');
   const hasModel = m && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null), stT = thAt(p);
@@ -4196,6 +4225,35 @@ async function lakeWatch(p, sog){
   if (Date.now() - lakeWatchT < 60000) return; lakeWatchT = Date.now();
   const R = await lakeFor(p, p); if (R){ curLake = R; lakeBandDraw(R); }
 }
+
+
+// ---------- LACS SUR LA CARTE : navigable ou non ----------
+// Chaque lac un peu grand reçoit une pastille : 🟢 navigable a priori, 🟠 à vérifier, 🔴 interdit (ou moteurs interdits pour ton bateau).
+let lakesKey = '', lakesT = null;
+async function loadLakes(){
+  if (!map.hasLayer(lakesLayer) || map.getZoom() < 9){ lakesLayer.clearLayers(); lakesKey = ''; return; }
+  const k = viewKey(12); if (k === lakesKey) return; lakesKey = k;
+  const b = map.getBounds(), bb = `(${b.getSouth().toFixed(4)},${b.getWest().toFixed(4)},${b.getNorth().toFixed(4)},${b.getEast().toFixed(4)})`;
+  const q = `[out:json][timeout:25];(way["natural"="water"]["water"~"^(lake|reservoir|lagoon)$"]["name"]${bb};rel["natural"="water"]["water"~"^(lake|reservoir|lagoon)$"]["name"]${bb};)->.l;.l out tags bb center;(nwr["leisure"="slipway"]${bb};nwr["leisure"="marina"]${bb};);out center tags 400;`;
+  const j = await overpass(q, 7*86400000).catch(() => null);
+  if (!j){ lakesKey = ''; return; }
+  const els = j.elements || [], pts = els.filter(e => e.tags && (e.tags.leisure === 'slipway' || e.tags.leisure === 'marina')).map(e => ({ k:e.tags.leisure === 'slipway' ? 'slip' : 'port', p:e.lat != null ? [e.lat, e.lon] : e.center ? [e.center.lat, e.center.lon] : null })).filter(x => x.p);
+  lakesLayer.clearLayers(); let n = 0;
+  els.filter(e => e.bounds && e.tags && e.tags.natural === 'water').forEach(e => {
+    const bd = [e.bounds.minlat, e.bounds.minlon, e.bounds.maxlat, e.bounds.maxlon], km = distNM([bd[0], bd[1]], [bd[2], bd[3]])*1.852;
+    if (km < 0.8 || n > 80) return; n++;
+    const c = e.center ? [e.center.lat, e.center.lon] : [(bd[0] + bd[2])/2, (bd[1] + bd[3])/2];
+    const inB = pts.filter(x => x.p[0] >= bd[0] && x.p[0] <= bd[2] && x.p[1] >= bd[1] && x.p[1] <= bd[3]);
+    const Lk = { tags:e.tags, type:e.type, id:e.id, b:bd, p:c, km, cc:null, country:null };
+    const [vl, vt] = lakeVerdict(Lk, inB), ico = vl === 0 ? '🟢' : vl === 1 ? '🟠' : '🔴', col = vl === 0 ? '#3fbf7f' : vl === 1 ? '#f2b134' : '#ef5350';
+    const nm = e.tags.name.length > 26 ? e.tags.name.slice(0, 25) + '…' : e.tags.name;
+    L.marker(c, { icon:pin(`${ico} ${nm}`, col), zIndexOffset:-200 }).on('click', async () => {
+      const full = await Promise.race([lakeAt(c), new Promise(r => setTimeout(() => r(null), 6000))]).catch(() => null);
+      lakeOpen(full && full.id === e.id ? full : Object.assign(Lk, { p:c }));
+    }).addTo(lakesLayer);
+  });
+}
+map.on('moveend', () => { clearTimeout(lakesT); lakesT = setTimeout(loadLakes, 1800); });
 
 // ---------- LACS : « Puis-je naviguer ici avec MON bateau ? » ----------
 // Données ouvertes : OpenStreetMap (lac, accès bateau/moteur, mises à l'eau, ports, carburant), Open-Meteo (vent, altitude),
