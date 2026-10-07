@@ -67,6 +67,16 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .obsrow .dot{width:12px;height:12px;border-radius:50%}
 .obsrow small{display:block;color:var(--muted);font-size:11px}
 .obsrow .od{font-family:var(--f-data);text-align:right;font-weight:600}
+.lsec{font-family:var(--f-display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px}
+details.lesson{background:var(--panel2);border-radius:8px;padding:0 12px}
+details.lesson summary{list-style:none;cursor:pointer;padding:11px 0;display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center;font-weight:600}
+details.lesson summary::-webkit-details-marker{display:none}
+details.lesson summary small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+details.lesson .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px}
+details.lesson.done .ck{background:var(--ok);border-color:var(--ok);color:#00170b}
+details.lesson ol{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.45}
+details.lesson .tip{font-size:13px;color:var(--warn);margin:0 0 10px}
+details.lesson .row{padding-bottom:12px}
 .obslist{display:flex;flex-direction:column;gap:4px}
 .tab.on{color:var(--fg);border-color:var(--accent)}
 .body{overflow-y:auto;padding:12px 14px 16px;-webkit-overflow-scrolling:touch}
@@ -209,6 +219,7 @@ body.nav #toolHint{display:none}
     <button class="tab" data-t="obst">Obstacles</button>
     <button class="tab" data-t="river">Fleuve</button>
     <button class="tab" data-t="secu">Sécurité</button>
+    <button class="tab" data-t="learn">Apprendre</button>
     <button class="tab" data-t="couches">Couches</button>
     <button class="tab" id="toggleSheet" style="flex:0 0 40px">▾</button>
   </div>
@@ -366,6 +377,13 @@ body.nav #toolHint{display:none}
       <h3>Avant de partir</h3>
       <div id="checklist"></div>
       <button class="btn" id="checkReset">Tout décocher</button>
+    </div>
+
+    <!-- APPRENDRE -->
+    <div class="pane" id="p-learn" hidden>
+      <div class="muted">Les bases pour naviguer sereinement : nœuds, manœuvres et règles. Chaque fiche se lit sans réseau ; le bouton « Vidéos » ouvre des démonstrations sur YouTube.</div>
+      <div><div class="bar"><i id="learnBar"></i></div><div id="learnTxt" class="muted" style="margin-top:4px"></div></div>
+      <div id="learnList" class="pane"></div>
     </div>
 
     <!-- COUCHES -->
@@ -541,7 +559,7 @@ $('ovList').addEventListener('change', e => {
 // ---------- onglets / tiroir ----------
 document.querySelectorAll('.tab[data-t]').forEach(t => t.addEventListener('click', () => {
   document.querySelectorAll('.tab[data-t]').forEach(x => x.classList.toggle('on', x === t));
-  ['meteo','route','log','obst','river','secu','couches'].forEach(p => $('p-'+p).hidden = p !== t.dataset.t);
+  ['meteo','route','log','obst','river','secu','learn','couches'].forEach(p => $('p-'+p).hidden = p !== t.dataset.t);
   $('sheet').classList.remove('collapsed'); $('toggleSheet').textContent = '▾';
 }));
 $('toggleSheet').addEventListener('click', () => {
@@ -2486,6 +2504,147 @@ async function tripWatch(){
     }catch(e){}
   }
 }
+
+// ---------- APPRENDRE : nœuds, manœuvres, règles pour débutants ----------
+const LEARN = [
+  { cat:'Nœuds essentiels', items:[
+    { id:'chaise', t:'Nœud de chaise', why:'Une boucle fixe qui ne glisse pas et se défait facilement : amarrer sur une bitte, un anneau, faire une boucle de sauvetage.', steps:[
+      'Sur la partie qui tient, fais une petite boucle (le « trou du lapin »), le brin libre passant par-dessus.',
+      'Passe le brin libre dans la petite boucle par-dessous : « le lapin sort du trou ».',
+      'Fais-le passer derrière la partie qui tient : « il fait le tour de l\'arbre ».',
+      'Renfonce-le dans la petite boucle par le même chemin : « il rentre dans son trou ».',
+      'Serre en tirant d\'un côté sur la partie qui tient, de l\'autre sur la boucle et le brin libre ensemble. Laisse dépasser au moins 10 cm de brin.'],
+      tip:'Il ne se serre pas sous la charge et se défait même après avoir beaucoup forcé.', q:'noeud de chaise tutoriel bateau' },
+    { id:'taquet', t:'Amarrer sur un taquet', why:'Le geste de base au ponton : tenir le bateau et pouvoir larguer vite.', steps:[
+      'Fais un tour mort autour de la base du taquet, en commençant par la corne la plus éloignée de la charge.',
+      'Croise en « 8 » par-dessus les cornes, une ou deux fois.',
+      'Termine par une clé : une boucle retournée que tu capelles sur une corne, brin libre dans l\'alignement du dernier tour.',
+      'Vérifie que le bout se largue en un geste : pas de nœuds en plus, pas de tours inutiles.'],
+      tip:'Trop de tours = impossible à larguer vite en cas de problème.', q:'amarrage taquet tutoriel bateau' },
+    { id:'demicles', t:'Tour mort et deux demi-clés', why:'Pour s\'amarrer à un anneau, un pieu ou une bouée, solide et simple.', steps:[
+      'Fais un tour complet autour de l\'anneau ou du pieu (le tour mort encaisse l\'effort).',
+      'Fais une première demi-clé autour de la partie qui tient.',
+      'Fais une seconde demi-clé dans le même sens, juste à côté.',
+      'Serre les deux demi-clés l\'une contre l\'autre.'],
+      tip:'Le tour mort permet de tenir le bateau d\'une main pendant que tu fais les demi-clés.', q:'tour mort et deux demi clés tutoriel' },
+    { id:'cabestan', t:'Nœud de cabestan', why:'Rapide et réglable : accrocher les défenses sur la filière, amarrage provisoire sur un pieu.', steps:[
+      'Fais un tour autour du support.',
+      'Croise par-dessus le premier tour et fais un second tour.',
+      'Passe le brin libre sous ce croisement.',
+      'Serre : le nœud tient par le frottement des deux tours.'],
+      tip:'Il peut glisser s\'il ne travaille pas : ajoute une demi-clé pour un usage durable.', q:'noeud de cabestan tutoriel' },
+    { id:'huit', t:'Nœud en huit', why:'Le nœud d\'arrêt en bout de cordage, pour qu\'il ne s\'échappe pas d\'une poulie ou d\'un taquet coinceur.', steps:[
+      'Fais une boucle en passant le brin libre devant la partie qui tient.',
+      'Passe-le derrière la partie qui tient.',
+      'Rentre-le dans la boucle par l\'avant : le nœud dessine un 8.',
+      'Serre.'],
+      tip:'Facile à défaire, contrairement à un simple nœud.', q:'noeud en huit arrêt tutoriel' },
+    { id:'plat', t:'Nœud plat', why:'Réunir deux bouts de même diamètre (ex. ranger une voile, attacher un sac).', steps:[
+      'Croise le bout gauche sur le droit, et passe-le dessous.',
+      'Croise maintenant le bout droit sur le gauche, et passe-le dessous.',
+      'Les deux brins de chaque côté doivent sortir du même côté de la boucle.',
+      'Serre.'],
+      tip:'Ne l\'utilise pas pour une charge importante ni pour deux cordages de tailles différentes.', q:'noeud plat tutoriel' },
+    { id:'ecoute', t:'Nœud d\'écoute', why:'Réunir deux cordages de diamètres différents de façon sûre.', steps:[
+      'Avec le plus gros cordage, fais une boucle en U (une ganse).',
+      'Passe le petit cordage dans la ganse par-dessous.',
+      'Fais-lui faire le tour de la ganse.',
+      'Coince-le sous lui-même, puis serre. Double le tour pour plus de sécurité.'],
+      tip:'Les deux brins libres doivent finir du même côté.', q:'noeud d écoute tutoriel' } ]},
+  { cat:'Manœuvres', items:[
+    { id:'accoster', t:'Accoster à un ponton', why:'La manœuvre la plus fréquente, et celle des petits chocs.', steps:[
+      'Prépare avant d\'arriver : défenses à la bonne hauteur côté ponton, amarres avant et arrière tournées au bateau et lovées.',
+      'Observe le vent et le courant : arrive de préférence face à eux, ils te freinent.',
+      'Approche lentement, en angle d\'environ 20 à 30° avec le ponton.',
+      'Un peu avant le ponton, point mort, redresse le bateau parallèle au quai et donne un petit coup de marche arrière pour t\'arrêter.',
+      'Passe d\'abord l\'amarre qui empêche le bateau de partir avec le vent ou le courant, puis l\'autre, puis les gardes si tu restes longtemps.'],
+      tip:'Personne ne saute sur le ponton ni ne met de pied ou de main entre le bateau et le quai.', q:'accoster ponton bateau moteur débutant' },
+    { id:'quitter', t:'Quitter le ponton', why:'Partir sans frotter la coque ni prendre une amarre dans l\'hélice.', steps:[
+      'Moteur démarré et chaud, regarde d\'où viennent le vent et le courant.',
+      'Largue d\'abord les gardes et l\'amarre qui ne travaille pas.',
+      'Garde en dernier l\'amarre qui retient le bateau contre le vent ou le courant.',
+      'Déborde (écarte) le bateau du ponton, récupère vite toutes les amarres à bord.',
+      'Sors doucement, en surveillant l\'arrière : la poupe se déporte quand tu tournes.'],
+      tip:'Vérifie qu\'aucun bout ne traîne dans l\'eau avant d\'embrayer.', q:'quitter un ponton bateau moteur manoeuvre' },
+    { id:'mouiller', t:'Mouiller l\'ancre', why:'S\'arrêter en sécurité pour la baignade ou la nuit.', steps:[
+      'Choisis un endroit abrité du vent, avec un fond de sable ou de vase, hors du chenal et loin des câbles sous-marins (couche SHOM).',
+      'Arrive face au vent, lentement, et arrête le bateau à l\'endroit choisi.',
+      'Descends l\'ancre jusqu\'au fond, sans la lancer.',
+      'Recule doucement en filant une longueur de 3 à 5 fois la profondeur (plus par vent fort).',
+      'Tourne la ligne sur le taquet, puis une marche arrière douce pour que l\'ancre croche. Prends des repères à terre.',
+      'Active l\'alarme de mouillage dans l\'onglet Sécurité.'],
+      tip:'Si les repères bougent, l\'ancre chasse : relève et recommence.', q:'mouiller l ancre bateau débutant' },
+    { id:'mob', t:'Homme à la mer', why:'Chaque seconde compte : à apprendre avant d\'en avoir besoin.', steps:[
+      'Crie « Un homme à la mer ! » et appuie tout de suite sur le bouton MOB de l\'appli.',
+      'Désigne une personne qui montre du doigt la victime sans jamais la quitter des yeux.',
+      'Lance une bouée ou tout objet qui flotte.',
+      'Fais demi-tour et reviens vers la personne lentement, de préférence face au vent et aux vagues.',
+      'Près d\'elle, débraye ou coupe le moteur : l\'hélice est très dangereuse.',
+      'Récupère-la par l\'arrière ou l\'échelle. Si tu n\'y arrives pas vite, appelle le CROSS : MAYDAY sur la VHF canal 16, ou le 196.'],
+      tip:'Le coupe-circuit attaché au pilote arrête le moteur si c\'est lui qui tombe.', q:'homme à la mer manoeuvre bateau moteur' },
+    { id:'ecluse', t:'Passer une écluse', why:'Incontournable sur les fleuves et les canaux.', steps:[
+      'Gilets sur le dos. Défenses des deux côtés, amarres avant et arrière prêtes.',
+      'Respecte les feux : rouge, tu attends ; vert, tu entres doucement.',
+      'Place-toi où l\'éclusier l\'indique, entoure un bollard ou une échelle avec tes amarres en les gardant en main (sans les bloquer).',
+      'Pendant que l\'eau monte ou descend, reprends ou file les amarres pour garder le bateau contre le mur.',
+      'Coupe le moteur si c\'est demandé. Ne sors qu\'au feu vert ou quand les portes sont ouvertes.'],
+      tip:'Ne mets jamais une main ou un pied entre le bateau et le mur.', q:'passer une écluse bateau plaisance débutant' },
+    { id:'bouee', t:'Prendre une bouée (corps-mort)', why:'S\'amarrer à une bouée de mouillage.', steps:[
+      'Approche face au vent ou au courant, très lentement.',
+      'Un équipier à l\'avant avec la gaffe et une amarre prête.',
+      'Arrête le bateau à côté de la bouée : il saisit l\'anneau avec la gaffe.',
+      'Passe l\'amarre dans l\'anneau et ramène-la au taquet avant.'],
+      tip:'Indique la direction de la bouée par gestes : le pilote ne la voit plus quand elle passe sous l\'étrave.', q:'prendre une bouée corps mort bateau' } ]},
+  { cat:'Règles et sécurité', items:[
+    { id:'balisage', t:'Le balisage (Europe, système A)', why:'Lire les bouées pour rester dans l\'eau profonde.', steps:[
+      'En rentrant au port : les marques rouges sont à ta gauche (bâbord), les vertes à ta droite (tribord). En sortant, c\'est l\'inverse.',
+      'Cardinales jaunes et noires : passe du côté indiqué par leur nom. Nord = pointes vers le haut, passe au nord ; Sud = pointes vers le bas, passe au sud ; Est = pointes opposées ; Ouest = pointes qui se touchent.',
+      'Danger isolé (noir et rouge, deux boules) : un danger juste dessous, n\'en approche pas.',
+      'Eaux saines (rouge et blanc, une boule) : l\'eau est navigable tout autour.',
+      'Marques jaunes : zones spéciales (baignade, chenaux, etc.).'],
+      tip:'Sur le continent américain (système B), rouge et vert sont inversés.', q:'balisage maritime IALA cardinales explication' },
+    { id:'priorite', t:'Les priorités entre bateaux', why:'Éviter l\'abordage.', steps:[
+      'Deux bateaux à moteur qui se croisent : celui qui voit l\'autre sur sa droite (tribord) doit s\'écarter.',
+      'Face à face : chacun vient sur sa droite.',
+      'Celui qui rattrape un autre bateau doit s\'écarter.',
+      'Un bateau à moteur s\'écarte des voiliers, des bateaux de pêche en action et des navires qui manœuvrent difficilement.',
+      'Dans un chenal, laisse la place aux gros navires : ils ne peuvent pas s\'arrêter ni tourner.'],
+      tip:'Manœuvre tôt et franchement pour que l\'autre comprenne ce que tu fais.', q:'règles de priorité en mer bateau moteur' },
+    { id:'vhf', t:'Appeler les secours (VHF)', why:'Savoir quoi dire le jour où ça arrive.', steps:[
+      'Canal 16 : veille et détresse. Depuis un téléphone : 196 (CROSS) ou 112.',
+      'Détresse grave et immédiate : « MAYDAY MAYDAY MAYDAY, ici [nom du bateau] ×3, MAYDAY [nom du bateau] ».',
+      'Donne ta position (lis-la dans l\'appli), la nature du problème, le nombre de personnes à bord et l\'aide demandée.',
+      'Termine par « À vous » et écoute.',
+      'Problème sérieux mais pas de danger immédiat (panne, blessé léger) : commence par « PAN PAN » au lieu de MAYDAY.'],
+      tip:'Note le nom de ton bateau et ce texte quelque part à bord.', q:'appel MAYDAY VHF procédure plaisance' },
+    { id:'feux', t:'Les feux de navigation la nuit', why:'Voir et être vu, et comprendre où va l\'autre bateau.', steps:[
+      'Feu rouge : côté gauche (bâbord). Feu vert : côté droit (tribord).',
+      'Feu blanc à l\'arrière, et feu blanc en tête de mât sur les bateaux à moteur.',
+      'Si tu vois le rouge d\'un bateau : il te présente son côté gauche.',
+      'Si tu vois le rouge et le vert ensemble : il vient droit sur toi.'],
+      tip:'Allume tes feux dès le coucher du soleil et par mauvaise visibilité.', q:'feux de navigation bateau nuit explication' },
+    { id:'meteo', t:'Lire la météo marine', why:'La décision la plus importante se prend avant de partir.', steps:[
+      'Regarde le vent moyen et surtout les rafales (onglet Météo).',
+      'Échelle de Beaufort : jusqu\'à force 3 (moins de 11 nœuds), c\'est confortable pour débuter ; à partir de force 5 (17 nœuds), la mer devient agitée pour un petit bateau.',
+      'Vérifie la hauteur des vagues et l\'évolution sur toute la durée de la sortie.',
+      'Un vent contre le courant lève une mer courte et dure.',
+      'Fais le « Bilan avant de partir » dans l\'onglet Route, et consulte aussi le bulletin côtier officiel.'],
+      tip:'Dans le doute, ne sors pas.', q:'lire la météo marine débutant beaufort' } ]}
+];
+let learned = store.get('learned', {});
+function renderLearn(){
+  const all = LEARN.flatMap(c => c.items), n = all.filter(i => learned[i.id]).length;
+  $('learnBar').style.width = (n/all.length*100) + '%';
+  $('learnTxt').textContent = `${n} fiche(s) apprise(s) sur ${all.length}`;
+  $('learnList').innerHTML = LEARN.map(c => `<div class="lsec">${c.cat}</div>` + c.items.map(i => `
+    <details class="lesson${learned[i.id] ? ' done' : ''}" data-id="${i.id}"><summary><span class="ck">${learned[i.id] ? '✓' : ''}</span><span>${esc(i.t)}<small>${esc(i.why)}</small></span><span class="muted">▾</span></summary>
+      <ol>${i.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
+      ${i.tip ? `<div class="tip">À retenir : ${esc(i.tip)}</div>` : ''}
+      <div class="row"><a class="btn primary" href="https://www.youtube.com/results?search_query=${encodeURIComponent(i.q)}" target="_blank" rel="noopener" style="text-decoration:none">Vidéos</a>
+      <button class="btn" data-learn="${i.id}">${learned[i.id] ? 'À revoir' : 'J\'ai appris'}</button></div></details>`).join('')).join('');
+}
+$('learnList').addEventListener('click', e => { const b = e.target.closest('[data-learn]'); if (!b) return; const id = b.dataset.learn; learned[id] = !learned[id]; store.set('learned', learned); const open = id; renderLearn(); const d = document.querySelector(`details[data-id="${open}"]`); if (d) d.open = true; });
+renderLearn();
 
 // ---------- démarrage ----------
 loadShom(false); loadIenc(); drawReports();
