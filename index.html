@@ -118,6 +118,16 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 
 .fs{display:flex;box-sizing:border-box;gap:10px;align-items:center;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;color:var(--fg);font-size:14px}
 .fs span{flex:0 0 24px;height:24px;border-radius:50%;background:var(--accent);color:#1a1200;font-weight:700;display:flex;align-items:center;justify-content:center}
+#dash{position:fixed;inset:0;z-index:3000;background:var(--bg);display:flex;flex-direction:column;justify-content:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 14px)}
+#dash[hidden]{display:none}
+#dash #dashClose{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px}
+#dash .dk{font-family:var(--f-display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-size:14px;text-align:center}
+#dash .dv{font-family:var(--f-data);font-weight:700;font-size:min(30vw,34vh);line-height:1;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
+#dash .dv small{font-size:.22em;color:var(--muted);font-weight:400}
+#dash .drow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+#dash .dv2{font-family:var(--f-data);font-weight:700;font-size:min(11vw,13vh);line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+#dash .dv2 small{font-size:.35em;color:var(--muted);font-weight:400}
+#dash .dv2.warn{color:var(--warn)} #dash .dv2.bad{color:var(--bad)}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -253,7 +263,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 <div id="map"></div>
 
 <div id="hud">
-  <div class="inst"><div class="k">Vitesse</div><div class="v" id="sog">--<small> nd</small></div></div>
+  <div class="inst" id="sogBox" title="Touche pour passer de nœuds à km/h"><div class="k">Vitesse ⇄</div><div class="v" id="sog">--<small> nd</small></div></div>
   <div class="inst"><div class="k">Cap</div><div class="v" id="cog">---<small>°</small></div></div>
   <div class="inst"><div class="k">Vent ici</div><div class="v" id="windNow">--<small> nd</small></div></div>
   <div class="inst"><div class="k">Fond</div><div class="v" id="depthNow">--<small> m</small></div></div>
@@ -277,6 +287,12 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
   <button class="fab" id="helpFab" title="À quoi servent les boutons ?" style="font-weight:700">?</button>
 </div>
+<div id="dash" hidden>
+  <button id="dashClose" class="btn" aria-label="Fermer le compteur">✕ Fermer</button>
+  <div class="dk">Vitesse <span class="muted">(touche pour nœuds ⇄ km/h)</span></div><div class="dv" id="dSog">--</div>
+  <div class="drow"><div><div class="dk">Cap</div><div class="dv2" id="dCog">---</div></div><div><div class="dk">Fond</div><div class="dv2" id="dDepth">--</div></div><div><div class="dk">Vent</div><div class="dv2" id="dWind">--</div></div></div>
+  <div class="muted" style="text-align:center">Garde l'écran allumé. Le fond est une estimation, pas un sondeur.</div>
+</div>
 <div id="legend" hidden>
   <div class="lgBox">
     <b class="lgT">Les boutons</b>
@@ -289,6 +305,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">N</span><span><b>Boussole</b> : le cap de ton téléphone</span></div>
     <div class="lgRow"><span class="lgI">AIS</span><span><b>Autres bateaux</b> équipés d'AIS, avec réseau : une aide, pas une sécurité (voir l'avertissement)</span></div>
     <div class="lgRow"><span class="lgI">☾</span><span><b>Mode nuit</b> : écran rouge, préserve la vue de nuit</span></div>
+    <div class="lgRow"><span class="lgI">⇄</span><span>Touche le cadre <b>Vitesse</b> pour passer de nœuds à km/h. Appui long sur un cadre : <b>grand compteur</b></span></div>
     <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
     <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgClose">Fermer</button></div>
   </div>
@@ -387,6 +404,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <!-- SORTIES / JOURNAL DE BORD -->
     <div class="pane" id="p-log" hidden>
       <div id="tripLive" class="pane"></div>
+      <button class="btn" id="dashOpen">Grand compteur (vitesse, cap, fond)</button>
       <div class="row">
         <button class="btn primary" id="tripStart">Démarrer une sortie</button>
         <button class="btn danger" id="tripEnd" hidden>Terminer la sortie</button>
@@ -819,6 +837,24 @@ $('gpsBtn').addEventListener('click', () => {
   $('gpsBtn').classList.add('on'); $('gpsBtn').textContent = 'GPS ON'; keepAwake();
 });
 
+// Affichage de la vitesse : lissée (le GPS « tremble » de 0,1 à 0,3 nd), animée, en nœuds ou km/h.
+let spdSm = null, cogSm = null, spdShown = null, spdRaf = 0, spdUnit = store.get('spdUnit', 'nd');
+function smoothFix(sog, cog){
+  if (sog == null) spdSm = null;
+  else { const r = sog < 0.3 ? 0 : sog; spdSm = (spdSm == null || Math.abs(r - spdSm) > 2.5) ? r : spdSm + (r - spdSm)*0.4; }
+  if (cog != null && (sog == null || sog > 0.7)) cogSm = cogSm == null ? cog : (cogSm + ((cog - cogSm + 540) % 360 - 180)*0.4 + 360) % 360;
+  if (sog != null && sog <= 0.7 && cog == null) cogSm = null;
+}
+function spdTxt(v){ if (v == null) return '--'; return spdUnit === 'kmh' ? (v*1.852 < 10 ? n1(v*1.852) : n0(v*1.852)) : n1(v); }
+function renderSpd(v){ const u = spdUnit === 'kmh' ? ' km/h' : ' nd'; $('sog').innerHTML = spdTxt(v) + '<small>' + u + '</small>'; $('dSog').innerHTML = spdTxt(v) + '<small>' + u + '</small>'; }
+function spdTween(target){
+  cancelAnimationFrame(spdRaf);
+  if (target == null || spdShown == null || matchMedia('(prefers-reduced-motion:reduce)').matches){ spdShown = target; renderSpd(target); return; }
+  const from = spdShown, t0 = performance.now();
+  const step = t => { const k = Math.min(1, (t - t0)/600), e = 1 - Math.pow(1 - k, 3); spdShown = from + (target - from)*e; renderSpd(spdShown); if (k < 1) spdRaf = requestAnimationFrame(step); };
+  spdRaf = requestAnimationFrame(step);
+}
+function toggleSpdUnit(){ spdUnit = spdUnit === 'nd' ? 'kmh' : 'nd'; store.set('spdUnit', spdUnit); renderSpd(spdShown); hint('Vitesse en ' + (spdUnit === 'kmh' ? 'km/h' : 'nœuds'), 1800); }
 function onFix(pos){
   const c = pos.coords, p = [c.latitude, c.longitude], now = pos.timestamp;
   let sog = c.speed != null ? c.speed*1.943844 : null, cog = (c.heading != null && !isNaN(c.heading)) ? c.heading : null;
@@ -828,9 +864,9 @@ function onFix(pos){
   }
   prevFix = { p, t:now };
   gps = { p, sog, cog, acc:c.accuracy };
-  $('sog').innerHTML = (sog == null ? '--' : n1(sog)) + '<small> nd</small>';
-  const still = cog == null || (sog != null && sog < 0.5);
-  $('cog').innerHTML = !still ? pad3(cog) + '<small>°</small>' : compass.on && compass.h != null ? pad3(compass.h) + '<small>° bouss.</small>' : '---<small>°</small>';
+  smoothFix(sog, cog); spdTween(spdSm);
+  const still = cogSm == null || (sog != null && sog < 0.5);
+  $('cog').innerHTML = !still ? pad3(cogSm) + '<small>°</small>' : compass.on && compass.h != null ? pad3(compass.h) + '<small>° bouss.</small>' : '---<small>°</small>';
   $('posLine').textContent = fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
   if (!boat){ boat = L.marker(p, { icon:boatIcon(cog), zIndexOffset:1000 }).addTo(map); accCircle = L.circle(p, { radius:c.accuracy, color:'#f2b134', weight:1, fillOpacity:.08 }).addTo(map); map.setView(p, Math.max(map.getZoom(), 13)); loadWeather(p, 'position du bateau'); }
   else { boat.setLatLng(p).setIcon(boatIcon(cog)); accCircle.setLatLng(p).setRadius(c.accuracy); }
@@ -839,6 +875,22 @@ function onFix(pos){
   checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver(); navUpdate(); zoneUpdate(); anchorCheck(); tripTick(); tripWatch();
 }
 $('followBtn').classList.add('active');
+renderSpd(null);
+// toucher = changer d'unité ; appui long (0,6 s) sur un cadre = grand compteur
+(function(){
+  let tm = null, long = false;
+  document.querySelectorAll('#hud .inst').forEach(el => {
+    el.addEventListener('pointerdown', () => { long = false; clearTimeout(tm); tm = setTimeout(() => { long = true; dashOpen(); }, 600); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => clearTimeout(tm)));
+    el.addEventListener('click', e => { if (long){ long = false; return; } if (el.id === 'sogBox') toggleSpdUnit(); });
+  });
+})();
+function dashOpen(){ $('dash').hidden = false; keepAwake(); dashSync(); }
+function dashSync(){ $('dCog').innerHTML = $('cog').innerHTML; $('dDepth').innerHTML = $('depthNow').innerHTML; $('dDepth').className = 'dv2 ' + ($('depthNow').className.replace('v', '').trim()); $('dWind').innerHTML = $('windNow').innerHTML.replace(/\s?(N|S|E|O|NE|NO|SE|SO|NNE|ENE|ESE|SSE|SSO|OSO|ONO|NNO)\b/, ''); }
+['cog', 'depthNow', 'windNow'].forEach(id => new MutationObserver(() => { if (!$('dash').hidden) dashSync(); }).observe($(id), { childList:true, subtree:true, attributes:true }));
+$('dashClose').addEventListener('click', () => { $('dash').hidden = true; });
+$('dashOpen').addEventListener('click', dashOpen);
+$('dSog').addEventListener('click', toggleSpdUnit);
 $('zIn').addEventListener('click', () => map.zoomIn(1));
 $('zOut').addEventListener('click', () => map.zoomOut(1));
 $('followBtn').addEventListener('click', () => { follow = !follow; $('followBtn').classList.toggle('active', follow); if (follow && gps) map.panTo(gps.p); });
