@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1a24">
@@ -25,8 +25,9 @@ body.night{ --fg:#ff6b5a; --muted:#b0453a; --accent:#ff6b5a; --ok:#ff6b5a; --war
 body.night #map{ filter:brightness(.45) sepia(1) hue-rotate(-50deg) saturate(3) }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent}
-#map{position:absolute;inset:0;background:#aad3df}
+html,body{height:100%;margin:0;touch-action:pan-x pan-y;overscroll-behavior:none;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#map{position:absolute;inset:0;background:#aad3df;touch-action:none}
+#hud,#fab,#sheet,#navTop,#navBottom,#homePanel{touch-action:manipulation}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
@@ -467,7 +468,9 @@ const RISK_TXT = ['Conditions maniables','Prudence','Dangereux pour une petite u
 
 // ---------- carte ----------
 const last = store.get('view', { c:[43.25, 5.3], z:10 });
-const map = L.map('map', { zoomControl:false, attributionControl:true }).setView(last.c, last.z);
+const map = L.map('map', { zoomControl:false, attributionControl:true, preferCanvas:true, zoomSnap:0.5, wheelPxPerZoomLevel:90, bounceAtZoomLimits:false }).setView(last.c, last.z);
+['gesturestart','gesturechange','gestureend'].forEach(ev => document.addEventListener(ev, e => { if (!e.target.closest || !e.target.closest('#map')) e.preventDefault(); }, { passive:false }));
+L.TileLayer.prototype.options.updateWhenZooming = false; L.TileLayer.prototype.options.updateWhenIdle = true; L.TileLayer.prototype.options.keepBuffer = 1;
 L.control.scale({ position:'bottomleft', imperial:true, metric:true, maxWidth:120 }).addTo(map);
 map.on('moveend', () => store.set('view', { c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom() }));
 
@@ -490,7 +493,7 @@ const zoneLayer = L.layerGroup();
 const OVERLAYS = {
   seamark: { name:'Balises, bouées, phares (OpenSeaMap)', on:true, layer: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { maxZoom:18, attribution:'© OpenSeaMap' }) },
   depth:   { name:'Profondeurs en couleur (EMODnet)', on:false, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:mean_atlas_land', format:'image/png', transparent:true, opacity:.55, attribution:'© EMODnet Bathymetry' }) },
-  contours:{ name:'Lignes de sonde / isobathes (EMODnet)', on:true, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:contours', format:'image/png', transparent:true, attribution:'© EMODnet Bathymetry' }) },
+  contours:{ name:'Lignes de sonde / isobathes (EMODnet, plus lent)', on:false, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:contours', format:'image/png', transparent:true, attribution:'© EMODnet Bathymetry' }) },
   wind:    { name:'Flèches de vent sur la carte', on:true, layer: windLayer },
   rep:     { name:'Mes signalements', on:true, layer: repLayer },
   zone:    { name:'Limite de la bande des 300 m (approximative)', on:true, layer: zoneLayer },
@@ -782,7 +785,8 @@ $('wxHour').addEventListener('input', () => {
   $('wxHourTxt').textContent = h ? d.toLocaleDateString('fr-FR', { weekday:'short' }) + ' ' + d.getHours() + ' h' : 'maintenant';
   drawWindGrid();
 });
-map.on('moveend', () => { clearTimeout(windTimer); windTimer = setTimeout(loadWindGrid, 700); });
+map.on('moveend', () => { clearTimeout(windTimer); windTimer = setTimeout(loadWindGrid, 1500); });
+map.on('zoomstart movestart', () => { clearTimeout(windTimer); });
 
 // ---------- ROUTE ----------
 let route = store.get('route', []);
@@ -1180,11 +1184,12 @@ function obsLabel(o){
   }
 }
 function drawObsInView(){
+  if (map._animatingZoom) return setTimeout(drawObsInView, 300);
   obsLayer.clearLayers();
   if (!map.hasLayer(obsLayer) || map.getZoom() < 11) return;
-  const b = map.getBounds().pad(0.1), labels = map.getZoom() >= 14; let n = 0;
+  const b = map.getBounds().pad(0.05), labels = map.getZoom() >= 14; let n = 0;
   for (const arr of [iencPts, ignPts, shomPts, osmPts]) for (const o of arr){
-    if (!b.contains(o.p)) continue; if (++n > 500) return;
+    if (!b.contains(o.p)) continue; if (++n > (labels ? 180 : 500)) return;
     const mk = labels
       ? L.marker(o.p, { icon:L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk${lowBridge(o) ? ' low' : ''}" style="--c:${KCOL[o.kind] || '#ccc'}">${esc(obsLabel(o))}</div>` }) })
       : L.circleMarker(o.p, { radius:lowBridge(o) ? 8 : 6, color:'#fff', weight:1.5, fillColor:lowBridge(o) ? '#ef5350' : KCOL[o.kind], fillOpacity:.95 });
