@@ -257,7 +257,9 @@ body.nav #alertBar{top:calc(env(safe-area-inset-top,0px) + 250px)}
 body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 .leaflet-popup-content{font-size:13px;margin:10px 12px}
 .wind-ico{display:flex;flex-direction:column;align-items:center;font-family:var(--f-data);font-size:11px;font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
-.boat-ico svg{filter:drop-shadow(0 0 3px #000)}
+.boat-ico .b3d{filter:drop-shadow(3px 5px 3px rgba(0,0,0,.55))}
+.boat-ico .b3r{width:44px;height:66px;transform-origin:50% 50%}
+.boat-ico .bwake{opacity:0}.boat-ico.mv .bwake{opacity:1}
 </style>
 </head>
 <body>
@@ -820,8 +822,26 @@ map.on('click', e => {
 let gps = null, watchId = null, follow = true, wakeLock = null, prevFix = null;
 const track = [];
 const trackLine = L.polyline([], { color:'#f2b134', weight:3, opacity:.8, dashArray:'4 6' }).addTo(map);
-const boatIcon = cog => L.divIcon({ className:'boat-ico', iconSize:[30,30], iconAnchor:[15,15],
-  html:`<svg width="30" height="30" viewBox="0 0 30 30" style="transform:rotate(${cog||0}deg)"><path d="M15 2 L23 26 L15 21 L7 26 Z" fill="#f2b134" stroke="#0b1a24" stroke-width="2"/></svg>` });
+// Bateau « en relief » : coque ombrée, pont en teck, cabine et pare-brise, sillage quand il avance. L'ombre reste fixe (lumière en haut à gauche).
+const BOAT_SVG = `<svg width="44" height="66" viewBox="0 0 44 66" aria-hidden="true">
+<defs>
+<linearGradient id="bhull" x1="0" x2="1"><stop offset="0" stop-color="#dfeef6"/><stop offset=".45" stop-color="#ffffff"/><stop offset="1" stop-color="#7f9fb3"/></linearGradient>
+<linearGradient id="bdeck" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#d9ac6a"/><stop offset="1" stop-color="#9a7040"/></linearGradient>
+<linearGradient id="bcab" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#aebfca"/></linearGradient>
+<linearGradient id="bglass" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#5fa8d3"/><stop offset="1" stop-color="#1d4a66"/></linearGradient>
+<linearGradient id="bwake" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+<path class="bwake" d="M13 58 L3 66 L41 66 L31 58 Z" fill="url(#bwake)"/>
+<path d="M22 2 C31 13 35 28 34 47 Q34 57 30 59 L14 59 Q10 57 10 47 C9 28 13 13 22 2 Z" fill="url(#bhull)" stroke="#0b1a24" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M22 6 C29 16 32 29 31.2 46 Q31.2 54 28.5 56 L15.5 56 Q12.8 54 12.8 46 C12 29 15 16 22 6 Z" fill="url(#bdeck)" stroke="#f2b134" stroke-width="1.6"/>
+<path d="M17 20 L27 20 L28 26 L16 26 Z" fill="url(#bglass)" stroke="#0b1a24" stroke-width="1"/>
+<rect x="15.5" y="26" width="13" height="16" rx="3" fill="url(#bcab)" stroke="#0b1a24" stroke-width="1.2"/>
+<rect x="18" y="29" width="8" height="5" rx="1.5" fill="#2a5873" opacity=".85"/>
+<path d="M22 5 C24 8 25 10 25.5 12 C23 9 20 9 18.5 12 C19 10 20 8 22 5 Z" fill="#fff" opacity=".75"/>
+<path d="M12.5 46 Q12.5 54 15.5 56 L28.5 56" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1"/>
+</svg>`;
+const boatIcon = (cog, moving) => L.divIcon({ className:'boat-ico' + (moving ? ' mv' : ''), iconSize:[44, 66], iconAnchor:[22, 33],
+  html:`<div class="b3d"><div class="b3r" style="transform:rotate(${cog||0}deg)">${BOAT_SVG}</div></div>` });
 let boat = null, accCircle = null;
 
 async function keepAwake(){ try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){} }
@@ -918,8 +938,8 @@ function onFix(pos){
   const still = cogSm == null || (sog != null && sog < 0.5);
   $('cog').innerHTML = !still ? pad3(cogSm) + '<small>°</small>' : compass.on && compass.h != null ? pad3(compass.h) + '<small>° bouss.</small>' : '---<small>°</small>';
   $('posLine').textContent = (demo ? 'MODE DÉMO · bateau virtuel · ' : '') + fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
-  if (!boat){ boat = L.marker(p, { icon:boatIcon(cog), zIndexOffset:1000 }).addTo(map); accCircle = L.circle(p, { radius:c.accuracy, color:'#f2b134', weight:1, fillOpacity:.08 }).addTo(map); map.setView(p, Math.max(map.getZoom(), 13)); loadWeather(p, 'position du bateau'); }
-  else { boat.setLatLng(p).setIcon(boatIcon(cog)); accCircle.setLatLng(p).setRadius(c.accuracy); }
+  if (!boat){ boat = L.marker(p, { icon:boatIcon(cogSm != null ? cogSm : cog, sog > 0.7), zIndexOffset:1000 }).addTo(map); accCircle = L.circle(p, { radius:c.accuracy, color:'#f2b134', weight:1, fillOpacity:.08 }).addTo(map); map.setView(p, Math.max(map.getZoom(), 13)); loadWeather(p, 'position du bateau'); }
+  else { boat.setLatLng(p).setIcon(boatIcon(cogSm != null ? cogSm : cog, sog > 0.7)); accCircle.setLatLng(p).setRadius(c.accuracy); }
   if (follow) map.panTo(p, { animate:true });
   if (!track.length || distNM(track[track.length-1], p) > 0.01){ track.push(p); if (track.length > 5000) track.shift(); trackLine.setLatLngs(track); }
   checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver(); navUpdate(); zoneUpdate(); anchorCheck(); tripTick(); tripWatch();
@@ -1419,11 +1439,11 @@ function nearKind(arr, p, kinds, tol){ return arr.some(s => kinds.includes(s.kin
 const hashStr = t => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + t.length.toString(36); };
 let opPause = 0, opLast = 0, opChain = Promise.resolve();
 const opSlot = () => (opChain = opChain.then(() => new Promise(r => setTimeout(r, Math.max(0, opLast + 1100 - Date.now())))).then(() => { opLast = Date.now(); }));
-async function overpass(q, ttl){
+async function overpass(q, ttl, force){
   const key = 'op_' + hashStr(q), c = await idbGet(key);
   if (c && c.j && Date.now() - c.t < (ttl || 3*86400000)) return c.j;
-  if (!navigator.onLine || Date.now() < opPause) return c ? c.j : null;
-  await opSlot();
+  if (!navigator.onLine || (!force && Date.now() < opPause)) return c ? c.j : null;
+  if (!force) await opSlot();
   for (const url of OVERPASS){
     try{
       const r = await fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } });
@@ -3775,21 +3795,40 @@ function seamarkHtml(t){
   const lt = lightTxt(t);
   return `<b>${esc(title)}</b>${name ? '<br>' + esc(name) : ''}${colour ? '<br>Couleur : ' + esc(colour) : ''}${how ? '<br>' + esc(how) : ''}${lt ? '<br>' + lt : ''}`;
 }
+// Base de ports d'OpenSeaMap : donne le nom d'un port même quand le serveur de repères est occupé.
+async function harbourNear(p, R){
+  try{
+    const d = Math.max(R*1.6, 300)/111120, dl = d/Math.cos(toRad(p[0]));
+    const txt = await fetch(`https://harbour.openseamap.org/getHarbours.php?b=${(p[0]-d).toFixed(5)}&t=${(p[0]+d).toFixed(5)}&l=${(p[1]-dl).toFixed(5)}&r=${(p[1]+dl).toFixed(5)}&ucid=0&maxSize=5&zoom=14`).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    const out = [];
+    txt.replace(/(\r|\n)/g, '').split(/putHarbourMarker\(/).slice(1).forEach(part => {
+      const m = part.match(/^\s*(-?\d+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*'([^']*)'\s*,\s*'([^']*)'/); if (!m) return;
+      out.push({ name:m[4], link:m[5], d:distNM(p, [+m[3], +m[2]])*1852 });
+    });
+    return out.sort((a, b) => a.d - b.d);
+  }catch(e){ return null; }
+}
 async function identifyAt(ll){
-  const p = [ll.lat, ll.lng], z = map.getZoom(), mpp = 156543.03*Math.cos(toRad(p[0]))/Math.pow(2, z), R = Math.max(12, Math.min(500, 24*mpp));
+  const p = [ll.lat, ll.lng], z = map.getZoom(), mpp = 156543.03*Math.cos(toRad(p[0]))/Math.pow(2, z), R = Math.max(15, Math.min(600, 34*mpp));
   const base = `<span class="muted">${fmtPos(p)}${gps ? ` · ${fmtD(distNM(gps.p, p))} au ${pad3(bearing(gps.p, p))}° du bateau` : ''}</span>`;
   const near = [].concat(iencPts, ignPts, shomPts, osmPts, repPts, offlineNear(p, 0.3)).map(o => ({ o, d:distNM(p, o.p)*1852 })).filter(x => x.d < R).sort((a, b) => a.d - b.d)[0];
   const local = near ? obsPopup(near.o) + '<hr>' : '';
   const pop = L.popup({ maxWidth:290 }).setLatLng(ll).setContent(local + base + (navigator.onLine ? '<br><span class="muted">Recherche de ce qu\'il y a ici…</span>' : '')).openOn(map);
   if (!navigator.onLine) return;
   const a = `(around:${Math.round(R)},${p[0].toFixed(6)},${p[1].toFixed(6)})`;
-  const j = await overpass(`[out:json][timeout:15];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];);out center tags 25;`);
+  const [j, hb] = await Promise.all([overpass(`[out:json][timeout:15];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];);out center tags 25;`, 3*86400000, true).catch(() => null), harbourNear(p, R)]);
   if (!pop.isOpen()) return;
+  const hbItems = (hb || []).filter(h => h.d < Math.max(R*1.6, 300)).slice(0, 2);
   const els = (j && j.elements || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; })
     .filter(Boolean).filter(x => !['fairway', 'restricted_area', 'cable_submarine', 'pipeline_submarine'].includes(x.t['seamark:type']) || x.d < R/2)
     .sort((a, b) => (b.pt - a.pt) || (a.d - b.d));
   const seen = new Set(), list = els.filter(x => { const key = (x.t['seamark:type'] || x.t.leisure || '') + (x.t['seamark:name'] || x.t.name || ''); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 3);
-  pop.setContent((list.length ? list.map(x => seamarkHtml(x.t)).join('<hr>') + '<hr>' : (local ? '' : '<span class="muted">Aucune balise, aucun feu ni port répertorié à cet endroit.</span><br>')) + local + base);
+  list.forEach(x => { if ((x.t['seamark:type'] === 'harbour' || x.t.leisure === 'marina' || x.t.harbour) && !(x.t['seamark:name'] || x.t.name) && hbItems[0]) x.t = Object.assign({}, x.t, { name:hbItems[0].name }); });
+  const names = list.map(x => String(x.t['seamark:name'] || x.t.name || '').toLowerCase());
+  const extra = hbItems.filter(h => !names.includes(h.name.toLowerCase())).map(h => `<b>${esc(h.name)}</b><br>Port ou mouillage (base OpenSeaMap)${/^https?:\/\//.test(h.link) ? `<br><a href="${esc(h.link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : ''}`);
+  const fail = j === null && hb === null ? '<span class="muted">Le serveur de repères ne répond pas (réseau faible ou serveur occupé). Touche à nouveau dans quelques secondes.</span><br>' : '';
+  const none = !list.length && !extra.length && !local && !fail ? '<span class="muted">Aucune balise, aucun feu ni port répertorié à cet endroit. Touche exactement sur le symbole, en zoomant si besoin.</span><br>' : '';
+  pop.setContent([].concat(list.map(x => seamarkHtml(x.t)), extra).join('<hr>') + ((list.length || extra.length) ? '<hr>' : '') + fail + none + local + base);
 }
 
 // ---------- DONNÉES OPENSEAMAP EN PLUS + LOISIRS ----------
