@@ -281,7 +281,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">⚑</span><span><b>Signaler</b> un danger ou un problème sur l'eau</span></div>
     <div class="lgRow"><span class="lgI">⌕</span><span><b>Chercher</b> un port, une ville, un lieu</span></div>
     <div class="lgRow"><span class="lgI">N</span><span><b>Boussole</b> : le cap de ton téléphone</span></div>
-    <div class="lgRow"><span class="lgI">AIS</span><span><b>Autres bateaux</b> autour de toi (il faut du réseau)</span></div>
+    <div class="lgRow"><span class="lgI">AIS</span><span><b>Autres bateaux</b> équipés d'AIS, avec réseau : une aide, pas une sécurité (voir l'avertissement)</span></div>
     <div class="lgRow"><span class="lgI">☾</span><span><b>Mode nuit</b> : écran rouge, préserve la vue de nuit</span></div>
     <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
     <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgClose">Fermer</button></div>
@@ -545,7 +545,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <div class="aisBar"><b>Bateaux autour · AIS en ligne</b>
     <button class="btn" data-ais="vf">VesselFinder</button><button class="btn" data-ais="mt">MarineTraffic</button>
     <a class="btn" id="aisOpen" target="_blank" rel="noopener">Ouvrir le site</a><button class="btn danger" id="aisClose">Fermer</button></div>
-  <div class="muted aisNote">Positions reçues par Internet, parfois avec quelques minutes de retard, et seulement avec du réseau : au large ce n'est pas une sécurité, rien ne remplace un vrai récepteur AIS et la veille. Si la carte reste vide, touche « Ouvrir le site ».</div>
+  <div class="muted aisNote"><b>Une aide, pas une sécurité.</b> Utile de jour, près des côtes et au port : tu vois les navires équipés. Mais il faut du réseau (au large, l'écran reste vide), les positions ont parfois quelques minutes de retard, tu n'es pas visible des autres, et beaucoup de petits bateaux n'ont pas d'AIS. De nuit, au large ou en traversée, utilise un vrai récepteur AIS à bord. Garde toujours la veille visuelle. Si la carte reste vide, touche « Ouvrir le site ».</div>
   <iframe id="aisFrame" title="Carte AIS" referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
 </div>
 <div id="tour" hidden><div id="tourHole"></div><div id="tourBox"><div id="tourStep" class="muted"></div><b id="tourT"></b><div id="tourD"></div>
