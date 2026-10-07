@@ -543,6 +543,7 @@ const ArcTiles = L.TileLayer.extend({ getTileUrl(c){ const sz = 40075016.6855784
 const arcgisTiles = (url, attr) => new ArcTiles(url, { maxZoom:19, attribution:attr });
 const windLayer = L.layerGroup();
 const repLayer = L.layerGroup();
+const funLayer = L.layerGroup(), harbLayer = L.layerGroup(), wikiLayer = L.layerGroup();
 const obsLayer = L.layerGroup();
 const zoneLayer = L.layerGroup();
 const OVERLAYS = {
@@ -551,6 +552,12 @@ const OVERLAYS = {
   contours:{ name:'Lignes de sonde / isobathes (EMODnet, plus lent)', on:false, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:contours', format:'image/png', transparent:true, attribution:'© EMODnet Bathymetry' }) },
   wind:    { name:'Flèches de vent sur la carte', on:true, layer: windLayer },
   rep:     { name:'Mes signalements', on:true, layer: repLayer },
+  harb:    { name:'Ports et fiches détaillées (base OpenSeaMap)', on:true, layer: harbLayer },
+  fun:     { name:'Loisirs : plages, plongée, surf, kite, location, pêche… (OpenStreetMap)', on:false, layer: funLayer },
+  sport:   { name:'Sports nautiques (couche OpenSeaMap)', on:false, layer: L.tileLayer('https://tiles.openseamap.org/sport/{z}/{x}/{y}.png', { maxZoom:19, maxNativeZoom:18, attribution:'© OpenSeaMap' }) },
+  wiki:    { name:'Curiosités à voir (Wikipédia)', on:false, layer: wikiLayer },
+  osmDepth:{ name:'Profondeurs relevées par les plaisanciers (OpenSeaMap)', on:false, layer: L.tileLayer.wms('https://depth.openseamap.org/geoserver/openseamap/wms', { layers:'openseamap:tracks_10m', version:'1.1.0', format:'image/png', transparent:true, attribution:'© OpenSeaMap Water Depth' }) },
+  osmCont: { name:'Lignes de sonde des plaisanciers (OpenSeaMap)', on:false, layer: L.tileLayer.wms('https://depth.openseamap.org/geoserver/openseamap/wms', { layers:'openseamap:contour2,openseamap:contour', version:'1.1.0', format:'image/png', transparent:true, attribution:'© OpenSeaMap Water Depth' }) },
   zone:    { name:'Limite de la bande des 300 m (approximative)', on:true, layer: zoneLayer },
   obs:     { name:'Épaves, roches, obstructions (points cliquables, SHOM + OSM)', on:true, layer: obsLayer },
   noaa:    { name:'Cartes marines officielles NOAA (États-Unis)', on:false, layer: arcgisTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/export', '© NOAA') },
@@ -603,6 +610,7 @@ $('ovList').addEventListener('change', e => {
   ovState[k] = e.target.checked; store.set('ov', ovState);
   if (k === 'wind' && e.target.checked) loadWindGrid();
   if (k === 'obs') drawObsInView();
+  if (['fun', 'harb', 'wiki'].includes(k) && e.target.checked){ funKey = harbKey = wikiKey = ''; loadExtras(); }
 });
 
 // ---------- onglets / tiroir ----------
@@ -2869,6 +2877,76 @@ async function identifyAt(ll){
   const seen = new Set(), list = els.filter(x => { const key = (x.t['seamark:type'] || x.t.leisure || '') + (x.t['seamark:name'] || x.t.name || ''); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 3);
   pop.setContent((list.length ? list.map(x => seamarkHtml(x.t)).join('<hr>') + '<hr>' : (local ? '' : '<span class="muted">Aucune balise, aucun feu ni port répertorié à cet endroit.</span><br>')) + local + base);
 }
+
+// ---------- DONNÉES OPENSEAMAP EN PLUS + LOISIRS ----------
+let funKey = '', harbKey = '', wikiKey = '', extrasTimer = null;
+const viewKey = (z0) => { const b = map.getBounds(); return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map(v => v.toFixed(2)).join(',') + ':' + Math.min(z0, Math.round(map.getZoom())); };
+const pin = (txt, c) => L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk" style="--c:${c}">${esc(txt)}</div>` });
+// Ports : base de ports d'OpenSeaMap, avec lien vers leur fiche détaillée (SkipperGuide)
+async function loadHarbours(){
+  if (!map.hasLayer(harbLayer) || map.getZoom() < 9) { harbLayer.clearLayers(); harbKey = ''; return; }
+  const k = viewKey(14); if (k === harbKey) return; harbKey = k;
+  const b = map.getBounds(), z = Math.round(map.getZoom());
+  try{
+    const u = `https://harbour.openseamap.org/getHarbours.php?b=${b.getSouth().toFixed(5)}&t=${b.getNorth().toFixed(5)}&l=${b.getWest().toFixed(5)}&r=${b.getEast().toFixed(5)}&ucid=0&maxSize=${z >= 12 ? 5 : z >= 10 ? 3 : 1}&zoom=${z}`;
+    const txt = await fetch(u).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    harbLayer.clearLayers();
+    txt.replace(/(\r|\n)/g, '').split(/putHarbourMarker\(/).slice(1).forEach(part => {
+      const m = part.match(/^\s*(-?\d+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*(-?\d+)/); if (!m) return;
+      const lat = +m[3], lon = +m[2], name = m[4], link = m[5];
+      const mk = z >= 12 ? L.marker([lat, lon], { icon:pin(name.length > 24 ? name.slice(0, 23) + '…' : name, '#3fbf7f') }) : L.circleMarker([lat, lon], { bubblingMouseEvents:false, radius:5, color:'#fff', weight:1.5, fillColor:'#3fbf7f', fillOpacity:1 });
+      mk.bindPopup(() => `<b>${esc(name)}</b><br>Port ou mouillage (base OpenSeaMap)` + (/^https?:\/\//.test(link) ? `<br><a href="${esc(link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : '') + `<br><span class="muted">Touche la carte à côté pour les services, places et VHF.</span>`).addTo(harbLayer);
+    });
+  }catch(e){ harbKey = ''; }
+}
+// Loisirs depuis OpenStreetMap
+const FUN = [
+  ['natural', 'beach', 'Plage', '#f6d58e'], ['leisure', 'beach_resort', 'Plage aménagée', '#f6d58e'], ['leisure', 'swimming_area', 'Baignade', '#4fc3f7'],
+  ['sport', 'scuba_diving', 'Plongée', '#26c6da'], ['sport', 'surfing', 'Surf', '#29b6f6'], ['sport', 'kitesurfing', 'Kitesurf', '#ab47bc'], ['sport', 'windsurfing', 'Planche à voile', '#7e57c2'],
+  ['sport', 'water_ski', 'Ski nautique', '#5c6bc0'], ['sport', 'canoe', 'Canoë-kayak', '#66bb6a'], ['sport', 'sailing', 'Voile', '#42a5f5'], ['sport', 'rowing', 'Aviron', '#8d6e63'],
+  ['leisure', 'fishing', 'Pêche', '#26a69a'], ['amenity', 'boat_rental', 'Location de bateaux', '#ffa726'], ['shop', 'boat', 'Magasin nautique', '#ffb74d'], ['craft', 'boatbuilder', 'Chantier naval', '#a1887f'],
+  ['tourism', 'viewpoint', 'Point de vue', '#bdbdbd'], ['historic', 'lighthouse', 'Phare (patrimoine)', '#fff59d'], ['man_made', 'lighthouse', 'Phare', '#fff59d'], ['natural', 'cave_entrance', 'Grotte', '#90a4ae'],
+  ['amenity', 'restaurant', 'Restaurant', '#ef9a9a'], ['waterway', 'water_point', 'Point d\'eau bateaux', '#81d4fa'], ['waterway', 'sanitary_dump_station', 'Vidange eaux usées', '#bcaaa4'] ];
+async function loadFun(){
+  if (!map.hasLayer(funLayer) || map.getZoom() < 12){ funLayer.clearLayers(); funKey = ''; return; }
+  const k = viewKey(15); if (k === funKey) return; funKey = k;
+  const b = map.getBounds(), bb = `(${b.getSouth().toFixed(4)},${b.getWest().toFixed(4)},${b.getNorth().toFixed(4)},${b.getEast().toFixed(4)})`;
+  const coast = `way["natural"="coastline"]${bb}->.c;(way["waterway"~"^(river|canal)$"]${bb};way["natural"="water"]${bb};)->.r;`;
+  const sel = FUN.filter(f => f[1] !== 'restaurant').map(f => `nwr["${f[0]}"="${f[1]}"]${bb};`).join('');
+  const q = `[out:json][timeout:25];${coast}(${sel}nwr(around.c:150)["amenity"="restaurant"];nwr(around.r:60)["amenity"="restaurant"];);out center tags 400;`;
+  const j = await overpass(q);
+  if (!j){ funKey = ''; return; }
+  funLayer.clearLayers();
+  (j.elements || []).forEach(el => {
+    const t = el.tags || {}, p = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; if (!p) return;
+    const f = FUN.find(f => String(t[f[0]] || '').split(';').includes(f[1])); if (!f) return;
+    const name = t.name || '', label = name && map.getZoom() >= 14 ? (name.length > 20 ? name.slice(0, 19) + '…' : name) : f[2];
+    const info = [t.description, t.opening_hours ? 'Horaires : ' + t.opening_hours : '', t.phone || t['contact:phone'] ? 'Tél. ' + (t.phone || t['contact:phone']) : '', t.cuisine ? 'Cuisine : ' + t.cuisine.replace(/;/g, ', ') : '', t.surface ? 'Sol : ' + t.surface : ''].filter(Boolean);
+    const web = t.website || t['contact:website'];
+    L.marker(p, { icon:pin(label, f[3]) }).bindPopup(() => `<b>${esc(name || f[2])}</b><br>${esc(f[2])}${info.length ? '<br>' + info.map(esc).join('<br>') : ''}${web && /^https?:\/\//.test(web) ? `<br><a href="${esc(web)}" target="_blank" rel="noopener">Site</a>` : ''}`).addTo(funLayer);
+  });
+}
+// Curiosités : articles Wikipédia géolocalisés (même source que la carte OpenSeaMap)
+async function loadWiki(){
+  if (!map.hasLayer(wikiLayer) || map.getZoom() < 10){ wikiLayer.clearLayers(); wikiKey = ''; return; }
+  const k = viewKey(14); if (k === wikiKey) return; wikiKey = k;
+  const b = map.getBounds();
+  try{
+    const txt = await fetch(`https://wp-world.toolforge.org/marks.php?LANG=fr&thumbs=yes&bbox=${b.getWest().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getNorth().toFixed(4)}`).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    const doc = new DOMParser().parseFromString(txt, 'application/xml');
+    wikiLayer.clearLayers();
+    [...doc.getElementsByTagName('Placemark')].slice(0, 150).forEach(pm => {
+      const name = (pm.getElementsByTagName('name')[0] || {}).textContent || '', desc = (pm.getElementsByTagName('description')[0] || {}).textContent || '';
+      const co = ((pm.getElementsByTagName('coordinates')[0] || {}).textContent || '').trim().split(','); if (co.length < 2) return;
+      const link = (desc.match(/href=["'](https?:\/\/[^"']+)["']/) || [])[1], img = (desc.match(/src=["'](https?:\/\/[^"']+)["']/) || [])[1];
+      L.circleMarker([+co[1], +co[0]], { bubblingMouseEvents:false, radius:5, color:'#fff', weight:1.5, fillColor:'#9575cd', fillOpacity:1 })
+        .bindPopup(() => `<b>${esc(name)}</b>${img ? `<br><img src="${esc(img)}" alt="" style="max-width:220px;border-radius:6px;margin-top:4px">` : ''}${link ? `<br><a href="${esc(link)}" target="_blank" rel="noopener">Lire sur Wikipédia</a>` : ''}`).addTo(wikiLayer);
+    });
+  }catch(e){ wikiKey = ''; }
+}
+function loadExtras(){ loadHarbours(); loadFun(); loadWiki(); }
+map.on('moveend', () => { clearTimeout(extrasTimer); extrasTimer = setTimeout(loadExtras, 1300); });
+setTimeout(loadExtras, 2500);
 
 // ---------- démarrage ----------
 drawReports(); applyBal(); setTimeout(loadIenc, 800); setTimeout(() => loadShom(false), 3000);
