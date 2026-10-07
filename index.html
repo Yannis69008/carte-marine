@@ -102,9 +102,25 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
   #sheet .body{flex:1}
   body.nav #sheet{display:none}
 }
-.tabs{display:flex;flex-shrink:0;gap:2px;padding:6px 8px 0;overflow-x:auto;scrollbar-width:none}
-.tab{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;font-family:var(--f-display);font-weight:600;
-  letter-spacing:.08em;text-transform:uppercase;font-size:14px;color:var(--muted)}
+#legend{position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px}
+#legend[hidden]{display:none}
+.lgBox{background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:14px 16px;max-width:420px;width:100%;max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:9px;font-size:15px;line-height:1.35}
+.lgT{font-family:var(--f-display);font-size:18px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.lgRow{display:flex;gap:12px;align-items:center}
+.lgI{flex:0 0 52px;height:38px;border-radius:19px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.lgBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.fsteps{background:var(--panel2);border:1px solid var(--accent);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:5px}
+.fsteps>b{font-family:var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.fs{display:flex;gap:10px;align-items:center;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;color:var(--fg);font-size:14px}
+.fs span{flex:0 0 24px;height:24px;border-radius:50%;background:var(--accent);color:#1a1200;font-weight:700;display:flex;align-items:center;justify-content:center}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
+.tab .ti{display:block;font-size:19px;line-height:1.1}
+.tab .tl{display:block;font-size:12px;margin-top:1px}
+#toggleSheet{position:absolute;top:-17px;left:50%;transform:translateX(-50%);width:64px;height:26px;padding:0!important;border-radius:13px!important;background:var(--panel)!important;border:1px solid var(--line)!important;font-size:14px;line-height:24px;text-align:center;color:var(--muted)}
+#sheet.collapsed .tabs{grid-template-columns:repeat(8,1fr);padding-top:8px}
+#sheet.collapsed .tab .tl{display:none}
+.tab{background:none;border:0;border-bottom:3px solid transparent;border-radius:8px;padding:5px 2px 4px;font-family:var(--f-display);font-weight:600;
+  letter-spacing:.03em;text-transform:uppercase;font-size:12px;color:var(--muted);text-align:center;min-width:0}
 .obsrow{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;background:var(--panel2);border:0;border-radius:6px;padding:8px 10px}
 .obsrow .dot{width:12px;height:12px;border-radius:50%}
 .obsrow small{display:block;color:var(--muted);font-size:11px}
@@ -139,7 +155,7 @@ details.lesson .row{padding-bottom:12px}
 .anim-blink{animation:blink 1.6s infinite}
 @media (prefers-reduced-motion:reduce){.anim-up,.anim-draw,.anim-cross,.anim-give,.anim-dock,.anim-blink{animation:none}}
 .obslist{display:flex;flex-direction:column;gap:4px}
-.tab.on{color:var(--fg);border-color:var(--accent)}
+.tab.on{color:var(--fg);border-color:var(--accent);background:var(--panel2)}
 .body{overflow-y:auto;padding:12px 14px 16px;-webkit-overflow-scrolling:touch}
 .pane{display:flex;flex-direction:column;gap:12px}
 h3{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
@@ -232,9 +248,9 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 
 <div id="hud">
   <div class="inst"><div class="k">Vitesse</div><div class="v" id="sog">--<small> nd</small></div></div>
-  <div class="inst"><div class="k">Cap (COG)</div><div class="v" id="cog">---<small>°</small></div></div>
+  <div class="inst"><div class="k">Cap</div><div class="v" id="cog">---<small>°</small></div></div>
   <div class="inst"><div class="k">Vent ici</div><div class="v" id="windNow">--<small> nd</small></div></div>
-  <div class="inst"><div class="k">Sonde</div><div class="v" id="depthNow">--<small> m</small></div></div>
+  <div class="inst"><div class="k">Fond</div><div class="v" id="depthNow">--<small> m</small></div></div>
   <button id="gpsBtn">GPS</button>
   <div id="posLine">Position inconnue · touche GPS pour te localiser</div>
   <div id="tripChip" hidden></div>
@@ -253,6 +269,23 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <button class="fab" id="compassFab" title="Boussole" style="font-size:13px;font-weight:700">N</button>
   <button class="fab" id="aisFab" title="Bateaux autour (AIS en ligne)" style="font-size:11px;font-weight:700">AIS</button>
   <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
+  <button class="fab" id="helpFab" title="À quoi servent les boutons ?" style="font-weight:700">?</button>
+</div>
+<div id="legend" hidden>
+  <div class="lgBox">
+    <b class="lgT">Les boutons</b>
+    <div class="lgRow"><span class="lgI">+ −</span><span>Zoomer / dézoomer la carte</span></div>
+    <div class="lgRow"><span class="lgI">◎</span><span><b>Me suivre</b> : recentre la carte sur ton bateau</span></div>
+    <div class="lgRow"><span class="lgI" style="color:#ff6b6b">MOB</span><span><b>Homme à la mer</b> : marque l'endroit et te guide pour y revenir</span></div>
+    <div class="lgRow"><span class="lgI">⌂</span><span><b>Rentrer</b> : guide vers ton port de départ ou le plus proche</span></div>
+    <div class="lgRow"><span class="lgI">⚑</span><span><b>Signaler</b> un danger ou un problème sur l'eau</span></div>
+    <div class="lgRow"><span class="lgI">⌕</span><span><b>Chercher</b> un port, une ville, un lieu</span></div>
+    <div class="lgRow"><span class="lgI">N</span><span><b>Boussole</b> : le cap de ton téléphone</span></div>
+    <div class="lgRow"><span class="lgI">AIS</span><span><b>Autres bateaux</b> autour de toi (il faut du réseau)</span></div>
+    <div class="lgRow"><span class="lgI">☾</span><span><b>Mode nuit</b> : écran rouge, préserve la vue de nuit</span></div>
+    <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
+    <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgClose">Fermer</button></div>
+  </div>
 </div>
 <div id="toolHint" hidden></div>
 <div id="homePanel" hidden>
@@ -277,24 +310,32 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 
 <div id="sheet">
   <div class="tabs">
-    <button class="tab on" data-t="meteo">Météo</button>
-    <button class="tab" data-t="route">Route</button>
-    <button class="tab" data-t="log">Sorties</button>
-    <button class="tab" data-t="obst">Obstacles</button>
-    <button class="tab" data-t="river">Fleuve</button>
-    <button class="tab" data-t="secu">Sécurité</button>
-    <button class="tab" data-t="learn">Apprendre</button>
-    <button class="tab" data-t="couches">Couches</button>
-    <button class="tab" id="toggleSheet" style="flex:0 0 40px">▾</button>
+    <button class="tab on" data-t="meteo"><span class="ti">☀️</span><span class="tl">Météo</span></button>
+    <button class="tab" data-t="route"><span class="ti">🧭</span><span class="tl">Route</span></button>
+    <button class="tab" data-t="log"><span class="ti">📒</span><span class="tl">Sorties</span></button>
+    <button class="tab" data-t="obst"><span class="ti">⚠️</span><span class="tl">Obstacles</span></button>
+    <button class="tab" data-t="river"><span class="ti">🌊</span><span class="tl">Fleuve</span></button>
+    <button class="tab" data-t="secu"><span class="ti">🛟</span><span class="tl">Sécurité</span></button>
+    <button class="tab" data-t="learn"><span class="ti">🎓</span><span class="tl">Apprendre</span></button>
+    <button class="tab" data-t="couches"><span class="ti">🗺️</span><span class="tl">Cartes</span></button>
+    <button class="tab" id="toggleSheet" title="Agrandir / réduire le panneau" aria-label="Agrandir ou réduire le panneau">▾</button>
   </div>
   <div class="body">
     <!-- MÉTÉO -->
     <div class="pane" id="p-meteo">
+      <div id="firstSteps" class="fsteps" hidden>
+        <b>Premiers pas</b>
+        <button class="fs" data-go="obst"><span>1</span>Règle ton bateau (tirant d'eau, hauteur)</button>
+        <button class="fs" data-go="couches"><span>2</span>Télécharge ta zone pour naviguer sans réseau</button>
+        <button class="fs" data-go="route"><span>3</span>Trace ta route et vérifie ta sortie</button>
+        <button class="fs" data-go="learn"><span>?</span>Je débute : fiches simples</button>
+        <button class="btn" id="fsHide" style="padding:6px">Masquer</button>
+      </div>
       <div class="row">
         <button class="btn primary" id="wxHere">Météo ici (bateau / centre)</button>
         <button class="btn" id="wxTap">Touche un point</button>
       </div>
-      <div class="row muted">Mon bateau supporte : <span class="fld">vent <input type="number" id="thW" min="5" step="1"> nd</span> <span class="fld">rafales <input type="number" id="thG" min="5" step="1"> nd</span> <span class="fld">vagues <input type="number" id="thH" min="0.2" step="0.1"> m</span></div>
+      <div class="row muted">Mon bateau supporte (l'appli te prévient au-delà) : <span class="fld">vent <input type="number" id="thW" min="5" step="1"> nd</span> <span class="fld">rafales <input type="number" id="thG" min="5" step="1"> nd</span> <span class="fld">vagues <input type="number" id="thH" min="0.2" step="0.1"> m</span></div>
       <div class="row muted" style="gap:10px"><span>Vent et vagues sur la carte :</span><input type="range" id="wxHour" min="0" max="47" value="0" style="flex:1;min-width:140px"><b id="wxHourTxt">maintenant</b></div>
       <div id="wxOut" class="pane"><div class="muted">Chargement de la météo marine…</div></div>
     </div>
@@ -514,7 +555,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <h2>Bienvenue à bord</h2>
     <p><b>Ma Carte Marine est une aide à la navigation.</b> Elle rassemble des données officielles (SHOM, IGN, VNF, NOAA, EMODnet, Météo-France) et collaboratives (OpenStreetMap, OpenSeaMap). Elle ne remplace pas les cartes marines officielles à jour, l'annuaire des marées, les avis aux navigateurs ni la veille à bord : la responsabilité de la navigation reste celle du chef de bord.</p>
     <ul>
-      <li><b>Avant de partir</b> : onglet Route, « Vérifier ma sortie » (météo, marées, ponts, fonds, carburant). Puis télécharge la zone (Couches, Hors ligne) : au large, le réseau disparaît.</li>
+      <li><b>Avant de partir</b> : onglet Route, « Vérifier ma sortie » (météo, marées, ponts, fonds, carburant). Puis télécharge la zone (Cartes, Hors ligne) : au large, le réseau disparaît.</li>
       <li><b>⌂</b> te ramène au port de départ ou au plus proche, en évitant la terre et les hauts-fonds quand c'est possible.</li>
       <li><b>MOB</b> marque tout de suite la position d'une personne à la mer.</li>
       <li><b>Garde l'écran allumé</b> pendant la navigation : un site web ne peut pas suivre le bateau ni sonner écran éteint.</li>
@@ -2983,8 +3024,8 @@ const TOUR = [
   { tab:'river', t:'Fleuves et canaux', d:'Le niveau de l\'eau en direct, les crues, les écluses et la hauteur des ponts.' },
   { tab:'secu', t:'Sécurité', d:'Les numéros d\'urgence (VHF 16, 196, 112), l\'alarme de mouillage qui sonne si l\'ancre chasse, et tes signalements.' },
   { tab:'learn', t:'Apprendre', d:'Des fiches simples pour débuter : utiliser l\'appli, nœuds, manœuvres de port, règles de route, balisage. Elles marchent sans réseau.' },
-  { tab:'couches', t:'Hors ligne et couches', d:'<b>Avant de partir</b>, télécharge ta zone : au large, le réseau disparaît. Ici tu choisis aussi le fond de carte et les couches (ports, plages, plongée, marégraphes…).' },
-  { t:'Ta première sortie en 6 étapes', d:'1. <b>Obstacles</b> : règle tirant d\'eau et hauteur.<br>2. <b>Couches</b> : télécharge ta zone.<br>3. <b>Route</b> : trace où tu vas, puis « Vérifier ma sortie ».<br>4. Préviens un proche de ton heure de retour.<br>5. Touche <b>GPS</b>, puis « Démarrer » dans Sorties.<br>6. Garde l\'écran allumé et un œil dehors : l\'appli aide, c\'est toi le capitaine. Bonne navigation !' }
+  { tab:'couches', t:'Cartes et hors ligne', d:'<b>Avant de partir</b>, télécharge ta zone : au large, le réseau disparaît. Ici tu choisis aussi le fond de carte et les couches (ports, plages, plongée, marégraphes…).' },
+  { t:'Ta première sortie en 6 étapes', d:'1. <b>Obstacles</b> : règle tirant d\'eau et hauteur.<br>2. <b>Cartes</b> : télécharge ta zone.<br>3. <b>Route</b> : trace où tu vas, puis « Vérifier ma sortie ».<br>4. Préviens un proche de ton heure de retour.<br>5. Touche <b>GPS</b>, puis « Démarrer » dans Sorties.<br>6. Garde l\'écran allumé et un œil dehors : l\'appli aide, c\'est toi le capitaine. Bonne navigation !' }
 ];
 let tourI = 0;
 function tourShow(){
@@ -3013,6 +3054,15 @@ $('tourEnd').addEventListener('click', tourStop);
 addEventListener('resize', () => { if (!$('tour').hidden) tourShow(); });
 $('tourLearn').addEventListener('click', tourStart);
 $('tourSecu').addEventListener('click', tourStart);
+// ---------- ergonomie débutant : légende des boutons, premiers pas ----------
+$('helpFab').addEventListener('click', () => { $('legend').hidden = false; });
+$('lgClose').addEventListener('click', () => { $('legend').hidden = true; });
+$('legend').addEventListener('click', e => { if (e.target === $('legend')) $('legend').hidden = true; });
+$('lgTour').addEventListener('click', () => { $('legend').hidden = true; tourStart(); });
+$('firstSteps').hidden = !!store.get('stepsHide', 0);
+$('firstSteps').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b) return; const tb = document.querySelector('.tab[data-t="' + b.dataset.go + '"]'); if (tb) tb.click(); });
+$('fsHide').addEventListener('click', () => { store.set('stepsHide', 1); $('firstSteps').hidden = true; });
+
 
 // ---------- SÉCURITÉ DE SORTIE : bilan avant départ, alertes en route, retour au port ----------
 var riverInfo = null, sunCache = null;
@@ -3092,7 +3142,7 @@ async function briefing(){
   } else add(1, 'Route', 'aucune route tracée : trace-la pour vérifier les ponts, les fonds, les dangers et le carburant');
   // hors ligne
   const zoneOk = offZones.some(z => path.every(p => p[0] > z.b[0] && p[0] < z.b[2] && p[1] > z.b[1] && p[1] < z.b[3]));
-  add(zoneOk ? 0 : 1, 'Navigation sans réseau', zoneOk ? 'ta zone est téléchargée' : 'zone pas téléchargée : fais-le dans Couches > Hors ligne avant de partir');
+  add(zoneOk ? 0 : 1, 'Navigation sans réseau', zoneOk ? 'ta zone est téléchargée' : 'zone pas téléchargée : fais-le dans Cartes > Hors ligne avant de partir');
   if (!cfg.home) add(1, 'Port d\'attache', 'pas encore défini : appuie sur « Mon port d\'attache est ici » quand tu es au port');
   const lvl = Math.max(...items.map(i => i.lvl));
   out.innerHTML = `<div class="verdict v${lvl}"><div><b>${['C\'est bon, bonne sortie', 'Prudence : regarde les points en orange', 'Ne pars pas comme ça'][lvl]}</b><div>Départ ${new Date(t0).toLocaleDateString('fr-FR', { weekday:'long' })} à ${fmtT(t0)}, retour vers ${fmtT(t1)}</div></div></div>` +
@@ -3258,7 +3308,7 @@ const LEARN = [
   { cat:'Utiliser l\'appli (débutant)', items:[
     { id:'app-premiere', t:'Ma première sortie avec l\'appli', why:'Les 8 gestes à faire avant et pendant chaque sortie, dans l\'ordre.', act:'tour', steps:[
       'Onglet Obstacles : indique le tirant d\'eau de ton bateau (la partie sous l\'eau, moteur relevé ou non) et sa hauteur hors d\'eau. Une seule fois.',
-      'Onglet Couches, « Hors ligne » : télécharge la zone où tu vas naviguer, avec du réseau, la veille ou au port.',
+      'Onglet Cartes, « Hors ligne » : télécharge la zone où tu vas naviguer, avec du réseau, la veille ou au port.',
       'Onglet Route : touche « Tracer une route », pose tes points sur la carte, puis « Passage sûr automatique » si tu vas en mer.',
       'Toujours dans Route : choisis l\'heure de départ et la durée, puis « Vérifier ma sortie ». Lis chaque ligne orange ou rouge.',
       'Préviens un proche : où tu vas et à quelle heure tu rentres.',
@@ -3319,7 +3369,7 @@ const LEARN = [
       'La flèche verte montre la direction de la personne à la mer, de ton prochain point ou de ton port, avec « tourne de … à droite / à gauche ».'],
       tip:'En route, le cap GPS (bateau qui avance) est plus fiable que la boussole du téléphone.' },
     { id:'app-horsligne', t:'Naviguer sans réseau', why:'Au large, il n\'y a souvent plus de 4G.', steps:[
-      'Avec du réseau (au port, la veille), onglet Couches, « Hors ligne » : choisis le niveau de détail puis « Télécharger cette zone ».',
+      'Avec du réseau (au port, la veille), onglet Cartes, « Hors ligne » : choisis le niveau de détail puis « Télécharger cette zone ».',
       'Ouvre aussi la météo et les marées du secteur : elles restent en mémoire.',
       'Teste en mode avion avant de partir : la carte, les roches, les bouées et les marées doivent s\'afficher.',
       'Sans réseau, l\'appli l\'indique en haut (« Hors ligne ») et utilise ce qui est téléchargé.'],
