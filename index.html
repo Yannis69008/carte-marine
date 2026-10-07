@@ -966,7 +966,7 @@ const OVERLAYS = {
   noaa:    { name:'Cartes marines officielles NOAA (États-Unis)', on:false, layer: arcgisTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/export', '© NOAA') },
   shomBal: { name:'Balisage officiel SHOM (bouées, balises, phares)', on:true, layer: shomT('BALISAGE_PYR_PNG_3857_WMTS') },
   shomBathy:{ name:'Profondeurs officielles SHOM (couleurs)', on:true, layer: shomT('BATHYELLI_ZH_PYR_PNG_3857_WMTS', { opacity:.5, maxNativeZoom:15, minZoom:9 }) },
-  shomEpv: { name:'Épaves et obstructions SHOM (symboles)', on:true, layer: shomT('EPAVES_PYR-PNG_WLD_3857_WMTS') },
+  shomEpv: { name:'Épaves et obstructions SHOM (symboles)', on:true, layer: shomT('EPAVES_PYR-PNG_WLD_3857_WMTS', { minZoom:11 }) },
   shomCab: { name:'Câbles et conduites sous-marins SHOM (ne pas mouiller dessus)', on:false, layer: shomT('CABLES_PYR-PNG_WLD_3857_WMTS', { maxNativeZoom:13 }) },
   shomPort:{ name:'Informations portuaires SHOM', on:false, layer: shomT('PORTS_WMTS_3857', { maxNativeZoom:15 }) },
   shomDst: { name:'Rails de navigation des cargos SHOM', on:false, layer: shomT('DST_PYR_PNG_3857_WMTS', { maxNativeZoom:15 }) },
@@ -1463,6 +1463,7 @@ $('wxTap').addEventListener('click', () => setTool('wx', 'Touche la carte pour l
 // flèches de vent sur la carte
 let windTimer = null;
 let windData = null;
+map.on('zoomstart', () => { if (map.hasLayer(windLayer)) windLayer.clearLayers(); });
 async function loadWindGrid(){
   if (!map.hasLayer(windLayer)) return;
   const b = map.getBounds(), N = 5, lats = [], lons = [];
@@ -1776,13 +1777,23 @@ function nearKind(arr, p, kinds, tol){ return arr.some(s => kinds.includes(s.kin
 // Serveurs gratuits partagés par tout le monde : on garde les réponses 3 jours, on espace les demandes
 // et on fait une pause d'une minute quand le serveur dit qu'il est saturé.
 const hashStr = t => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + t.length.toString(36); };
-let opPause = 0, opLast = 0, opChain = Promise.resolve();
+let opPause = 0, opLast = 0, opChain = Promise.resolve(), opBgHold = 0;
 const opSlot = () => (opChain = opChain.then(() => new Promise(r => setTimeout(r, Math.max(0, opLast + 1100 - Date.now())))).then(() => { opLast = Date.now(); }));
 async function overpass(q, ttl, force){
   const key = 'op_' + hashStr(q), c = await idbGet(key);
   if (c && c.j && Date.now() - c.t < (ttl || 3*86400000)) return c.j;
   if (!navigator.onLine || (!force && Date.now() < opPause)) return c ? c.j : null;
-  if (!force) await opSlot();
+  if (!force){ while (Date.now() < opBgHold) await new Promise(r => setTimeout(r, 400)); await opSlot(); }
+  else {
+    // interactif (toucher la carte) : on interroge 2 serveurs à la fois, le premier qui répond gagne (8 s max chacun)
+    const one = url => new Promise((res, rej) => { const ac = new AbortController(), to = setTimeout(() => { ac.abort(); rej(new Error('lent')); }, 8000);
+      fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, signal:ac.signal })
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(j => { clearTimeout(to); if (j && Array.isArray(j.elements)) res(j); else rej(new Error('vide')); }).catch(e => { clearTimeout(to); rej(e); }); });
+    for (const pair of [[0, 1], [2, 3]]){
+      try{ const j = await Promise.any(pair.filter(i => OVERPASS[i]).map(i => one(OVERPASS[i]))); idbSet(key, { t:Date.now(), j }); opKeep(key); return j; }catch(e){}
+    }
+    return c ? c.j : null;
+  }
   for (const url of OVERPASS){
     try{
       const ac = new AbortController(), to = setTimeout(() => ac.abort(), 14000);
@@ -4690,31 +4701,31 @@ async function identifyAt(ll){
   const local = near ? obsPopup(near.o) + '<hr>' : '';
   const pop = L.popup({ maxWidth:290 }).setLatLng(ll).setContent(local + base + (navigator.onLine ? '<br><span class="muted">Recherche de ce qu\'il y a ici…</span>' : '')).openOn(map);
   if (!navigator.onLine) return;
+  opBgHold = Date.now() + 12000;          // les chargements de fond attendent : le toucher passe en priorité
   const a = `(around:${Math.round(R)},${p[0].toFixed(6)},${p[1].toFixed(6)})`;
-  const ll5 = `${p[0].toFixed(5)},${p[1].toFixed(5)}`;
-  const qI = `[out:json][timeout:20];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];)->.s;.s out center tags 25;is_in(${ll5})->.a;(way(pivot.a)["natural"="water"];rel(pivot.a)["natural"="water"];way(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];rel(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];)->.w;.w out tags bb;area.a["ISO3166-1"]->.c;.c out tags;`;
-  let j0 = await overpass(qI, 3*86400000, true).catch(() => null);
-  if (!j0 && pop.isOpen()){ pop.setContent(local + base + '<br><span class="muted">Serveur occupé, nouvel essai…</span>'); await new Promise(r => setTimeout(r, 1500)); j0 = await overpass(qI, 3*86400000, true).catch(() => null); }
-  const hb = null;
-  let j = j0 ? { elements:j0.elements.filter(e => !e.bounds && !(e.tags && e.tags['ISO3166-1']) && !(e.type === 'area')) } : null;
-  const lakeP = Promise.resolve(j0 ? lakeFromEls(j0.elements, p) : null);
-  if (!j && pop.isOpen()){ const api = await osmApiNear(p, R); if (api) j = { elements:api.map(x => ({ tags:x.t, lat:x.c[0], lon:x.c[1], type:x.pt ? 'node' : 'way' })) }; }
-  if (!pop.isOpen()) return;
-  const hbItems = (hb || []).filter(h => h.d < Math.max(R*1.6, 300)).slice(0, 2);
-  const els = (j && j.elements || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, c, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; })
-    .filter(Boolean).filter(x => !['fairway', 'restricted_area', 'cable_submarine', 'pipeline_submarine'].includes(x.t['seamark:type']) || x.d < R/2)
-    .sort((a, b) => (b.pt - a.pt) || (a.d - b.d));
-  const seen = new Set(), list = els.filter(x => { const key = (x.t['seamark:type'] || x.t.leisure || '') + (x.t['seamark:name'] || x.t.name || ''); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 3);
-  list.forEach(x => { if ((x.t['seamark:type'] === 'harbour' || x.t.leisure === 'marina' || x.t.harbour) && !(x.t['seamark:name'] || x.t.name) && hbItems[0]) x.t = Object.assign({}, x.t, { name:hbItems[0].name }); });
-  const names = list.map(x => String(x.t['seamark:name'] || x.t.name || '').toLowerCase());
-  const extra = hbItems.filter(h => !names.includes(h.name.toLowerCase())).map(h => `<b>${esc(h.name)}</b><br>Port ou mouillage (base OpenSeaMap)${/^https?:\/\//.test(h.link) ? `<br><a href="${esc(h.link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : ''}` + `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${h.c[0].toFixed(5) + ',' + h.c[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${h.c[0].toFixed(5) + ',' + h.c[1].toFixed(5)}">Météo</button></div>`);
-  const fail = j === null && hb === null ? '<span class="muted">Le serveur de repères ne répond pas (réseau faible ou serveur occupé). Touche à nouveau dans quelques secondes.</span><br>' : '';
-  const none = !list.length && !extra.length && !local && !fail ? '<span class="muted">Aucune balise, aucun feu ni port répertorié à cet endroit. Touche exactement sur le symbole, en zoomant si besoin.</span><br>' : '';
-  const lk = await lakeP; if (!pop.isOpen()) return;
-  let lakeHtml = '';
-  if (lk){ lastLake = lk; lakeHtml = `<b>${esc(lk.tags.name || 'Plan d\'eau')}</b><br><span class="muted">${lk.tags.water === 'reservoir' ? 'Lac de retenue' : lk.tags.water === 'lagoon' ? 'Lagune' : 'Lac'}${lk.km >= 1 ? ' · ≈ ' + n0(lk.km) + ' km' : ''}</span><br><button class="btn primary" data-lakeopen="1" style="margin-top:6px">Puis-je naviguer ici ?</button><hr>`; }
+  const qS = `[out:json][timeout:12];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];);out center tags 25;`;
+  const toItems = els => (els || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, c, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; }).filter(Boolean);
+  const pO = overpass(qS, 3*86400000, true).then(j => j ? toItems(j.elements) : null).catch(() => null);
+  const pA = osmApiNear(p, Math.min(R, 300)).catch(() => null);
+  let items = [], got = 0, lake = null, settled = 0, failed = 0;
   const isPort = t => t['seamark:type'] === 'harbour' || t['seamark:type'] === 'small_craft_facility' || t.leisure === 'marina' || t.harbour;
-  pop.setContent(lakeHtml + [].concat(list.map(x => seamarkHtml(x.t) + (isPort(x.t) ? `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${x.c[0].toFixed(5) + ',' + x.c[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${x.c[0].toFixed(5) + ',' + x.c[1].toFixed(5)}">Météo</button></div>` : '')), extra).join('<hr>') + ((list.length || extra.length) ? '<hr>' : '') + fail + (lk ? '' : none) + local + base);
+  const goBtns = c => `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${c[0].toFixed(5)},${c[1].toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${c[0].toFixed(5)},${c[1].toFixed(5)}">Météo</button></div>`;
+  const render = final => {
+    if (!pop.isOpen()) return;
+    const els = items.filter(x => !['fairway', 'restricted_area', 'cable_submarine', 'pipeline_submarine'].includes(x.t['seamark:type']) || x.d < R/2).sort((a, b) => (b.pt - a.pt) || (a.d - b.d));
+    const seen = new Set(), list = els.filter(x => { const key = (x.t['seamark:type'] || x.t.leisure || '') + (x.t['seamark:name'] || x.t.name || '') + (x.t['seamark:name'] || x.t.name ? '' : x.c.map(v => v.toFixed(4)).join()); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 3);
+    const lakeHtml = lake ? `<b>${esc(lake.tags.name || 'Plan d\'eau')}</b><br><span class="muted">${lake.tags.water === 'reservoir' ? 'Lac de retenue' : lake.tags.water === 'lagoon' ? 'Lagune' : 'Lac'}${lake.km >= 1 ? ' · ≈ ' + n0(lake.km) + ' km' : ''}</span><br><button class="btn primary" data-lakeopen="1" style="margin-top:6px">Puis-je naviguer ici ?</button><hr>` : '';
+    const body = list.map(x => seamarkHtml(x.t) + (isPort(x.t) ? goBtns(x.c) : '')).join('<hr>');
+    const wait = !final ? '<br><span class="muted">Recherche de compléments…</span>' : '';
+    const fail = final && failed >= 2 && !list.length ? '<span class="muted">Les serveurs de repères ne répondent pas (réseau faible ou serveurs saturés). Touche à nouveau dans un moment.</span><br>' : '';
+    const none = final && !failed && !list.length && !local && !lake ? '<span class="muted">Aucune balise, aucun feu ni port répertorié ici. Touche bien sur le symbole (zoome si besoin).</span><br>' : '';
+    pop.setContent(lakeHtml + body + (list.length ? '<hr>' : '') + fail + none + local + base + wait);
+  };
+  const take = v => { settled++; if (v === null) failed++; else { items = items.concat(v); got++; } render(settled >= 2); };
+  pO.then(take); pA.then(take);
+  setTimeout(() => { if (settled < 2) { settled = 2; render(true); } }, 15000);
+  // lac (en dernier, sans bloquer l'affichage)
+  Promise.all([pO, pA]).then(() => Promise.race([lakeAt(p), new Promise(r => setTimeout(() => r(null), 10000))])).then(lk => { if (lk){ lake = lk; lastLake = lk; render(true); } }).catch(() => {});
 }
 
 // ---------- DONNÉES OPENSEAMAP EN PLUS + LOISIRS ----------
@@ -4722,8 +4733,10 @@ let funKey = '', harbKey = '', wikiKey = '', extrasTimer = null;
 const viewKey = (z0) => { const b = map.getBounds(); return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map(v => v.toFixed(2)).join(',') + ':' + Math.min(z0, Math.round(map.getZoom())); };
 const pin = (txt, c) => L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk" style="--c:${c}">${esc(txt)}</div>` });
 // Ports : base de ports d'OpenSeaMap, avec lien vers leur fiche détaillée (SkipperGuide)
+let harbFailT = 0;
 async function loadHarbours(){
   if (!map.hasLayer(harbLayer) || map.getZoom() < 9) { harbLayer.clearLayers(); harbKey = ''; return; }
+  if (Date.now() < harbFailT) return;   // serveur des ports en panne : on réessaie dans 15 min
   const k = viewKey(14); if (k === harbKey) return; harbKey = k;
   const b = map.getBounds(), z = Math.round(map.getZoom());
   try{
@@ -4736,7 +4749,7 @@ async function loadHarbours(){
       const mk = z >= 12 ? L.marker([lat, lon], { icon:pin(name.length > 24 ? name.slice(0, 23) + '…' : name, '#3fbf7f') }) : L.circleMarker([lat, lon], { bubblingMouseEvents:false, radius:5, color:'#fff', weight:1.5, fillColor:'#3fbf7f', fillOpacity:1 });
       mk.bindPopup(() => `<b>${esc(name)}</b><br>Port ou mouillage (base OpenSeaMap)` + (/^https?:\/\//.test(link) ? `<br><a href="${esc(link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : '') + `<br><span class="muted">Touche la carte à côté pour les services, places et VHF.</span>` + `<div class="row" style="margin-top:6px;gap:6px"><button class="btn primary" data-goto="${lat.toFixed(5) + ',' + lon.toFixed(5)}">🧭 Y aller</button><button class="btn" data-gowx="${lat.toFixed(5) + ',' + lon.toFixed(5)}">Météo</button></div>`).addTo(harbLayer);
     });
-  }catch(e){ harbKey = ''; }
+  }catch(e){ harbKey = ''; harbFailT = Date.now() + 15*60000; }
 }
 // Loisirs depuis OpenStreetMap
 const FUN = [
