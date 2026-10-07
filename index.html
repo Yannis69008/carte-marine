@@ -419,6 +419,14 @@ body.nav #toolHint{display:none}
 
       <h3>Fond de carte</h3>
       <div id="baseList"></div>
+      <h3>Balisage (bouées, balises, phares)</h3>
+      <div id="balList">
+        <label class="chk"><input type="radio" name="bal" value="auto"> Automatique (recommandé) : SHOM officiel en mer en France, OpenSeaMap sur les fleuves et ailleurs</label>
+        <label class="chk"><input type="radio" name="bal" value="osm"> OpenSeaMap (mer et fleuves, monde entier)</label>
+        <label class="chk"><input type="radio" name="bal" value="shom"> SHOM officiel (mer, France)</label>
+        <label class="chk"><input type="radio" name="bal" value="none"> Aucun</label>
+      </div>
+      <div id="balTxt" class="muted"></div>
       <h3>Superpositions</h3>
       <div id="ovList"></div>
       <div class="muted">Sources : SHOM et IGN (France), NOAA (États-Unis), GEBCO (profondeurs du monde entier), EMODnet (Europe), OpenSeaMap et OpenStreetMap (monde), tes propres signalements. Ces données ne remplacent pas une carte officielle à bord.</div>
@@ -543,23 +551,41 @@ const OVERLAYS = {
   obs:     { name:'Épaves, roches, obstructions (points cliquables, SHOM + OSM)', on:true, layer: obsLayer },
   noaa:    { name:'Cartes marines officielles NOAA (États-Unis)', on:false, layer: arcgisTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/export', '© NOAA') },
   shomBal: { name:'Balisage officiel SHOM (bouées, balises, phares)', on:true, layer: shomT('BALISAGE_PYR_PNG_3857_WMTS') },
-  shomBathy:{ name:'Profondeurs officielles SHOM (couleurs)', on:true, layer: shomT('BATHYELLI_ZH_PYR_PNG_3857_WMTS', { opacity:.5 }) },
+  shomBathy:{ name:'Profondeurs officielles SHOM (couleurs)', on:true, layer: shomT('BATHYELLI_ZH_PYR_PNG_3857_WMTS', { opacity:.5, maxNativeZoom:15 }) },
   shomEpv: { name:'Épaves et obstructions SHOM (symboles)', on:true, layer: shomT('EPAVES_PYR-PNG_WLD_3857_WMTS') },
-  shomCab: { name:'Câbles et conduites sous-marins SHOM (ne pas mouiller dessus)', on:false, layer: shomT('CABLES_PYR-PNG_WLD_3857_WMTS') },
-  shomPort:{ name:'Informations portuaires SHOM', on:false, layer: shomT('PORTS_WMTS_3857') },
-  shomDst: { name:'Rails de navigation des cargos SHOM', on:false, layer: shomT('DST_PYR_PNG_3857_WMTS') },
-  shomCur: { name:'Courants de marée, vitesses max SHOM', on:false, layer: shomT('COURANTS2D_WMTS_VMAX_3857', { opacity:.6 }) }
+  shomCab: { name:'Câbles et conduites sous-marins SHOM (ne pas mouiller dessus)', on:false, layer: shomT('CABLES_PYR-PNG_WLD_3857_WMTS', { maxNativeZoom:13 }) },
+  shomPort:{ name:'Informations portuaires SHOM', on:false, layer: shomT('PORTS_WMTS_3857', { maxNativeZoom:15 }) },
+  shomDst: { name:'Rails de navigation des cargos SHOM', on:false, layer: shomT('DST_PYR_PNG_3857_WMTS', { maxNativeZoom:15 }) },
+  shomCur: { name:'Courants de marée, vitesses max SHOM', on:false, layer: shomT('COURANTS2D_WMTS_VMAX_3857', { opacity:.6, maxNativeZoom:13, minZoom:4 }) }
 };
 let baseKey = store.get('base', 'ocean');
 const ovState = store.get('ov', {});
 BASES[baseKey].layer.addTo(map);
-Object.entries(OVERLAYS).forEach(([k, o]) => { if (ovState[k] ?? o.on) o.layer.addTo(map); });
+const BAL_KEYS = ['seamark', 'shomBal'];
+Object.entries(OVERLAYS).forEach(([k, o]) => { if (!BAL_KEYS.includes(k) && (ovState[k] ?? o.on)) o.layer.addTo(map); });
 
 // panneau Couches
 $('baseList').innerHTML = Object.entries(BASES).map(([k, b]) =>
   `<label class="chk"><input type="radio" name="base" id="base-${k}" value="${k}" ${k===baseKey?'checked':''}> ${b.name}</label>`).join('');
-$('ovList').innerHTML = Object.entries(OVERLAYS).map(([k, o]) =>
+$('ovList').innerHTML = Object.entries(OVERLAYS).filter(([k]) => !BAL_KEYS.includes(k)).map(([k, o]) =>
   `<label class="chk"><input type="checkbox" id="ov-${k}" data-k="${k}" ${map.hasLayer(o.layer)?'checked':''}> ${o.name}</label>`).join('');
+let balSrc = store.get('balSrc', 'auto'), balOn = null;
+function balTarget(){
+  if (balSrc !== 'auto') return balSrc;
+  const c = gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
+  const inFr = c[0] > 41 && c[0] < 51.6 && c[1] > -5.8 && c[1] < 10;
+  const atSea = typeof coast !== 'undefined' && (coast.length || coastOff.length) && coastDistM(c) < 25000;
+  return inFr && atSea ? 'shom' : 'osm';
+}
+function applyBal(){
+  const t = balTarget(); if (t === balOn) return; balOn = t;
+  const L1 = OVERLAYS.seamark.layer, L2 = OVERLAYS.shomBal.layer;
+  if (t === 'osm'){ map.removeLayer(L2); L1.addTo(map); } else if (t === 'shom'){ map.removeLayer(L1); L2.addTo(map); } else { map.removeLayer(L1); map.removeLayer(L2); }
+  $('balTxt').textContent = t === 'shom' ? 'Affiché : balisage officiel du SHOM.' : t === 'osm' ? 'Affiché : balisage OpenSeaMap.' : 'Balisage masqué.';
+}
+document.querySelectorAll('input[name="bal"]').forEach(r => { r.checked = r.value === balSrc; });
+$('balList').addEventListener('change', e => { balSrc = e.target.value; store.set('balSrc', balSrc); balOn = null; applyBal(); });
+map.on('moveend', () => { if (balSrc === 'auto' && !gps) applyBal(); });
 function setBase(k, keep){
   if (!BASES[k] || k === baseKey) return;
   map.removeLayer(BASES[baseKey].layer); baseKey = k;
@@ -1940,7 +1966,7 @@ async function loadCoast(c){
   if (off) coastOff = [].concat(...off.filter(f => !Object.values(f.properties || {}).some(v => /salure|transvers/i.test(String(v)))).map(f => geoLines(f.geometry)));
   if (j) coast = (j.elements || []).filter(e => e.geometry).map(e => e.geometry.filter(Boolean).map(g => [g.lat, g.lon]));
   if (!j && !off){ const z = offZones.filter(z => c[0] > z.b[0]-0.05 && c[0] < z.b[2]+0.05 && c[1] > z.b[1]-0.07 && c[1] < z.b[3]+0.07); if (z.length){ coast = [].concat(...z.map(z => z.coast || [])); coastOff = [].concat(...z.map(z => z.coastOff || [])); } }
-  drawZone(); zoneUpdate();
+  drawZone(); zoneUpdate(); applyBal();
 }
 function drawZone(){
   zoneLayer.clearLayers();
@@ -2765,7 +2791,7 @@ $('learnList').addEventListener('click', async e => {
 renderLearn();
 
 // ---------- démarrage ----------
-loadShom(false); loadIenc(); drawReports();
+loadShom(false); loadIenc(); drawReports(); applyBal();
 drawRoute(); drawChecks(); updateMob(); setTool(null);
 loadWeather([map.getCenter().lat, map.getCenter().lng], 'centre de la carte');
 loadWindGrid();
