@@ -234,7 +234,8 @@ details.lesson .row{padding-bottom:12px}
 .anim-give{animation:giveway 6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
 .anim-dock{animation:dock 6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
 .anim-blink{animation:blink 1.6s infinite}
-@media (prefers-reduced-motion:reduce){.anim-up,.anim-draw,.anim-cross,.anim-give,.anim-dock,.anim-blink{animation:none}}
+.schema .playBtn{display:none;margin:6px 8px 8px}
+@media (prefers-reduced-motion:reduce){.schema:not(.play) .anim-up,.schema:not(.play) .anim-draw,.schema:not(.play) .anim-cross,.schema:not(.play) .anim-give,.schema:not(.play) .anim-dock,.schema:not(.play) .anim-blink{animation:none}.schema:not(.play) .playBtn{display:inline-flex}}
 .obslist{display:flex;flex-direction:column;gap:4px}
 .tab.on{color:var(--fg);border-color:var(--accent);background:var(--panel2)}
 .body{overflow-y:auto;padding:12px 14px 16px;-webkit-overflow-scrolling:touch}
@@ -941,6 +942,7 @@ const arcgisTiles = (url, attr) => new ArcTiles(url, { maxZoom:19, attribution:a
 const windLayer = L.layerGroup();
 const repLayer = L.layerGroup();
 const notesLayer = L.layerGroup();
+let comPts = [];   // dangers signalés par d'autres plaisanciers (notes OpenStreetMap #CarteMarine, non vérifiés)
 const lakesLayer = L.layerGroup();   // lacs navigables ou non   // signalements de la communauté (notes OpenStreetMap)
 const tideStLayer = L.layerGroup(), funLayer = L.layerGroup(), harbLayer = L.layerGroup(), wikiLayer = L.layerGroup();
 const obsLayer = L.layerGroup();
@@ -1577,6 +1579,7 @@ function addReport(p){
 }
 function drawReports(){
   repPts = reports.map(repToPt);
+  const comAdd = comPts.filter(c => !repPts.some(r => distNM(r.p, c.p) < 0.02));
   repLayer.clearLayers();
   const rM = +$('dangerDist').value || 150;
   repPts.forEach(o => {
@@ -1587,6 +1590,7 @@ function drawReports(){
   const list = repPts.slice().reverse();
   $('dangerOut').innerHTML = list.length ? `<div class="replist">${list.slice(0, 30).map(o => `<div class="reprow"><span class="dot" style="background:${KCOL[o.kind] || '#ef5350'}"></span><span>${esc(o.n)}<small>${o.d != null ? 'sonde ' + n1(o.d) + ' m · ' : ''}${o.h != null ? 'hauteur ' + n1(o.h) + ' m · ' : ''}${o.x}</small></span><button class="btn" data-rgo="${esc(o.rid)}">Voir</button></div>`).join('')}</div>`
     : '<div class="muted">Aucun signalement pour le moment.</div>';
+  repPts = repPts.concat(comAdd);   // les dangers de la communauté comptent pour les alertes et la route
 }
 $('dangerOut').addEventListener('click', e => { const b = e.target.closest('[data-rgo]'); if (!b) return; const o = repPts.find(x => x.rid === b.dataset.rgo); if (o){ map.setView(o.p, 16); $('sheet').classList.add('collapsed'); $('toggleSheet').textContent = '▴'; } });
 map.on('popupopen', e => {
@@ -4210,7 +4214,7 @@ function renderLearn(){
   $('learnList').innerHTML = LEARN.map(c => { const dn = c.items.filter(i => learned[i.id]).length;
     return `<div class="lcat"><span class="lci">${CAT_ICO[c.cat] || '📘'}</span><span class="lct">${esc(c.cat.replace(/ \(débutant\)/, ''))}</span><span class="lcn">${dn}/${c.items.length}</span></div>` + c.items.map(i => `
     <details class="lesson${learned[i.id] ? ' done' : ''}" data-id="${i.id}"><summary><span class="lico">${L_ICO[i.id] || CAT_ICO[c.cat] || '📘'}</span><span>${esc(i.t)}<small>${esc(i.why)}${myVids[i.id] ? ' · <span class="vidtag">📹 ta vidéo</span>' : ''}</small></span><span class="lmeta">${learned[i.id] ? '<span class="lok">✓</span>' : '⏱ ' + lMin(i) + ' min'}</span></summary>
-      ${SCHEMA[i.id] ? `<div class="schema">${SCHEMA[i.id].svg}<div class="cap">${esc(SCHEMA[i.id].cap)}</div></div>` : ''}
+      ${SCHEMA[i.id] ? `<div class="schema">${SCHEMA[i.id].svg}<div class="cap">${esc(SCHEMA[i.id].cap)}</div><button class="btn primary playBtn" data-play="1">▶ Voir l'animation</button></div>` : ''}
       <div class="vidbox" id="vb-${i.id}"></div>
       <ol class="lsteps">${i.steps.map(x => `<li><span>${lStep(x)}</span></li>`).join('')}</ol>
       ${i.tip ? `<div class="ltip"><span>💡</span><span><b>À retenir</b><br>${esc(i.tip)}</span></div>` : ''}
@@ -4223,6 +4227,7 @@ $('learnList').addEventListener('click', async e => {
   const vd = e.target.closest('[data-vdel]');
   if (vd){ const id = vd.dataset.vdel; await idbSet('vid_' + id, null); if (vidUrls[id]){ URL.revokeObjectURL(vidUrls[id]); delete vidUrls[id]; } delete myVids[id]; store.set('myVids', myVids); renderLearn(); const d = document.querySelector(`details[data-id="${id}"]`); if (d) d.open = true; return; }
   if (e.target.closest('[data-tour]')){ tourStart(); return; }
+  const pl = e.target.closest('[data-play]'); if (pl){ pl.closest('.schema').classList.add('play'); return; }
   const b = e.target.closest('[data-learn]'); if (!b) return; const id = b.dataset.learn; learned[id] = !learned[id]; store.set('learned', learned); const open = id; renderLearn(); const d = document.querySelector(`details[data-id="${open}"]`); if (d) d.open = true; });
 renderLearn();
 
@@ -4682,15 +4687,18 @@ async function loadNotes(){
   const k = viewKey(13); if (k === notesKey) return; notesKey = k;
   try{
     const j = await fetch(`https://api.openstreetmap.org/api/0.6/notes.json?bbox=${b.getWest().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getNorth().toFixed(4)}&limit=200&closed=14`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
-    notesLayer.clearLayers();
+    notesLayer.clearLayers(); const com = [];
     (j.features || []).forEach(f => {
       const pr = f.properties || {}, cm = pr.comments || [], first = cm[0] ? cm[0].text || '' : '';
       if (!NAUT_RX.test(cm.map(c => c.text || '').join(' '))) return;
       const ours = /#CarteMarine|\[Ma Carte Marine\]/i.test(first), open = pr.status === 'open';
       const p = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
+      if (ours && open){ const K = /Roche|haut-fond/i.test(first) ? 'rock' : /Épave|Epave/i.test(first) ? 'wreck' : /Banc de sable|envasement/i.test(first) ? 'obstruction' : /Balise manquante|Travaux|zone interdite/i.test(first) ? 'danger' : null;
+        if (K) com.push({ p, kind:K, n:'Signalé par un plaisancier : ' + first.replace(/\[Ma Carte Marine\]\s*/, '').replace(/\s*#CarteMarine.*/, '').slice(0, 90), d:null, h:null, c:null, x:'non vérifié · ' + (pr.date_created || '').slice(0, 10), src:'communauté (OpenStreetMap)', rep:false, com:true, dg:true }); }
       L.marker(p, { icon:pin((open ? '💬 ' : '✓ ') + (ours ? 'plaisancier' : 'signalement'), open ? (ours ? '#ffb74d' : '#ffe082') : '#90a4ae') })
         .bindPopup(() => `<b>${ours ? 'Signalement d\'un plaisancier' : 'Signalement de la communauté'}</b> <span class="muted">(OpenStreetMap)</span><br>${esc(first.replace(/\[Ma Carte Marine\]\s*/, '').slice(0, 400))}<br><span class="muted">${pr.date_created ? new Date(pr.date_created.replace(' UTC', 'Z').replace(' ', 'T')).toLocaleDateString('fr-FR') : ''} · ${open ? 'pas encore traité' : 'résolu par les cartographes'}${cm.length > 1 ? ' · ' + (cm.length - 1) + ' réponse(s)' : ''}</span><br><a href="https://www.openstreetmap.org/note/${pr.id}" target="_blank" rel="noopener">Voir, confirmer ou commenter</a>`).addTo(notesLayer);
     });
+    comPts = com; drawReports();
   }catch(e){ notesKey = ''; }
 }
 map.on('moveend', () => { clearTimeout(notesT); notesT = setTimeout(loadNotes, 1500); });
