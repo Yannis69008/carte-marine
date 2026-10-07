@@ -1,5 +1,5 @@
 // Carte Marine : fonctionnement hors ligne (appli + cartes téléchargées)
-const SHELL = 'cm-shell-v41', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
+const SHELL = 'cm-shell-v42', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
 const LIBS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
@@ -8,7 +8,7 @@ const LIBS = [
   'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js',
   'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Barlow:wght@400;500;600&display=swap'
 ];
-const TILE_RX = /(tile\.openstreetmap\.org|tiles\.openseamap\.org|depth\.openseamap\.org\/geoserver|server\.arcgisonline\.com|services\.data\.shom\.fr\/INSPIRE\/wmts|data\.geopf\.fr\/wmts|wms\.gebco\.net|ows\.emodnet-bathymetry\.eu\/wms|gis\.charttools\.noaa\.gov)/;
+const TILE_RX = /(tile\.openstreetmap\.org|tiles\.openseamap\.org|depth\.openseamap\.org\/geoserver|server\.arcgisonline\.com|services\.data\.shom\.fr\/INSPIRE\/wmts|data\.geopf\.fr\/wmts|wms\.gebco\.net|ows\.emodnet-bathymetry\.eu\/wms|gis\.charttools\.noaa\.gov|wms\.geo\.admin\.ch)/;
 const LIB_RX = /(cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)/;
 
 self.addEventListener('install', e => {

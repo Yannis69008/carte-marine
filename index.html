@@ -139,6 +139,14 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 #ctrInfo{position:absolute;left:10px;top:calc(env(safe-area-inset-top,0px) + 104px);z-index:1001;max-width:min(62vw,300px);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 28px 7px 10px;font-size:13px;line-height:1.35;box-shadow:0 2px 10px rgba(0,0,0,.4);cursor:pointer}
 #ctrInfo b{color:var(--accent)} #ctrInfo .cx{position:absolute;right:4px;top:2px;padding:2px 6px;color:var(--muted);font-size:15px}
 body.nav #ctrInfo,body.nav #ctrX{display:none}
+#lakeBox{position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px}
+#lakeBox[hidden]{display:none}
+.lkV{border-radius:10px;padding:9px 11px;font-weight:600;line-height:1.35}
+.lkV.v0{background:#173d2a;border:1px solid #3fbf7f}.lkV.v1{background:#3d3317;border:1px solid #f2b134}.lkV.v2{background:#3d1a1a;border:1px solid #ef5350}
+.lkV small{display:block;font-weight:400;color:var(--muted);margin-top:3px}
+.lkR{display:flex;gap:10px;align-items:flex-start}.lkR>span:first-child{flex:0 0 26px;font-size:18px;text-align:center}
+#lakeIn details{border-top:1px solid var(--line);padding-top:6px}#lakeIn summary{cursor:pointer;font-weight:600}
+#lakeIn a.go{color:var(--accent);cursor:pointer}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -307,6 +315,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <div class="drow"><div><div class="dk">Cap</div><div class="dv2" id="dCog">---</div></div><div><div class="dk">Fond</div><div class="dv2" id="dDepth">--</div></div><div><div class="dk">Vent</div><div class="dv2" id="dWind">--</div></div></div>
   <div class="muted" style="text-align:center">Garde l'écran allumé. Le fond est une estimation, pas un sondeur.</div>
 </div>
+<div id="lakeBox" hidden><div class="lgBox" id="lakeIn"></div></div>
 <div id="legend" hidden>
   <div class="lgBox">
     <b class="lgT">Les boutons</b>
@@ -322,6 +331,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">⇄</span><span>Touche le cadre <b>Vitesse</b> pour passer de nœuds à km/h. Appui long sur un cadre : <b>grand compteur</b></span></div>
     <div class="lgRow"><span class="lgI">▲↻</span><span><b>Pivoter la carte</b> : deux doigts qui tournent (Maj + glisser sur Mac). Touche le bouton pour « cap en haut » ou remettre le nord en haut</span></div>
     <div class="lgRow"><span class="lgI">✛</span><span><b>Croix au centre</b> : quand tu zoomes quelque part, vent, vagues et fond à cet endroit. <a href="#" id="ctrOn">Réafficher</a> si tu l'as masquée</span></div>
+    <div class="lgRow"><span class="lgI">🏞️</span><span><b>Lacs</b> : touche un lac puis « Puis-je naviguer ici ? » (règles, mises à l'eau, ports, vent, profondeur)</span></div>
     <div class="lgRow"><span class="lgI">▶</span><span><b>Mode démo</b> : un bateau virtuel avance pour essayer l'appli sans être sur l'eau</span></div>
     <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
     <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgDemo">Mode démo</button><button class="btn" id="lgClose">Fermer</button></div>
@@ -466,7 +476,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
       </div>
 
       <h3>Cartes officielles des fleuves (IENC)</h3>
-      <div class="muted">Les cartes électroniques officielles de VNF (Seine, Oise, Moselle, Grande Saône…) et de la CNR (Rhône) donnent la <b>hauteur libre de chaque pont</b>, les écluses, les barrages, les lignes aériennes et la profondeur du chenal. Télécharge-les gratuitement sur le site de VNF (rubrique cartes ECDIS / IENC) ou sur InfoRhône pour le Rhône, puis importe ici le .zip ou les fichiers .000. Elles restent ensuite sur ton téléphone, sans réseau.</div>
+      <div class="muted">Les cartes électroniques officielles de VNF (Seine, Oise, Moselle, Grande Saône…) et de la CNR (Rhône) donnent la <b>hauteur libre de chaque pont</b>, les écluses, les barrages, les lignes aériennes et la profondeur du chenal. Télécharge-les gratuitement sur <a href="https://www.vnf.fr/vnf/app/uploads/ecdis/ecdis.html" target="_blank" rel="noopener">le portail ECDIS de VNF</a> ou sur InfoRhône pour le Rhône, puis importe ici le .zip ou les fichiers .000. Elles restent ensuite sur ton téléphone, sans réseau.</div>
       <div id="iencStatus" class="muted"></div>
       <div class="row">
         <label class="btn primary" for="iencFile">Importer des cartes IENC</label>
@@ -850,6 +860,7 @@ const OVERLAYS = {
   fun:     { name:'Loisirs : plages, plongée, surf, kite, location, pêche… (OpenStreetMap)', on:false, layer: funLayer },
   sport:   { name:'Sports nautiques (couche OpenSeaMap)', on:false, layer: L.tileLayer('https://tiles.openseamap.org/sport/{z}/{x}/{y}.png', { maxZoom:19, maxNativeZoom:18, attribution:'© OpenSeaMap' }) },
   wiki:    { name:'Curiosités à voir (Wikipédia)', on:false, layer: wikiLayer },
+  swissBathy:{ name:'Profondeurs des lacs suisses (swisstopo, relief du fond)', on:false, layer: L.tileLayer.wms('https://wms.geo.admin.ch/', { layers:'ch.swisstopo.swissbathy3d-reliefschattierung', format:'image/png', transparent:true, opacity:.75, version:'1.3.0', maxZoom:19, attribution:'© swisstopo (swissBATHY3D)' }) },
   osmDepth:{ name:'Profondeurs relevées par les plaisanciers (OpenSeaMap)', on:false, layer: L.tileLayer.wms('https://depth.openseamap.org/geoserver/openseamap/wms', { layers:'openseamap:tracks_10m', version:'1.1.0', format:'image/png', transparent:true, attribution:'© OpenSeaMap Water Depth' }) },
   osmCont: { name:'Lignes de sonde des plaisanciers (OpenSeaMap)', on:false, layer: L.tileLayer.wms('https://depth.openseamap.org/geoserver/openseamap/wms', { layers:'openseamap:contour2,openseamap:contour', version:'1.1.0', format:'image/png', transparent:true, attribution:'© OpenSeaMap Water Depth' }) },
   zone:    { name:'Limite de la bande des 300 m (approximative)', on:true, layer: zoneLayer },
@@ -1063,7 +1074,7 @@ map.on('movestart', () => { if (!$('ctrInfo').hidden) $('ctrInfo').style.opacity
 async function ctrDepthLines(p, d){
   if (d === undefined) return ['Fond : en cours…'];
   if (d == null) return ['Fond : inconnu ici'];
-  if (d < 0) return ['Fond : terre ou à sec'];
+  if (d < 0) return ['Fond : <span class="muted">pas de profondeur connue ici (terre, lac ou rivière : les profondeurs marines ne couvrent pas les eaux intérieures)</span>'];
   await Promise.race([Promise.resolve(tideDbReady(p)).catch(() => {}), new Promise(r => setTimeout(r, 3000))]);
   const now = Date.now()/1000, th = tideHeightAt(p, now);
   const withTide = th != null && repDepth(p) == null && iencDepth(p) == null;
@@ -4000,6 +4011,83 @@ async function harbourNear(p, R){
     return out.sort((a, b) => a.d - b.d);
   }catch(e){ return null; }
 }
+
+// ---------- LACS : « Puis-je naviguer ici avec MON bateau ? » ----------
+// Données ouvertes : OpenStreetMap (lac, accès bateau/moteur, mises à l'eau, ports, carburant), Open-Meteo (vent, altitude),
+// swisstopo (profondeurs des lacs suisses). La réglementation officielle dépend de chaque lac : on le dit et on aide à la trouver.
+let lastLake = null;
+async function lakeAt(p){
+  const q = `[out:json][timeout:20];is_in(${p[0].toFixed(5)},${p[1].toFixed(5)})->.a;(way(pivot.a)["natural"="water"];rel(pivot.a)["natural"="water"];way(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];rel(pivot.a)["water"~"^(lake|reservoir|lagoon)$"];)->.w;.w out tags bb;area.a["ISO3166-1"]->.c;.c out tags;`;
+  const j = await overpass(q, 30*86400000, true).catch(() => null);
+  if (!j || !j.elements) return null;
+  const cc = (j.elements.find(e => e.tags && e.tags['ISO3166-1']) || {}).tags;
+  const w = j.elements.filter(e => e.bounds && e.tags && !/^(river|canal|stream|ditch|wastewater|stream_pool|fish_pass|moat)$/.test(e.tags.water || '') && (e.tags.natural === 'water' || e.tags.water))
+    .map(e => ({ tags:e.tags, b:[e.bounds.minlat, e.bounds.minlon, e.bounds.maxlat, e.bounds.maxlon] }))
+    .sort((a, b) => (a.b[2]-a.b[0])*(a.b[3]-a.b[1]) - (b.b[2]-b.b[0])*(b.b[3]-b.b[1]));
+  if (!w.length) return null;
+  const L0 = w.find(x => x.tags.name) || w[0];
+  return Object.assign(L0, { p, cc:cc ? cc['ISO3166-1'] : null, country:cc ? (cc['name:fr'] || cc.name) : null, km:distNM([L0.b[0], L0.b[1]], [L0.b[2], L0.b[3]])*1.852 });
+}
+function lakeVerdict(L, pois){
+  const t = L.tags, motor = (+$('conso').value || 0) > 0, name = t.name || 'ce plan d\'eau';
+  if (t.boat === 'no' || t.access === 'no') return [2, 'Non : navigation interdite', `OpenStreetMap indique que les bateaux sont interdits sur ${esc(name)}.`];
+  if (motor && t.motorboat === 'no') return [2, 'Pas avec un bateau à moteur', 'Moteurs interdits ici (indiqué sur OpenStreetMap). Voile, aviron, kayak ou pédalo peut-être : vérifie le règlement.'];
+  if (t.boat === 'private' || t.access === 'private') return [1, 'Accès privé', 'Plan d\'eau privé : il faut l\'accord du propriétaire ou du gestionnaire.'];
+  if (L.km < 0.8) return [1, 'Très petit plan d\'eau', 'Souvent réservé à la pêche ou à la baignade. Vérifie sur place avant de mettre à l\'eau.'];
+  const slip = pois.filter(x => x.k === 'slip').length;
+  if (t.boat === 'yes' || t.motorboat === 'yes') return [0, 'Oui, a priori', `Navigation autorisée selon OpenStreetMap${motor && t.motorboat === 'yes' ? ', moteur compris' : ''}. Respecte les règles locales (vitesse près des rives, baignade, zones interdites).${slip ? '' : ' Aucune mise à l\'eau connue : renseigne-toi.'}`];
+  if (slip || pois.some(x => x.k === 'port')) return [0, 'Probablement oui', `${slip ? slip + ' mise(s) à l\'eau' : 'Des ports'} sur ce lac : la plaisance y est pratiquée. Le règlement local fixe ce qui est permis (moteur, vitesse, zones).`];
+  return [1, 'À vérifier', 'Aucune information sur la navigation pour ce plan d\'eau dans les données ouvertes. Renseigne-toi auprès de la mairie, du gestionnaire ou de la capitainerie.'];
+}
+function lakeRules(L){
+  const nm = encodeURIComponent((L.tags.name || 'lac') + ' règlement navigation');
+  const link = `<a href="https://www.google.com/search?q=${nm}" target="_blank" rel="noopener">Chercher le règlement officiel de ce lac</a>`;
+  if (L.cc === 'FR') return `En France, chaque lac a son propre règlement (arrêté préfectoral ou règlement particulier de police) : vitesse près des rives, zones de baignade, ski nautique, moteurs autorisés, horaires. Ces règles changent d'un lac à l'autre : je ne les invente pas.<br>${link}`;
+  if (L.cc === 'CH') return `En Suisse : règles fédérales (ordonnance sur la navigation intérieure) + règles du canton. Exemple à Genève : 10 km/h dans les 300 m de la rive, 30 km/h au large (<a href="https://www.ge.ch/naviguer-geneve/consignes-generales-navigation" target="_blank" rel="noopener">source</a>). Un gilet homologué par personne est obligatoire. Les chiffres varient selon le canton.<br>${link}`;
+  return `Les règles dépendent du pays et du lac (vitesse près des rives, zones de baignade, moteurs, permis). Règle de prudence courante : très lentement près des rives et des baigneurs.<br>${link}`;
+}
+async function lakeOpen(L){
+  lastLake = L; const box = $('lakeBox'), el = $('lakeIn'); box.hidden = false;
+  const name = esc(L.tags.name || 'Plan d\'eau sans nom');
+  el.innerHTML = `<b class="lgT">${name}</b><div class="muted">Recherche des informations…</div><div class="lgBtns"><button class="btn" data-lk="close">Fermer</button></div>`;
+  const [s, w, n, e] = L.b, bb = `(${s.toFixed(4)},${w.toFixed(4)},${n.toFixed(4)},${e.toFixed(4)})`, c = [(s + n)/2, (w + e)/2];
+  const q = `[out:json][timeout:25];(nwr["leisure"="slipway"]${bb};nwr["leisure"="marina"]${bb};nwr["harbour"]${bb};nwr["seamark:type"="harbour"]${bb};nwr["waterway"="fuel"]${bb};nwr["amenity"="fuel"]["boat"="yes"]${bb};nwr["amenity"="boat_rental"]${bb};nwr["seamark:type"~"^(anchorage|anchor_berth)$"]${bb};nwr["leisure"="swimming_area"]${bb};nwr["sport"="water_ski"]${bb};nwr["boundary"="protected_area"]${bb};nwr["leisure"="nature_reserve"]${bb};);out center tags 300;`;
+  const [j, wx, el0] = await Promise.all([
+    overpass(q, 7*86400000, true).catch(() => null),
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c[0].toFixed(3)}&longitude=${c[1].toFixed(3)}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&wind_speed_unit=kn&timezone=auto`).then(r => r.json()).catch(() => null),
+    fetch(`https://api.open-meteo.com/v1/elevation?latitude=${c[0].toFixed(4)}&longitude=${c[1].toFixed(4)}`).then(r => r.json()).catch(() => null)]);
+  if (lastLake !== L || box.hidden) return;
+  const kind = t => t.leisure === 'slipway' ? 'slip' : (t.leisure === 'marina' || t.harbour || t['seamark:type'] === 'harbour') ? 'port' : (t.waterway === 'fuel' || t.amenity === 'fuel') ? 'fuel' : t.amenity === 'boat_rental' ? 'rent' : /anchor/.test(t['seamark:type'] || '') ? 'anch' : t.leisure === 'swimming_area' ? 'swim' : t.sport === 'water_ski' ? 'ski' : 'prot';
+  const pois = ((j && j.elements) || []).map(x => ({ t:x.tags || {}, p:x.lat != null ? [x.lat, x.lon] : x.center ? [x.center.lat, x.center.lon] : null })).filter(x => x.p).map(x => Object.assign(x, { k:kind(x.t) }));
+  const cnt = k => pois.filter(x => x.k === k), near = (k) => cnt(k).map(x => Object.assign(x, { d:distNM(L.p, x.p) })).sort((a, b) => a.d - b.d)[0];
+  const [vl, vt, vd] = lakeVerdict(L, pois);
+  const A = wx && wx.current, alt = el0 && el0.elevation && el0.elevation[0];
+  const go = (x, label) => `<a class="go" data-lkgo="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">${esc(label)}</a>`;
+  const sl = near('slip'), po = near('port'), fu = near('fuel');
+  const depthTxt = L.tags.depth || L.tags.maxdepth ? `Profondeur indiquée : ${esc(L.tags.maxdepth || L.tags.depth)} m (OpenStreetMap).` : L.cc === 'CH' ? 'Relief du fond disponible : <a class="go" data-lk="swiss">afficher les profondeurs des lacs suisses (swisstopo)</a>.' : 'Pas de carte de profondeur ouverte pour ce lac : prudence près des rives, des embouchures et des hauts-fonds.';
+  const windTxt = A ? `Vent ${n0(A.wind_speed_10m)} nd ${card(A.wind_direction_10m)}, rafales ${n0(A.wind_gusts_10m)} nd${A.wind_gusts_10m >= 22 ? ' : <b style="color:var(--warn)">fort pour un lac, les vagues y sont courtes et creuses</b>' : ''}.` : 'Météo indisponible pour le moment.';
+  el.innerHTML = `<b class="lgT">${name}</b>
+    <div class="muted">${L.km >= 1 ? '≈ ' + n0(L.km) + ' km d\'un bout à l\'autre' : 'petit plan d\'eau'}${alt != null ? ' · altitude ' + n0(alt) + ' m' : ''}${L.country ? ' · ' + esc(L.country) : ''}</div>
+    <div class="lkV v${vl}">Puis-je naviguer ici avec mon bateau ? ${vl === 0 ? '🟢' : vl === 1 ? '🟠' : '🔴'} ${vt}<small>${vd}</small></div>
+    <div class="lkR"><span>🚤</span><span><b>Mise à l'eau</b> : ${sl ? cnt('slip').length + ' connue(s) · la plus proche : ' + go(sl, sl.t.name || 'voir sur la carte') : 'aucune connue sur ce lac'}</span></div>
+    <div class="lkR"><span>⚓</span><span><b>Ports</b> : ${po ? cnt('port').length + ' · ' + go(po, po.t.name || 'le plus proche') : 'aucun connu'}</span></div>
+    <div class="lkR"><span>💨</span><span><b>Maintenant</b> : ${windTxt}</span></div>
+    <div class="lkR"><span>📏</span><span><b>Profondeur</b> : ${depthTxt}</span></div>
+    <details><summary>Règles et restrictions</summary><div class="muted" style="margin-top:6px">${lakeRules(L)}${cnt('swim').length ? `<br>${cnt('swim').length} zone(s) de baignade : passe au ralenti et au large.` : ''}${cnt('ski').length ? `<br>${cnt('ski').length} zone(s) de ski nautique.` : ''}${cnt('prot').length ? `<br>${cnt('prot').length} zone(s) naturelle(s) protégée(s) dans le secteur : accès souvent limité ou interdit.` : ''}${L.tags.motorboat ? `<br>Moteur (OpenStreetMap) : ${L.tags.motorboat === 'no' ? 'interdit' : L.tags.motorboat === 'yes' ? 'autorisé' : esc(L.tags.motorboat)}.` : ''}${L.tags.maxspeed ? `<br>Vitesse maximale indiquée : ${esc(L.tags.maxspeed)}.` : ''}</div></details>
+    <details><summary>Services sur le lac</summary><div class="muted" style="margin-top:6px">Carburant : ${fu ? go(fu, fu.t.name || 'station') : 'aucune station bateau connue'}<br>Location de bateaux : ${cnt('rent').length || 'aucune connue'}<br>Mouillages indiqués : ${cnt('anch').length || 'aucun'}</div></details>
+    <div class="muted" style="font-size:12px">D'après OpenStreetMap, Open-Meteo et swisstopo : pas un texte officiel. Le règlement du lac et les panneaux sur place font foi.</div>
+    <div class="lgBtns"><button class="btn primary" data-lk="fit">Voir le lac sur la carte</button><button class="btn" data-lk="wx">Météo détaillée</button><button class="btn" data-lk="close">Fermer</button></div>`;
+}
+$('lakeBox').addEventListener('click', e => {
+  const b = e.target.closest('[data-lk],[data-lkgo]');
+  if (e.target === $('lakeBox') || (b && b.dataset.lk === 'close')){ $('lakeBox').hidden = true; return; }
+  if (!b || !lastLake) return;
+  if (b.dataset.lkgo){ const [a, o] = b.dataset.lkgo.split(',').map(Number); $('lakeBox').hidden = true; follow = false; $('followBtn').classList.remove('active'); map.setView([a, o], 16); return; }
+  if (b.dataset.lk === 'fit'){ $('lakeBox').hidden = true; follow = false; $('followBtn').classList.remove('active'); map.fitBounds([[lastLake.b[0], lastLake.b[1]], [lastLake.b[2], lastLake.b[3]]], { padding:[30, 30] }); return; }
+  if (b.dataset.lk === 'wx'){ $('lakeBox').hidden = true; document.querySelector('.tab[data-t="meteo"]').click(); loadWeather(lastLake.p, lastLake.tags.name || 'lac'); return; }
+  if (b.dataset.lk === 'swiss'){ const cb = $('ov-swissBathy'); if (cb && !cb.checked){ cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles:true })); } $('lakeBox').hidden = true; map.fitBounds([[lastLake.b[0], lastLake.b[1]], [lastLake.b[2], lastLake.b[3]]]); hint('Profondeurs des lacs suisses affichées (Cartes pour les masquer).', 4000); }
+});
+map.getContainer().addEventListener('click', e => { const b = e.target.closest('[data-lakeopen]'); if (b && lastLake){ e.stopPropagation(); map.closePopup(); lakeOpen(lastLake); } });
 async function identifyAt(ll){
   const p = [ll.lat, ll.lng], z = map.getZoom(), mpp = 156543.03*Math.cos(toRad(p[0]))/Math.pow(2, z), R = Math.max(15, Math.min(600, 34*mpp));
   const base = `<span class="muted">${fmtPos(p)}${gps ? ` · ${fmtD(distNM(gps.p, p))} au ${pad3(bearing(gps.p, p))}° du bateau` : ''}</span>`;
@@ -4008,6 +4096,7 @@ async function identifyAt(ll){
   const pop = L.popup({ maxWidth:290 }).setLatLng(ll).setContent(local + base + (navigator.onLine ? '<br><span class="muted">Recherche de ce qu\'il y a ici…</span>' : '')).openOn(map);
   if (!navigator.onLine) return;
   const a = `(around:${Math.round(R)},${p[0].toFixed(6)},${p[1].toFixed(6)})`;
+  const lakeP = lakeAt(p);
   const [j, hb] = await Promise.all([overpass(`[out:json][timeout:15];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];);out center tags 25;`, 3*86400000, true).catch(() => null), harbourNear(p, R)]);
   if (!pop.isOpen()) return;
   const hbItems = (hb || []).filter(h => h.d < Math.max(R*1.6, 300)).slice(0, 2);
@@ -4020,7 +4109,10 @@ async function identifyAt(ll){
   const extra = hbItems.filter(h => !names.includes(h.name.toLowerCase())).map(h => `<b>${esc(h.name)}</b><br>Port ou mouillage (base OpenSeaMap)${/^https?:\/\//.test(h.link) ? `<br><a href="${esc(h.link)}" target="_blank" rel="noopener">Fiche détaillée du port</a>` : ''}`);
   const fail = j === null && hb === null ? '<span class="muted">Le serveur de repères ne répond pas (réseau faible ou serveur occupé). Touche à nouveau dans quelques secondes.</span><br>' : '';
   const none = !list.length && !extra.length && !local && !fail ? '<span class="muted">Aucune balise, aucun feu ni port répertorié à cet endroit. Touche exactement sur le symbole, en zoomant si besoin.</span><br>' : '';
-  pop.setContent([].concat(list.map(x => seamarkHtml(x.t)), extra).join('<hr>') + ((list.length || extra.length) ? '<hr>' : '') + fail + none + local + base);
+  const lk = await lakeP; if (!pop.isOpen()) return;
+  let lakeHtml = '';
+  if (lk){ lastLake = lk; lakeHtml = `<b>${esc(lk.tags.name || 'Plan d\'eau')}</b><br><span class="muted">${lk.tags.water === 'reservoir' ? 'Lac de retenue' : lk.tags.water === 'lagoon' ? 'Lagune' : 'Lac'}${lk.km >= 1 ? ' · ≈ ' + n0(lk.km) + ' km' : ''}</span><br><button class="btn primary" data-lakeopen="1" style="margin-top:6px">Puis-je naviguer ici ?</button><hr>`; }
+  pop.setContent(lakeHtml + [].concat(list.map(x => seamarkHtml(x.t)), extra).join('<hr>') + ((list.length || extra.length) ? '<hr>' : '') + fail + (lk ? '' : none) + local + base);
 }
 
 // ---------- DONNÉES OPENSEAMAP EN PLUS + LOISIRS ----------
