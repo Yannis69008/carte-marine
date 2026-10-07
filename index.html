@@ -1066,9 +1066,11 @@ map.on('contextmenu', e => {
   if (tool) return;
   const p = [e.latlng.lat, e.latlng.lng]; lpPt = p;
   try{ navigator.vibrate && navigator.vibrate(25); }catch(err){}
+  setTimeout(() => ptWx(p).then(w => { const el = document.getElementById('lpWx'); if (el && lpPt === p) el.innerHTML = '🌬 ' + wxBits(w).join('<br>'); }).catch(() => {}), 0);
   setTimeout(() => depthNowAt(p).then(d => d === undefined ? ['Fond : pas de réponse (réseau)'] : d != null && d < 0 ? ['Fond : terre, ou eaux intérieures sans données'] : ctrDepthLines(p, d)).then(l => { const el = document.getElementById('lpDepth'); if (el && lpPt === p) el.innerHTML = '📏 ' + l.join('<br>'); }).catch(() => {}), 0);
   const from = gps ? gps.p : null;
   L.popup({ maxWidth:280 }).setLatLng(e.latlng).setContent(`<b>Ce point</b><br><span class="muted">${fmtPos(p)}${from ? ` · ${fmtD(distNM(from, p))} au ${pad3(bearing(from, p))}°` : ''}</span>
+    <div class="idDepth" id="lpWx">🌬 Météo : chargement…</div>
     <div class="idDepth" id="lpDepth">📏 Fond : calcul…</div>
     <div class="lpm"><button class="btn primary" data-lp="go">🧭 Y aller</button><button class="btn" data-lp="route">➕ Ajouter à ma route</button><button class="btn" data-lp="wx">🌤️ Météo ici</button><button class="btn" data-lp="info">🔎 Qu'y a-t-il ici ?</button><button class="btn" data-lp="rep">⚑ Signaler ici</button></div>`).openOn(map);
 });
@@ -1204,6 +1206,25 @@ async function depthNowAt(p){
   await Promise.race([Promise.resolve(tideDbReady(p)).catch(() => {}), new Promise(r => setTimeout(r, 3000))]);
   return Promise.race([depthAt(p).catch(() => null), new Promise(r => setTimeout(() => r(undefined), 7000))]);
 }
+// météo du moment en un point (avec mémoire de 10 min), utilisée au centre, au toucher et à l'appui long
+async function ptWx(p){
+  const k = p[0].toFixed(2) + ',' + p[1].toFixed(2); let w = ctrCache.get(k);
+  if ((!w || Date.now() - w.t > 10*60000) && navigator.onLine){
+    const q = `latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&timezone=auto`;
+    const [a, m] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,temperature_2m&wind_speed_unit=kn`).then(r => r.json()).catch(() => null),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&current=wave_height,swell_wave_height,swell_wave_period,sea_surface_temperature&cell_selection=sea`).then(r => r.json()).catch(() => null)]);
+    if (a && a.current){ w = { t:Date.now(), a:a.current, m:m && m.current }; ctrCache.set(k, w); if (ctrCache.size > 200) ctrCache.delete(ctrCache.keys().next().value); }
+  }
+  return w || null;
+}
+function wxBits(w){
+  const A = w && w.a, M = w && w.m, bits = [];
+  if (A) bits.push(`Vent <b>${n0(A.wind_speed_10m)} nd</b> ${card(A.wind_direction_10m)} · rafales ${n0(A.wind_gusts_10m)} nd${WCODE(A.weather_code) ? ' · ' + esc(WCODE(A.weather_code)) : ''}`);
+  if (M && M.wave_height != null) bits.push(`Vagues <b>${n1(M.wave_height)} m</b>${M.swell_wave_height != null ? ` · houle ${n1(M.swell_wave_height)} m${M.swell_wave_period ? ' / ' + n0(M.swell_wave_period) + ' s' : ''}` : ''}${M.sea_surface_temperature != null ? ` · eau ${n0(M.sea_surface_temperature)} °C` : ''}`);
+  if (!A) bits.push(navigator.onLine ? '<span class="muted">Météo indisponible pour le moment</span>' : '<span class="muted">Pas de réseau : météo indisponible</span>');
+  return bits;
+}
 async function ctrDepthLines(p, d){
   if (d === undefined) return ['Fond : en cours…'];
   if (d == null) return ['Fond : inconnu ici'];
@@ -1234,14 +1255,7 @@ async function ctrLoad(){
   const c = map.getCenter(), p = [c.lat, c.lng], seq = ++ctrSeq, k = p[0].toFixed(2) + ',' + p[1].toFixed(2), el = $('ctrInfo');
   el.hidden = false; el.style.opacity = 1;
   if (!el.innerHTML) el.innerHTML = '<span class="muted">Centre de la carte : chargement…</span>';
-  let w = ctrCache.get(k);
-  if ((!w || Date.now() - w.t > 10*60000) && navigator.onLine){
-    const q = `latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&timezone=auto`;
-    const [a, m] = await Promise.all([
-      fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,temperature_2m&wind_speed_unit=kn`).then(r => r.json()).catch(() => null),
-      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&current=wave_height,swell_wave_height,swell_wave_period,sea_surface_temperature&cell_selection=sea`).then(r => r.json()).catch(() => null)]);
-    if (a && a.current){ w = { t:Date.now(), a:a.current, m:m && m.current }; ctrCache.set(k, w); if (ctrCache.size > 200) ctrCache.delete(ctrCache.keys().next().value); }
-  }
+  const w = await ptWx(p);
   await Promise.race([Promise.resolve(tideDbReady(p)).catch(() => {}), new Promise(r => setTimeout(r, 3000))]);   // marées prêtes avant de calculer le fond
   const d = await Promise.race([depthAt(p).catch(() => null), new Promise(r => setTimeout(() => r(undefined), 6000))]);
   if (seq !== ctrSeq || !ctrWanted()) return;
@@ -1257,6 +1271,13 @@ async function ctrLoad(){
     else bits.push(...(await ctrDepthLines(p, d)));
   } else bits.push(...(await ctrDepthLines(p, d)));
   if (!A) bits.unshift(navigator.onLine ? '<span class="muted">Météo indisponible pour le moment</span>' : '<span class="muted">Pas de réseau : météo indisponible</span>');
+  if (!gps){   // pas de GPS : le bandeau du haut montre le vent et le fond au centre de la carte
+    const wk = document.querySelector('#windNow').parentNode.firstChild, dk = document.querySelector('#depthNow').parentNode.firstChild;
+    wk.textContent = 'Vent centre'; dk.textContent = 'Fond centre';
+    if (A) $('windNow').innerHTML = `${n0(A.wind_speed_10m)}<small> nd ${card(A.wind_direction_10m)}</small>`;
+    if (d != null && d >= 0){ const th0 = tideHeightAt(p, Date.now()/1000); $('depthNow').className = 'v'; $('depthNow').innerHTML = '≈' + n1(d) + '<small>' + (th0 != null ? ' m ↕' : ' m') + '</small>'; }
+    else if (d === undefined || d == null){ $('depthNow').innerHTML = '--<small> m</small>'; }
+  }
   el.innerHTML = `<span class="cx" data-cx="1" aria-label="Masquer">✕</span><div class="muted">Au centre (croix) · maintenant</div>${bits.join('<br>')}<div class="muted" style="font-size:11px">Touche pour la météo détaillée</div>`;
 }
 $('ctrInfo').addEventListener('click', e => {
@@ -1265,6 +1286,7 @@ $('ctrInfo').addEventListener('click', e => {
 });
 function onFix(pos){
   if (demo && !pos.demo) return;
+  { const a = document.querySelector('#windNow').parentNode.firstChild, b = document.querySelector('#depthNow').parentNode.firstChild; if (a.textContent !== 'Vent ici'){ a.textContent = 'Vent ici'; b.textContent = 'Fond'; } }
   const c = pos.coords, p = [c.latitude, c.longitude], now = pos.timestamp;
   let sog = c.speed != null ? c.speed*1.943844 : null, cog = (c.heading != null && !isNaN(c.heading)) ? c.heading : null;
   if (prevFix && (sog == null || cog == null)){
@@ -4723,7 +4745,8 @@ async function identifyAt(ll){
   const toItems = els => (els || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, c, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; }).filter(Boolean);
   const pO = overpass(qS, 3*86400000, true).then(j => j ? toItems(j.elements) : null).catch(() => null);
   const pA = osmApiNear(p, Math.min(R, 300)).catch(() => null);
-  let items = [], got = 0, lake = null, settled = 0, failed = 0, depthHtml = '<span class="muted">Fond : calcul…</span><br>';
+  let items = [], got = 0, lake = null, settled = 0, failed = 0, depthHtml = '<span class="muted">Fond : calcul…</span><br>', wxHtml = '<span class="muted">Météo : chargement…</span><br>';
+  ptWx(p).then(w => { wxHtml = '<div class="idDepth">🌬 ' + wxBits(w).join('<br>') + '</div>'; render(settled >= 2); }).catch(() => { wxHtml = ''; });
   // fond au point touché, avec la marée du moment et la prochaine basse mer
   depthNowAt(p)
     .then(d => d === undefined ? ['Fond : pas de réponse (réseau)'] : d != null && d < 0 ? ['Fond : terre, ou eaux intérieures sans données de profondeur'] : ctrDepthLines(p, d))
@@ -4739,7 +4762,7 @@ async function identifyAt(ll){
     const wait = !final ? '<br><span class="muted">Recherche de compléments…</span>' : '';
     const fail = final && failed >= 2 && !list.length ? '<span class="muted">Les serveurs de repères ne répondent pas (réseau faible ou serveurs saturés). Touche à nouveau dans un moment.</span><br>' : '';
     const none = final && !failed && !list.length && !local && !lake ? '<span class="muted">Aucune balise, aucun feu ni port répertorié ici. Touche bien sur le symbole (zoome si besoin).</span><br>' : '';
-    pop.setContent(lakeHtml + body + (list.length ? '<hr>' : '') + fail + none + local + depthHtml + base + wait);
+    pop.setContent(lakeHtml + body + (list.length ? '<hr>' : '') + fail + none + local + wxHtml + depthHtml + base + wait);
   };
   const take = v => { settled++; if (v === null) failed++; else { items = items.concat(v); got++; } render(settled >= 2); };
   pO.then(take); pA.then(take);
