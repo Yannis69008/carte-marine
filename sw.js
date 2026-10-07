@@ -1,5 +1,5 @@
 // Carte Marine : fonctionnement hors ligne (appli + cartes téléchargées)
-const SHELL = 'cm-shell-v23', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
+const SHELL = 'cm-shell-v24', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
 const LIBS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',

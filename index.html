@@ -633,9 +633,7 @@ map.on('click', e => {
   else if (tool === 'danger'){ addReport(p); setTool('danger'); }
   else if (tool === 'wx'){ setTool('wx'); loadWeather(p, 'point touché'); $('sheet').classList.remove('collapsed'); }
   else {
-    L.popup().setLatLng(e.latlng).setContent(
-      `<b>${fmtPos(p)}</b>` + (gps ? `<br>${n1(distNM(gps.p, p))} NM au ${pad3(bearing(gps.p, p))}° depuis le bateau` : '')
-    ).openOn(map);
+    identifyAt(e.latlng);
   }
 });
 
@@ -1251,7 +1249,7 @@ function obsLabel(o){
     case 'wreck': return 'Épave' + (o.d != null ? ' ' + m(o.d) : '');
     case 'rock': return 'Roche' + (o.d != null ? ' ' + m(o.d) : '');
     case 'obstruction': return o.rep ? (o.n || '').split(' : ')[0].split(' /')[0] : 'Obstruction';
-    case 'marina': return o.rep ? (o.n || '').split(' : ')[0] : 'Port';
+    case 'marina': return o.rep ? (o.n || '').split(' : ')[0] : (o.n ? (o.n.length > 22 ? o.n.slice(0, 21) + '…' : o.n) : 'Port');
     case 'fuel': return 'Carburant'; case 'slipway': return 'Cale';
     case 'depth': return 'Sonde ' + (o.d != null ? m(o.d) : '?');
     default: return o.rep ? (o.n || '').split(' : ')[0] : (KIND[o.kind] || '!');
@@ -1266,7 +1264,7 @@ function drawObsInView(){
     if (!b.contains(o.p)) continue; if (++n > (labels ? 180 : 500)) return;
     const mk = labels
       ? L.marker(o.p, { icon:L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk${lowBridge(o) ? ' low' : ''}" style="--c:${KCOL[o.kind] || '#ccc'}">${esc(obsLabel(o))}</div>` }) })
-      : L.circleMarker(o.p, { radius:lowBridge(o) ? 8 : 6, color:'#fff', weight:1.5, fillColor:lowBridge(o) ? '#ef5350' : KCOL[o.kind], fillOpacity:.95 });
+      : L.circleMarker(o.p, { bubblingMouseEvents:false, radius:lowBridge(o) ? 8 : 6, color:'#fff', weight:1.5, fillColor:lowBridge(o) ? '#ef5350' : KCOL[o.kind], fillOpacity:.95 });
     mk.bindPopup(() => obsPopup(o)).addTo(obsLayer);
   }
 }
@@ -2789,6 +2787,78 @@ $('learnList').addEventListener('click', async e => {
   if (vd){ const id = vd.dataset.vdel; await idbSet('vid_' + id, null); if (vidUrls[id]){ URL.revokeObjectURL(vidUrls[id]); delete vidUrls[id]; } delete myVids[id]; store.set('myVids', myVids); renderLearn(); const d = document.querySelector(`details[data-id="${id}"]`); if (d) d.open = true; return; }
   const b = e.target.closest('[data-learn]'); if (!b) return; const id = b.dataset.learn; learned[id] = !learned[id]; store.set('learned', learned); const open = id; renderLearn(); const d = document.querySelector(`details[data-id="${open}"]`); if (d) d.open = true; });
 renderLearn();
+
+// ---------- TOUCHER LA CARTE : identifier une balise, un feu, un port ----------
+const SM = { buoy_lateral:'Bouée latérale', beacon_lateral:'Balise latérale', buoy_cardinal:'Bouée cardinale', beacon_cardinal:'Balise cardinale',
+  buoy_isolated_danger:'Bouée de danger isolé', beacon_isolated_danger:'Balise de danger isolé', buoy_safe_water:'Bouée d\'eaux saines', beacon_safe_water:'Balise d\'eaux saines',
+  buoy_special_purpose:'Bouée spéciale (jaune)', beacon_special_purpose:'Balise spéciale (jaune)', light_major:'Phare', light_minor:'Feu', light:'Feu', light_vessel:'Bateau-feu',
+  landmark:'Amer (repère visible de la mer)', harbour:'Port', small_craft_facility:'Équipement pour plaisanciers', mooring:'Corps-mort ou coffre d\'amarrage', anchorage:'Zone de mouillage',
+  anchor_berth:'Poste de mouillage', berth:'Poste à quai', wreck:'Épave', rock:'Roche', obstruction:'Obstruction', bridge:'Pont', lock_basin:'Écluse', gate:'Porte d\'écluse ou de barrage',
+  notice:'Panneau de navigation fluviale', distance_mark:'Borne kilométrique du fleuve', fairway:'Chenal', restricted_area:'Zone réglementée', cable_submarine:'Câble sous-marin',
+  pipeline_submarine:'Conduite sous-marine', pile:'Pieu', platform:'Plateforme', signal_station_traffic:'Station de signaux', radio_station:'Station radio', rescue_station:'Station de sauvetage',
+  fog_signal:'Signal de brume', topmark:'Voyant', daymark:'Marque de jour', dam:'Barrage', weir:'Seuil', bunker_station:'Station de carburant', waterway_gauge:'Échelle de niveau d\'eau' };
+const COLFR = { white:'blanc', red:'rouge', green:'vert', yellow:'jaune', blue:'bleu', orange:'orange', black:'noir', grey:'gris', brown:'marron', violet:'violet' };
+function lightTxt(t){
+  const g = k => t['seamark:light:' + k] ?? t['seamark:light:1:' + k];
+  const ch = g('character'); if (!ch) return '';
+  const CH = { F:'fixe', Fl:'à éclats', LFl:'à éclats longs', Q:'scintillant', VQ:'scintillant rapide', UQ:'scintillant ultra-rapide', Iso:'isophase', Oc:'à occultations', Mo:'morse', Al:'alternatif', FFl:'fixe et à éclats' };
+  const cols = String(g('colour') || '').split(';').filter(Boolean), grp = g('group'), per = g('period'), rng = g('range'), sectors = t['seamark:light:2:colour'];
+  const abbr = `${ch}${grp ? '(' + grp + ')' : ''} ${cols.map(c => ({ white:'W', red:'R', green:'G', yellow:'Y', blue:'Bu' })[c] || '').join('')} ${per ? per + 's' : ''}`.trim();
+  return `Feu ${CH[String(ch).replace(/\(.*$/, '')] || ch} ${cols.map(c => COLFR[c] || c).join(' et ')}${grp ? ', par groupes de ' + grp : ''}${per ? ', toutes les ' + per + ' s' : ''}${rng ? ', visible jusqu\'à ' + rng + ' milles' : ''}${sectors ? ' (feu à secteurs de couleur)' : ''} · <b>${esc(abbr)}</b>`;
+}
+function seamarkHtml(t){
+  const type = t['seamark:type'], name = t['seamark:name'] || t.name;
+  const k = x => t['seamark:' + type + ':' + x];
+  let title = SM[type] || (t.leisure === 'marina' ? 'Port de plaisance' : t.harbour ? 'Port' : 'Repère'), how = '';
+  const cat = k('category'), colour = String(k('colour') || '').split(';').filter(Boolean).map(c => COLFR[c] || c).join('-');
+  if (/lateral/.test(type)){
+    title += cat === 'port' ? ' bâbord' : cat === 'starboard' ? ' tribord' : /preferred_channel/.test(cat || '') ? ' de bifurcation' : '';
+    how = cat === 'port' ? 'En rentrant au port (ou en remontant le fleuve), laisse-la sur ta gauche.' : cat === 'starboard' ? 'En rentrant au port (ou en remontant le fleuve), laisse-la sur ta droite.' :
+      cat === 'preferred_channel_port' ? 'Bifurcation : le chenal principal la laisse sur ta droite en rentrant.' : cat === 'preferred_channel_starboard' ? 'Bifurcation : le chenal principal la laisse sur ta gauche en rentrant.' : '';
+  } else if (/cardinal/.test(type)){
+    const fr = { north:'nord', south:'sud', east:'est', west:'ouest' }[cat], pr = { north:'au nord', south:'au sud', east:'à l\'est', west:'à l\'ouest' }[cat]; if (fr){ title += ' ' + fr; how = `Le danger est de l'autre côté : passe ${pr} de cette marque.`; }
+  } else if (/isolated_danger/.test(type)) how = 'Un danger (roche, épave) se trouve juste dessous : passe à bonne distance.';
+  else if (/safe_water/.test(type)) how = 'L\'eau est navigable tout autour. Elle marque souvent l\'entrée ou l\'axe d\'un chenal.';
+  else if (/special_purpose/.test(type)) how = 'Zone particulière : baignade, chenal d\'accès, câble, travaux… Ralentis et renseigne-toi.';
+  else if (type === 'mooring') how = 'Bouée d\'amarrage (souvent privée ou payante).';
+  else if (type === 'notice'){ const NC = { no_entry:'Interdiction de passer', no_overtaking:'Interdiction de dépasser', no_anchoring:'Interdiction de mouiller', no_berthing:'Interdiction de stationner', no_wash:'Ne pas faire de vagues', speed_limit:'Vitesse limitée', limited_headroom:'Hauteur libre limitée', limited_depth:'Profondeur limitée', keep_to_port:'Tenir le côté bâbord', keep_to_starboard:'Tenir le côté tribord', proceed_to_port:'Se diriger vers bâbord', proceed_to_starboard:'Se diriger vers tribord', stop:'Arrêt obligatoire', make_radio_contact:'Contact radio obligatoire', danger:'Danger', water_skiing:'Ski nautique autorisé', no_motor_craft:'Bateaux à moteur interdits', mooring_permitted:'Stationnement autorisé', drinking_water:'Eau potable' };
+    const nc = k('category') || t['seamark:notice:1:category']; how = NC[nc] || (nc ? nc.replace(/_/g, ' ') : ''); const info = k('information') || t['seamark:notice:1:information']; if (info) how += ' : ' + info; }
+  else if (type === 'harbour' || type === 'small_craft_facility' || t.leisure === 'marina'){
+    const HC = { marina:'port de plaisance', marina_no_facilities:'port de plaisance sans services', fishing:'port de pêche', ferry_terminal:'gare maritime', container_terminal:'terminal conteneurs', yacht:'port de plaisance', harbour_of_refuge:'port de refuge', naval_base:'base navale' };
+    const SCF = { visitor_berth:'places visiteurs', fuel_station:'carburant', slipway:'cale de mise à l\'eau', water_tap:'eau', electrical_supply:'électricité', toilets:'toilettes', showers:'douches', chandler:'accastillage', boat_hoist:'grue / travel-lift', sailmaker:'voilerie', laundrette:'laverie', pump_out:'vidange des eaux usées', refuse_bin:'poubelles', visitors_mooring:'bouées visiteurs', boatyard:'chantier', slipway_:'cale' };
+    const hc = t['seamark:harbour:category'] || ''; const hcs = hc.split(';').filter(Boolean).map(x => HC[x] || x).filter(x => x.toLowerCase() !== title.toLowerCase()); if (hcs.length) title += ' · ' + hcs.join(', ');
+    const sc = String(t['seamark:small_craft_facility:category'] || '').split(';').filter(Boolean).map(x => SCF[x] || x.replace(/_/g, ' '));
+    const bits = [];
+    if (sc.length) bits.push('Services : ' + sc.join(', '));
+    if (t.capacity) bits.push(t.capacity + ' places');
+    const vhf = t.vhf || t['seamark:radio_station:channel'] || t['communication:vhf']; if (vhf) bits.push('VHF canal ' + vhf);
+    const ph = t.phone || t['contact:phone']; if (ph) bits.push('Tél. ' + ph);
+    if (t.fuel === 'yes' || t['fuel:diesel'] === 'yes' || t['fuel:octane_95'] === 'yes') bits.push('carburant');
+    if (t.opening_hours) bits.push('Horaires : ' + t.opening_hours);
+    how = bits.join(' · ');
+    const web = t.website || t['contact:website'];
+    if (web && /^https?:\/\//.test(web)) how += `<br><a href="${esc(web)}" target="_blank" rel="noopener">Site du port</a>`;
+    return `<b>${esc(name || 'Port (nom inconnu)')}</b><br>${esc(title)}${how ? '<br>' + how : ''}`;
+  }
+  const lt = lightTxt(t);
+  return `<b>${esc(title)}</b>${name ? '<br>' + esc(name) : ''}${colour ? '<br>Couleur : ' + esc(colour) : ''}${how ? '<br>' + esc(how) : ''}${lt ? '<br>' + lt : ''}`;
+}
+async function identifyAt(ll){
+  const p = [ll.lat, ll.lng], z = map.getZoom(), mpp = 156543.03*Math.cos(toRad(p[0]))/Math.pow(2, z), R = Math.max(12, Math.min(500, 24*mpp));
+  const base = `<span class="muted">${fmtPos(p)}${gps ? ` · ${fmtD(distNM(gps.p, p))} au ${pad3(bearing(gps.p, p))}° du bateau` : ''}</span>`;
+  const near = [].concat(iencPts, ignPts, shomPts, osmPts, repPts, offlineNear(p, 0.3)).map(o => ({ o, d:distNM(p, o.p)*1852 })).filter(x => x.d < R).sort((a, b) => a.d - b.d)[0];
+  const local = near ? obsPopup(near.o) + '<hr>' : '';
+  const pop = L.popup({ maxWidth:290 }).setLatLng(ll).setContent(local + base + (navigator.onLine ? '<br><span class="muted">Recherche de ce qu\'il y a ici…</span>' : '')).openOn(map);
+  if (!navigator.onLine) return;
+  const a = `(around:${Math.round(R)},${p[0].toFixed(6)},${p[1].toFixed(6)})`;
+  const j = await overpass(`[out:json][timeout:15];(nwr${a}["seamark:type"];nwr${a}["leisure"="marina"];nwr${a}["harbour"];);out center tags 25;`);
+  if (!pop.isOpen()) return;
+  const els = (j && j.elements || []).map(el => { const c = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null; return c ? { t:el.tags || {}, d:distNM(p, c)*1852, pt:el.type === 'node' } : null; })
+    .filter(Boolean).filter(x => !['fairway', 'restricted_area', 'cable_submarine', 'pipeline_submarine'].includes(x.t['seamark:type']) || x.d < R/2)
+    .sort((a, b) => (b.pt - a.pt) || (a.d - b.d));
+  const seen = new Set(), list = els.filter(x => { const key = (x.t['seamark:type'] || x.t.leisure || '') + (x.t['seamark:name'] || x.t.name || ''); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 3);
+  pop.setContent((list.length ? list.map(x => seamarkHtml(x.t)).join('<hr>') + '<hr>' : (local ? '' : '<span class="muted">Aucune balise, aucun feu ni port répertorié à cet endroit.</span><br>')) + local + base);
+}
 
 // ---------- démarrage ----------
 loadShom(false); loadIenc(); drawReports(); applyBal();
