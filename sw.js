@@ -1,5 +1,5 @@
 // Carte Marine : fonctionnement hors ligne (appli + cartes téléchargées)
-const SHELL = 'cm-shell-v28', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
+const SHELL = 'cm-shell-v29', LIB = 'cm-lib-v1', TILES = 'cm-tiles';
 const LIBS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
@@ -45,10 +45,21 @@ self.addEventListener('fetch', e => {
   if (new URL(url).origin === self.location.origin){ e.respondWith(networkFirst(req)); return; }
 });
 
+// Images de carte : on essaie d'abord une requête « CORS » (réponse lisible : on ne garde que les bonnes images,
+// et elle prend peu de place) ; si le serveur ne l'autorise pas, requête classique.
+const noCors = new Set();
 async function tile(req){
   const key = canon(req.url), c = await caches.open(TILES);
   const hit = await c.match(key);
   if (hit) return hit;
+  const host = new URL(req.url).host;
+  if (!noCors.has(host)){
+    try{
+      const r = await fetch(req.url, { mode:'cors', credentials:'omit' });
+      if (r.ok) c.put(key, r.clone()).catch(() => {});
+      return r;
+    }catch(err){ if (self.navigator.onLine !== false) noCors.add(host); }
+  }
   try{
     const r = await fetch(req);
     if (r.ok || r.type === 'opaque') c.put(key, r.clone()).catch(() => {});
@@ -61,8 +72,18 @@ async function cacheFirst(req, name){
   try{ const r = await fetch(req); if (r.ok || r.type === 'opaque') c.put(req.url, r.clone()).catch(() => {}); return r; }
   catch(err){ return new Response('', { status:504 }); }
 }
+// Fichiers de l'appli : réseau d'abord, mais pas plus de 4 s d'attente si le réseau est très faible (en mer).
 async function networkFirst(req){
   const c = await caches.open(SHELL);
-  try{ const r = await fetch(req); if (r.ok) c.put(req, r.clone()).catch(() => {}); return r; }
-  catch(err){ return (await c.match(req)) || (await c.match('./index.html')) || (await c.match('./')) || new Response('Hors ligne', { status:503 }); }
+  const net = fetch(req).then(r => { if (r.ok) c.put(req, r.clone()).catch(() => {}); return r; });
+  const hit = await c.match(req, { ignoreSearch:true });
+  if (hit){
+    const r = await Promise.race([net.catch(() => null), new Promise(res => setTimeout(() => res(null), 4000))]);
+    return r && r.ok ? r : hit;
+  }
+  try{ return await net; }
+  catch(err){
+    if (req.mode === 'navigate') return (await c.match('./index.html')) || (await c.match('./')) || new Response('Hors ligne', { status:503 });
+    return new Response('', { status:504, statusText:'hors ligne' });
+  }
 }

@@ -21,8 +21,8 @@
   --f-data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   color-scheme:dark;
 }
-body.night{ --fg:#ff6b5a; --muted:#b0453a; --accent:#ff6b5a; --ok:#ff6b5a; --warn:#ff8a5a; --bad:#ff3b2f; --panel:#140808; --panel2:#1e0c0c; --line:#3a1414; --bg:#0a0404 }
-body.night #map{ filter:brightness(.45) sepia(1) hue-rotate(-50deg) saturate(3) }
+body.night{ --fg:#ff6b5a; --muted:#b0453a; --accent:#ff6b5a; --ok:#ff6b5a; --warn:#ff8a5a; --bad:#ff3b2f; --panel:#140808; --panel2:#1e0c0c; --line:#3a1414; --bg:#0a0404; --sea:#4a1010 }
+body.night #map{ filter:brightness(.3) sepia(1) hue-rotate(-50deg) saturate(3) }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;touch-action:pan-x pan-y;overscroll-behavior:none;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent}
@@ -44,7 +44,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #posLine{grid-column:1/-1;font-family:var(--f-data);font-size:11px;color:var(--muted);text-align:center}
 
 /* Boutons flottants */
-#fab{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 96px);z-index:1000;display:flex;flex-direction:column;gap:8px}
+#fab{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 96px);z-index:1001;display:flex;flex-direction:column;flex-wrap:wrap-reverse;align-content:flex-start;gap:8px;max-height:calc(100vh - 160px)}
 .fab{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;font-size:18px}
 .fab.active{background:var(--accent);color:#1a1200}
 #fab .zoomb{width:52px;height:52px;font-size:30px;font-weight:600;line-height:1;background:var(--panel2)}
@@ -60,6 +60,13 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);
   border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,0px);display:flex;flex-direction:column;max-height:58%}
 #sheet.collapsed .body{display:none}
+/* Grand écran (Mac, tablette à l'horizontale) : le tiroir devient un panneau à gauche */
+@media (min-width:900px) and (min-height:500px){
+  #sheet{right:auto;width:440px;top:calc(env(safe-area-inset-top,0px) + 100px);max-height:none;border-radius:0 14px 0 0;border-right:1px solid var(--line)}
+  #sheet.collapsed{top:auto}
+  #sheet .body{flex:1}
+  body.nav #sheet{display:none}
+}
 .tabs{display:flex;flex-shrink:0;gap:2px;padding:6px 8px 0;overflow-x:auto;scrollbar-width:none}
 .tab{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;font-family:var(--f-display);font-weight:600;
   letter-spacing:.08em;text-transform:uppercase;font-size:14px;color:var(--muted)}
@@ -103,10 +110,11 @@ details.lesson .row{padding-bottom:12px}
 h3{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
 .muted{color:var(--muted);font-size:13px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fld{white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-weight:600;font-size:14px}
 .btn.primary{background:var(--accent);color:#1a1200;border-color:transparent}
 .btn.danger{background:var(--bad);color:#fff;border-color:transparent}
-input[type=number]{width:72px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;font-family:var(--f-data)}
+input[type=number]{width:64px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;font-family:var(--f-data)}
 label.chk{display:flex;gap:10px;align-items:center;padding:6px 0}
 label.chk input{width:20px;height:20px;accent-color:var(--accent)}
 
@@ -178,7 +186,7 @@ select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);bor
 .nb .k{font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .nb .v{font-family:var(--f-data);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 body.nav #alertBar{top:calc(env(safe-area-inset-top,0px) + 250px)}
-body.nav #toolHint{display:none}
+body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 .leaflet-popup-content{font-size:13px;margin:10px 12px}
 .wind-ico{display:flex;flex-direction:column;align-items:center;font-family:var(--f-data);font-size:11px;font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
 .boat-ico svg{filter:drop-shadow(0 0 3px #000)}
@@ -203,11 +211,11 @@ body.nav #toolHint{display:none}
   <button class="fab zoomb" id="zIn" title="Zoomer">+</button>
   <button class="fab zoomb" id="zOut" title="Dézoomer">−</button>
   <button class="fab" id="mobBtn" title="Homme à la mer">MOB</button>
+  <button class="fab" id="homeFab" title="Rentrer au port" style="font-weight:700">⌂</button>
   <button class="fab" id="followBtn" title="Suivre le bateau">◎</button>
-  <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
   <button class="fab" id="repFab" title="Signaler">⚑</button>
   <button class="fab" id="searchFab" title="Rechercher un lieu">⌕</button>
-  <button class="fab" id="homeFab" title="Rentrer au port" style="font-weight:700">⌂</button>
+  <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
 </div>
 <div id="toolHint" hidden></div>
 <div id="homePanel" hidden>
@@ -249,7 +257,7 @@ body.nav #toolHint{display:none}
         <button class="btn primary" id="wxHere">Météo ici (bateau / centre)</button>
         <button class="btn" id="wxTap">Touche un point</button>
       </div>
-      <div class="row muted">Mon bateau supporte : vent <input type="number" id="thW" min="5" step="1"> nd · rafales <input type="number" id="thG" min="5" step="1"> nd · vagues <input type="number" id="thH" min="0.2" step="0.1"> m</div>
+      <div class="row muted">Mon bateau supporte : <span class="fld">vent <input type="number" id="thW" min="5" step="1"> nd</span> <span class="fld">rafales <input type="number" id="thG" min="5" step="1"> nd</span> <span class="fld">vagues <input type="number" id="thH" min="0.2" step="0.1"> m</span></div>
       <div class="row muted" style="gap:10px"><span>Vent et vagues sur la carte :</span><input type="range" id="wxHour" min="0" max="47" value="0" style="flex:1;min-width:140px"><b id="wxHourTxt">maintenant</b></div>
       <div id="wxOut" class="pane"><div class="muted">Chargement de la météo marine…</div></div>
     </div>
@@ -264,12 +272,12 @@ body.nav #toolHint{display:none}
         <button class="btn" id="routeClear">Effacer</button>
       </div>
       <div class="row muted">
-        Vitesse <input type="number" id="spd" value="15" min="1" step="1"> nd
-        Conso <input type="number" id="conso" value="20" min="0" step="1"> L/h
-        Carburant à bord <input type="number" id="fuelOn" min="0" step="5" placeholder="L"> L
+        <span class="fld">Vitesse <input type="number" id="spd" value="15" min="1" step="1"> nd</span>
+        <span class="fld">Conso <input type="number" id="conso" value="20" min="0" step="1"> L/h</span>
+        <span class="fld">Carburant à bord <input type="number" id="fuelOn" min="0" step="5" placeholder="?"> L</span>
       </div>
       <h3>Bilan avant de partir</h3>
-      <div class="row muted">Départ <input type="datetime-local" id="brDep" style="background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px"> durée <input type="number" id="brDur" value="3" min="0.5" step="0.5"> h</div>
+      <div class="row muted"><span class="fld">Départ <input type="datetime-local" id="brDep" style="background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;max-width:210px"></span> <span class="fld">durée <input type="number" id="brDur" value="3" min="0.5" step="0.5"> h</span></div>
       <div class="row"><button class="btn primary" id="brGo">Vérifier ma sortie</button></div>
       <div id="brief" class="pane"><div class="muted">Trace ta route (même approximative), indique l'heure de départ et la durée, puis vérifie : météo, coucher du soleil, marées, niveau du fleuve, ponts, fonds, dangers, carburant et zone hors ligne.</div></div>
       <h3>Port d'attache</h3>
@@ -304,10 +312,10 @@ body.nav #toolHint{display:none}
     <!-- OBSTACLES -->
     <div class="pane" id="p-obst" hidden>
       <h3>Mon bateau</h3>
-      <div class="row muted">Tirant d'eau <input type="number" id="draft" value="0.7" min="0.1" step="0.1"> m
-        marge <input type="number" id="margin" value="1" min="0" step="0.5"> m
-        rayon <input type="number" id="obsR" value="2" min="0.5" step="0.5"> NM
-        hauteur hors d'eau <input type="number" id="air" value="2" min="0.5" step="0.1"> m</div>
+      <div class="row muted"><span class="fld">Tirant d'eau <input type="number" id="draft" value="0.7" min="0.1" step="0.1"> m</span>
+        <span class="fld">marge <input type="number" id="margin" value="1" min="0" step="0.5"> m</span>
+        <span class="fld">rayon <input type="number" id="obsR" value="2" min="0.5" step="0.5"> milles</span>
+        <span class="fld">hauteur hors d'eau <input type="number" id="air" value="2" min="0.5" step="0.1"> m</span></div>
       <div class="muted">Alerte « fond faible » si la sonde estimée devant le bateau passe sous tirant d'eau + marge. L'alerte obstacle utilise la distance réglée dans Sécurité.</div>
       <div class="row"><button class="btn primary" id="obsRefresh">Actualiser autour de moi</button></div>
       <div id="obsOut" class="pane"></div>
@@ -316,7 +324,7 @@ body.nav #toolHint{display:none}
       <div class="muted">1. SHOM : épaves et obstructions officielles (France, licence CC BY-SA 4.0)<br>
         2. OpenStreetMap / OpenSeaMap : roches, épaves, obstructions, écluses, barrages, ponts, ports et carburant<br>
         3. IGN (BD TOPO) : ponts, écluses et barrages officiels, trait de côte, cours d'eau<br>
-        4. Profondeur : tes relevés, puis cartes IENC officielles, puis grille EMODnet téléchargée (≈ 115 m, Europe), puis GEBCO (monde). Marée non incluse.</div>
+        4. Profondeur : tes relevés, puis cartes IENC officielles, puis grille EMODnet téléchargée (≈ 115 m, Europe), puis GEBCO (monde). La hauteur de marée du moment est ajoutée à la sonde près des côtes.</div>
       <div id="shomStatus" class="muted"></div>
       <div id="shomManual" hidden>
         <div class="row">
@@ -446,6 +454,7 @@ function needLib(name){
 }
 // ---------- utilitaires ----------
 const $ = id => document.getElementById(id);
+const errFr = e => { const m = String((e && e.message) || e || ''); return /fetch|network|load failed|networkerror/i.test(m) || !m ? 'pas de réseau' : m; };
 const store = {
   get(k, d){ try{ const v = localStorage.getItem('cm_'+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem('cm_'+k, JSON.stringify(v)); }catch(e){} }
@@ -570,7 +579,7 @@ const OVERLAYS = {
   shomDst: { name:'Rails de navigation des cargos SHOM', on:false, layer: shomT('DST_PYR_PNG_3857_WMTS', { maxNativeZoom:15 }) },
   shomCur: { name:'Courants de marée, vitesses max SHOM', on:false, layer: shomT('COURANTS2D_WMTS_VMAX_3857', { opacity:.6, maxNativeZoom:13, minZoom:4 }) }
 };
-let baseKey = store.get('base', 'ocean');
+let baseKey = store.get('base', 'ocean'); if (!BASES[baseKey]) baseKey = 'ocean';
 const ovState = store.get('ov', {});
 BASES[baseKey].layer.addTo(map);
 const BAL_KEYS = ['seamark', 'shomBal'];
@@ -670,6 +679,7 @@ $('gpsBtn').addEventListener('click', () => {
     $('posLine').textContent = err.code === 1
       ? 'Accès à la position refusé. Autorise la localisation pour ce site dans les réglages du navigateur.'
       : 'Signal GPS indisponible pour le moment.';
+    if (err.code === 1){ try{ navigator.geolocation.clearWatch(watchId); }catch(e){} watchId = null; $('gpsBtn').classList.remove('on'); $('gpsBtn').textContent = 'GPS'; }
   }, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
   $('gpsBtn').classList.add('on'); $('gpsBtn').textContent = 'GPS ON'; keepAwake();
 });
@@ -700,14 +710,18 @@ map.on('dragstart', () => { follow = false; $('followBtn').classList.remove('act
 
 // mode nuit
 if (store.get('night', false)) document.body.classList.add('night');
+// Boutons flottants : jamais cachés sous le tiroir (2e colonne si l'écran est petit)
+function fabFit(){ const sh = $('sheet'), fb = $('fab'); if (!sh || !fb) return; const r = sh.getBoundingClientRect(), side = r.right < fb.getBoundingClientRect().left, top = sh.hidden || getComputedStyle(sh).display === 'none' || side ? innerHeight - 30 : r.top; fb.style.maxHeight = Math.max(110, top - fb.getBoundingClientRect().top - 8) + 'px'; }
+if (window.ResizeObserver) new ResizeObserver(fabFit).observe($('sheet'));
+addEventListener('resize', fabFit); setTimeout(fabFit, 300);
 $('nightBtn').addEventListener('click', () => store.set('night', document.body.classList.toggle('night')));
 
 // ---------- MÉTÉO ----------
 const W_HOURLY = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,visibility,pressure_msl,precipitation,temperature_2m,cape';
 const M_HOURLY = 'wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,sea_surface_temperature,sea_level_height_msl,invert_barometer_height,ocean_current_velocity,ocean_current_direction';
-let wxBusy = false;
+let wxBusy = false, wxNext = null;
 async function loadWeather(p, label){
-  if (wxBusy) return; wxBusy = true;
+  if (wxBusy){ wxNext = [p, label]; return; } wxBusy = true;
   $('wxOut').innerHTML = `<div class="muted">Chargement de la météo pour ${label}…</div>`;
   const q = `latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}&timezone=auto&timeformat=unixtime&forecast_days=7`;
   try{
@@ -726,8 +740,8 @@ async function loadWeather(p, label){
       await tideDbReady(c.p); await thAutoPrep(c.p).catch(() => {});
       renderWeather(c.p, c.label, c.w, c.m);
       $('wxOut').insertAdjacentHTML('afterbegin', `<div class="verdict v1"><div><b>Hors ligne</b><div>Prévisions téléchargées le ${new Date(c.t).toLocaleString('fr-FR', { weekday:'short', hour:'2-digit', minute:'2-digit' })} pour ${esc(c.label)}. Elles vieillissent : sois prudent.</div></div></div>`);
-    } else $('wxOut').innerHTML = `<div class="verdict v1"><div>Météo indisponible (${e.message}). Au large le réseau se perd souvent : ouvre l'appli avant de partir pour garder les prévisions sur 7 jours.</div></div>`;
-  }finally{ wxBusy = false; }
+    } else $('wxOut').innerHTML = `<div class="verdict v1"><div>Météo indisponible (${esc(errFr(e))}). Au large le réseau se perd souvent : ouvre l'appli avant de partir pour garder les prévisions sur 7 jours.</div></div>`;
+  }finally{ wxBusy = false; if (wxNext){ const a = wxNext; wxNext = null; loadWeather(a[0], a[1]); } }
 }
 
 function renderWeather(p, label, w, m){
@@ -777,8 +791,8 @@ function renderWeather(p, label, w, m){
   tideIB = m && M.invert_barometer_height && M.invert_barometer_height.some(v => v != null) ? { T:M.time, V:M.invert_barometer_height } : null; tideObs = null;
   if (hasModel || stT){ const ts = tideSeries(hasModel ? M : null, p, stT); lastTide = Object.assign({ p, raw:hasModel ? tideSeries(M) : null }, ts);
     html += `<h3>Marée</h3><div id="tideBox">${tideNow(ts.T, ts.L, ts.cal)}${tideTable(ts.T, ts.L, ts.q, ts.cal, p)}${surgeTxt(ts.cal)}</div>`;
-    if (ts.cal && ts.cal.auto){ const sr = thSeries(ts.cal.st, Math.floor(now/3600)*3600, Math.floor(now/3600)*3600 + 48*3600, 3600); html += tideChart(sr.map(x => x[0]), sr.map(x => x[1]), 0, true); }
-    else if (ts.cal && ts.cal.autoM){ const sr = ts.T.map((t, i) => [t, ts.L[i]]).filter((x, i) => x[0] >= now - 900 && i % 4 === 0).slice(0, 49); html += tideChart(sr.map(x => x[0]), sr.map(x => x[1]), 0, true); }
+    if (ts.cal && ts.cal.auto){ const sr = thSeries(ts.cal.st, Math.floor(now/900)*900, Math.floor(now/900)*900 + 48*3600, 900); html += tideChart(sr.map(x => x[0]), sr.map(x => x[1]), 0, true); }
+    else if (ts.cal && ts.cal.autoM){ const sr = ts.T.map((t, i) => [t, ts.L[i]]).filter(x => x[0] >= now - 900 && x[0] <= now + 48*3600 + 900); html += tideChart(sr.map(x => x[0]), sr.map(x => x[1]), 0, true); }
     else if (!ts.cal) html += tideChart(H.time, M.sea_level_height_msl, i0);
     html += tideCalUI(ts.cal); }
   else html += '<div id="tideBox"></div>';
@@ -811,27 +825,28 @@ function pressTrend(a, i){
   return 'stable';
 }
 function tideChart(T, L0, i0, harm){
-  const n = Math.min(48, T.length - i0), xs = [], ys = [];
-  for (let i = 0; i < n; i++){ const v = L0[i0+i]; if (v != null){ xs.push(i); ys.push(v); } }
+  const tEnd = T[i0] + 48*3600, xs = [], ys = [], ts = [];
+  for (let i = i0; i < T.length && T[i] <= tEnd + 1; i++){ const v = L0[i]; if (v != null){ xs.push(i); ys.push(v); ts.push(T[i]); } }
   if (ys.length < 6) return '<div class="muted">Pas de donnée de marée ici.</div>';
-  const W = 340, Hh = 110, pl = 30, pr = 8, pt = 14, pb = 18;
+  const W = 340, Hh = 124, pl = 30, pr = 8, pt = 18, pb = 32, t0 = ts[0], span = (ts[ts.length-1] - t0) || 1;
   const mn = Math.min(...ys), mx = Math.max(...ys), sp = (mx - mn) || 1;
-  const X = i => pl + i/(n-1)*(W-pl-pr), Y = v => pt + (mx - v)/sp*(Hh-pt-pb);
-  let d = ''; xs.forEach((x, k) => d += (k ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Y(ys[k]).toFixed(1));
-  let marks = '';
+  const X = t => pl + (t - t0)/span*(W-pl-pr), Y = v => pt + (mx - v)/sp*(Hh-pt-pb);
+  let d = ''; ts.forEach((t, k) => d += (k ? 'L' : 'M') + X(t).toFixed(1) + ' ' + Y(ys[k]).toFixed(1));
+  let marks = '', lastX = -99;
   for (let k = 1; k < ys.length-1; k++){
-    const hi = ys[k] > ys[k-1] && ys[k] >= ys[k+1], lo = ys[k] < ys[k-1] && ys[k] <= ys[k+1];
-    if (hi || lo){
-      const x = X(xs[k]), y = Y(ys[k]);
-      marks += `<circle cx="${x}" cy="${y}" r="3" fill="var(--accent)"/><text x="${x}" y="${hi ? y-5 : y+12}" text-anchor="middle">${hi ? 'PM' : 'BM'} ${hhmm(T[i0+xs[k]])}</text>`;
-    }
+    const a = ys[k-1], b = ys[k], c = ys[k+1], hi = b > a && b >= c, lo = b < a && b <= c;
+    if (!hi && !lo) continue;
+    const den = a - 2*b + c, off = den ? Math.max(-1, Math.min(1, 0.5*(a - c)/den)) : 0, te = ts[k] + off*(ts[k+1] - ts[k]), x = X(te), y = Y(b);
+    if (x - lastX < 34) continue; lastX = x;
+    const anc = x < pl + 24 ? 'start' : x > W - pr - 24 ? 'end' : 'middle';
+    marks += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--accent)"/><text x="${x.toFixed(1)}" y="${hi ? y-6 : y+13}" text-anchor="${anc}">${hi ? 'PM' : 'BM'} ${hhmm(te)}</text>`;
   }
   return `<div class="tblWrap" style="border:0"><svg viewBox="0 0 ${W} ${Hh}" width="100%" style="max-width:520px;display:block">
     <line x1="${pl}" x2="${W-pr}" y1="${Y(mx)}" y2="${Y(mx)}" stroke="var(--line)"/><line x1="${pl}" x2="${W-pr}" y1="${Y(mn)}" y2="${Y(mn)}" stroke="var(--line)"/>
     <text x="${pl-4}" y="${Y(mx)+3}" text-anchor="end">${n1(mx)}</text><text x="${pl-4}" y="${Y(mn)+3}" text-anchor="end">${n1(mn)}</text>
-    <path d="${d} L${X(xs[xs.length-1])} ${Hh-pb} L${X(xs[0])} ${Hh-pb} Z" fill="var(--sea)" opacity=".35"/>
+    <path d="${d} L${X(ts[ts.length-1])} ${Hh-pb} L${X(t0)} ${Hh-pb} Z" fill="var(--sea)" opacity=".35"/>
     <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>${marks}
-    <text x="${pl}" y="${Hh-4}">maintenant</text><text x="${W-pr}" y="${Hh-4}" text-anchor="end">+48 h (m)</text></svg></div>
+    <text x="${pl}" y="${Hh-3}">maintenant</text><text x="${W-pr}" y="${Hh-3}" text-anchor="end">+48 h (m)</text></svg></div>
     <div class="muted">PM = pleine mer, BM = basse mer. ${harm ? 'Hauteurs au-dessus du zéro des cartes, calculées comme l\'annuaire (constantes harmoniques du marégraphe).' : 'Valeurs de modèle, approximatives près des côtes : vérifie l\'annuaire des marées du SHOM pour un passage à faible profondeur.'}</div>`;
 }
 $('wxHere').addEventListener('click', () => {
@@ -959,10 +974,10 @@ function drawReports(){
   repPts.forEach(o => {
     if (o.dg) L.circle(o.p, { radius:rM, color:'#ef5350', weight:1, fillOpacity:.08, interactive:false }).addTo(repLayer);
     L.marker(o.p, { icon:L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk rep${lowBridge(o) ? ' low' : ''}" style="--c:${KCOL[o.kind] || '#ef5350'}">${esc(obsLabel(o))}</div>` }) })
-      .bindPopup(() => obsPopup(o) + `<br><button class="btn danger" data-rdel="${o.rid}" style="margin-top:6px">Supprimer</button>`).addTo(repLayer);
+      .bindPopup(() => obsPopup(o) + `<br><button class="btn danger" data-rdel="${esc(o.rid)}" style="margin-top:6px">Supprimer</button>`).addTo(repLayer);
   });
   const list = repPts.slice().reverse();
-  $('dangerOut').innerHTML = list.length ? `<div class="replist">${list.slice(0, 30).map(o => `<div class="reprow"><span class="dot" style="background:${KCOL[o.kind] || '#ef5350'}"></span><span>${esc(o.n)}<small>${o.d != null ? 'sonde ' + n1(o.d) + ' m · ' : ''}${o.h != null ? 'hauteur ' + n1(o.h) + ' m · ' : ''}${o.x}</small></span><button class="btn" data-rgo="${o.rid}">Voir</button></div>`).join('')}</div>`
+  $('dangerOut').innerHTML = list.length ? `<div class="replist">${list.slice(0, 30).map(o => `<div class="reprow"><span class="dot" style="background:${KCOL[o.kind] || '#ef5350'}"></span><span>${esc(o.n)}<small>${o.d != null ? 'sonde ' + n1(o.d) + ' m · ' : ''}${o.h != null ? 'hauteur ' + n1(o.h) + ' m · ' : ''}${o.x}</small></span><button class="btn" data-rgo="${esc(o.rid)}">Voir</button></div>`).join('')}</div>`
     : '<div class="muted">Aucun signalement pour le moment.</div>';
 }
 $('dangerOut').addEventListener('click', e => { const b = e.target.closest('[data-rgo]'); if (!b) return; const o = repPts.find(x => x.rid === b.dataset.rgo); if (o){ map.setView(o.p, 16); $('sheet').classList.add('collapsed'); $('toggleSheet').textContent = '▴'; } });
@@ -983,7 +998,7 @@ $('repImport').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   try{
     const j = JSON.parse(await f.text()), list = Array.isArray(j) ? j : j.reports || [];
-    let n = 0; list.forEach(r => { if (r && r.id && Array.isArray(r.p) && RTYPES[r.t] && !reports.some(x => x.id === r.id)){ reports.push({ id:String(r.id), t:r.t, p:[+r.p[0], +r.p[1]], v:r.v == null ? null : +r.v, note:String(r.note || '').slice(0, 120), d:+r.d || Date.now() }); n++; } });
+    let n = 0; list.forEach(r => { if (r && r.id && /^[\w-]{1,40}$/.test(String(r.id)) && Array.isArray(r.p) && isFinite(+r.p[0]) && isFinite(+r.p[1]) && Math.abs(+r.p[0]) <= 90 && Math.abs(+r.p[1]) <= 180 && RTYPES[r.t] && !reports.some(x => x.id === r.id)){ reports.push({ id:String(r.id), t:r.t, p:[+r.p[0], +r.p[1]], v:r.v == null ? null : +r.v, note:String(r.note || '').slice(0, 120), d:+r.d || Date.now() }); n++; } });
     saveReports(); drawReports(); hint(n + ' signalement(s) ajouté(s).', 4000);
   }catch(err){ hint('Fichier illisible : ce n\'est pas un export de signalements.', 5000); }
   e.target.value = '';
@@ -1126,7 +1141,7 @@ async function loadShom(force){
   try{
     const r = await fetch(SHOM_URL); if (!r.ok) throw new Error('HTTP ' + r.status);
     await importZip(await r.arrayBuffer());
-  }catch(e){ setShomStatus('Base SHOM pas encore téléchargée (' + e.message + '). Elle se téléchargera automatiquement à la prochaine connexion.'); $('shomManual').hidden = false; }
+  }catch(e){ setShomStatus('Base SHOM pas encore téléchargée (' + esc(errFr(e)) + '). Elle se téléchargera automatiquement à la prochaine connexion.'); $('shomManual').hidden = false; }
 }
 $('shomReload').addEventListener('click', () => loadShom(true));
 $('shomFile').addEventListener('change', async e => {
@@ -1166,7 +1181,7 @@ function osmQueries(sel, bb){
 function osmParse(j, jb, ref){
   ref = ref || ignPts;
   const out = [];
-  const els = (j ? j.elements : []).concat((jb ? jb.elements : []).map(e => Object.assign({ _br:true }, e)));
+  const els = ((j && j.elements) || []).concat(((jb && jb.elements) || []).map(e => Object.assign({ _br:true }, e)));
   els.forEach(el => {
     const t = el.tags || {}, kind = el._br ? 'bridge' : osmKind(t);
     const p = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null;
@@ -1252,10 +1267,13 @@ $('obsOut').addEventListener('click', e => {
 async function refreshObstacles(c, label){
   if (obsBusy) return; obsBusy = true; obsCenter = c; obsT = Date.now();
   $('obsOut').innerHTML = `<div class="muted">Recherche autour de ${label}…</div>`;
-  const ok = await loadOsm(c, cfg.r);
-  obsNear = nearby(c, cfg.r); renderObs(label);
-  if (!ok) $('obsOut').insertAdjacentHTML('beforeend', '<div class="muted">Données OpenStreetMap indisponibles pour le moment (réseau). Seule la base SHOM est utilisée.</div>');
-  obsBusy = false; drawObsInView(); checkDangers();
+  try{
+    const ok = await loadOsm(c, cfg.r);
+    obsNear = nearby(c, cfg.r); renderObs(label);
+    if (!ok) $('obsOut').insertAdjacentHTML('beforeend', '<div class="muted">Données OpenStreetMap indisponibles pour le moment (réseau). Seule la base SHOM est utilisée.</div>');
+  }catch(e){ $('obsOut').insertAdjacentHTML('beforeend', '<div class="muted">Recherche interrompue, réessaie dans un instant.</div>'); }
+  finally{ obsBusy = false; }
+  drawObsInView(); checkDangers();
 }
 function autoObs(){
   if (!gps || obsBusy) return;
@@ -1310,16 +1328,17 @@ map.on('moveend', () => {
 
 // --- profondeur (EMODnet) et alerte fond faible
 const depthCache = new Map();
-async function depthAt(p){
+async function depthAt(p, t){
+  const th = () => tideHeightAt(p, t || Date.now()/1000) || 0;
   const dr = repDepth(p); if (dr != null) return dr;
   const di = iencDepth(p); if (di != null) return di;
-  const dg = gridDepth(p); if (dg !== undefined) return dg == null ? dg : dg + (tideHeightAt(p, Date.now()/1000) || 0);
+  const dg = gridDepth(p); if (dg !== undefined) return dg == null ? dg : dg + th();
   const key = p[0].toFixed(4) + ',' + p[1].toFixed(4);
-  if (depthCache.has(key)) return depthCache.get(key);
+  if (depthCache.has(key)){ const v = depthCache.get(key); return v == null ? v : v + th(); }
   let d = null;
   try{
     const j = await fetch(`https://rest.emodnet-bathymetry.eu/depth_sample?geom=POINT(${p[1].toFixed(5)}%20${p[0].toFixed(5)})`).then(r => r.json());
-    if (typeof j.avg === 'number') d = -j.avg + (tideHeightAt(p, Date.now()/1000) || 0);
+    if (typeof j.avg === 'number') d = -j.avg;
   }catch(e){}
   if (d == null){
     try{
@@ -1336,7 +1355,7 @@ async function depthAt(p){
     }catch(e){}
   }
   if (depthCache.size > 300) depthCache.clear();
-  depthCache.set(key, d); return d;
+  depthCache.set(key, d); return d == null ? d : d + th();
 }
 // --- grilles de profondeur EMODnet téléchargées (≈ 115 m, fonctionnent sans réseau)
 let autoGrid = null, gridBusy = false;
@@ -1382,15 +1401,16 @@ async function fetchGrid(S, W, N, E){
   const nd = img.getGDALNoData ? img.getGDALNoData() : null;
   return { b:[bb[1], bb[0], bb[3], bb[2]], w:img.getWidth(), h:img.getHeight(), data:Float32Array.from(ras), nd };
 }
+let gridFailT = 0;
 async function ensureAutoGrid(p){
-  if (gridBusy || !navigator.onLine) return;
+  if (gridBusy || !navigator.onLine || Date.now() - gridFailT < 120000) return;
   if (autoGrid && p[0] > autoGrid.b[0]+0.01 && p[0] < autoGrid.b[2]-0.01 && p[1] > autoGrid.b[1]+0.015 && p[1] < autoGrid.b[3]-0.015) return;
   gridBusy = true;
   try{
     const dLon = 0.06/Math.cos(toRad(p[0]));
     const g = await fetchGrid(p[0]-0.06, p[1]-dLon, p[0]+0.06, p[1]+dLon);
-    if (g){ autoGrid = g; idbSet('autogrid', g); depthCache.clear(); }
-  }catch(e){}
+    if (g){ autoGrid = g; idbSet('autogrid', g); depthCache.clear(); } else gridFailT = Date.now();
+  }catch(e){ gridFailT = Date.now(); }
   gridBusy = false;
 }
 idbGet('autogrid').then(g => { if (g && g.data && !autoGrid) autoGrid = g; });
@@ -1744,8 +1764,12 @@ $('lnkIencCnr').addEventListener('click', () => window.open('https://www.inforho
 async function loadIenc(){ const c = await idbGet('ienc'); if (c && c.cells) iencCells = c.cells; rebuildIenc(); }
 
 // ---------- FLEUVES (Hub'Eau : stations hydrométriques) ----------
-let riverBusy = false, riverCenter = null;
-async function loadRiver(c, label){
+let riverBusy = false, riverCenter = null, riverP = null;
+function loadRiver(c, label){
+  if (riverBusy && riverP) return riverP;
+  return riverP = loadRiver0(c, label).finally(() => { riverP = null; });
+}
+async function loadRiver0(c, label){
   if (riverBusy) return; riverBusy = true; riverCenter = c;
   $('riverOut').innerHTML = `<div class="muted">Recherche des stations près de ${label}…</div>`;
   try{
@@ -1780,7 +1804,7 @@ async function loadRiver(c, label){
       `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${cells}</div>
        <div class="muted">La hauteur est lue à l'échelle de la station, ce n'est pas la profondeur sous ta coque. Un débit fort veut dire un courant fort : barrages et piles de ponts deviennent plus dangereux. Source : Hub'Eau (eaufrance.fr).</div>`;
   }catch(e){
-    $('riverOut').innerHTML = `<div class="verdict v1"><div>Stations indisponibles pour le moment (${esc(e.message || 'réseau')}). Consulte Vigicrues.</div></div>`;
+    $('riverOut').innerHTML = `<div class="verdict v1"><div>Stations indisponibles pour le moment (${esc(errFr(e))}). Consulte Vigicrues.</div></div>`;
   }
   riverBusy = false;
 }
@@ -2189,6 +2213,9 @@ $('anchOff').addEventListener('click', () => { anchor = null; store.set('anchor'
 $('anchR').addEventListener('change', () => { if (anchor){ anchor.r = Math.max(10, +$('anchR').value || 40); store.set('anchor', anchor); drawAnchor(); } });
 if (anchor) $('anchR').value = anchor.r;
 drawAnchor();
+// Le son ne peut démarrer qu'après un toucher : on le prépare au premier contact avec l'écran.
+document.addEventListener('pointerdown', () => { try{ actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume && actx.resume(); }catch(e){} }, { once:true, capture:true });
+if (anchor) setTimeout(() => { if (!watchId) $('gpsBtn').click(); hint('Alarme de mouillage en cours : touche l\'écran une fois pour réactiver le son.', 9000); }, 1500);
 
 // ---------- SORTIES : enregistrement, statistiques, tracé ----------
 let trips = [], trip = store.get('tripLive', null), tripCand = null, tripView = L.layerGroup().addTo(map), lastTripSave = 0;
@@ -2337,7 +2364,7 @@ function coefAt(t){
 function tideSeries(M, p, st){
   const cal = p && tideCalNear(p);
   const harm = () => { const t0 = Math.floor(Date.now()/900000)*900 - 12*3600, sr = thSeries(st, t0, t0 + 8*86400, 900); return { T:sr.map(x => x[0]), L:sr.map(x => x[1]), q:15, cal:{ auto:true, st, name:st.name } }; };
-  if (st && st.d < 3) return harm();
+  if (st && st.d < 3 && !(cal && M)) return harm();
   if (!M){ return st ? harm() : { T:[], L:[], q:60 }; }
   const q = M._m15;
   const base = (q && q.sea_level_height_msl && q.sea_level_height_msl.filter(v => v != null).length > 48) ? { T:q.time, L:smooth(q.sea_level_height_msl), q:15 } : { T:M.time, L:M.sea_level_height_msl, q:60 };
@@ -2391,8 +2418,8 @@ document.addEventListener('click', e => {
   if (e.target && e.target.id === 'tcDel' && lastTide){ store.set('tideCal', tideCals().filter(c => distNM(c.p, lastTide.p) > 8)); $('wxHere').click(); }
 });
 function tideHeightAt(p, t){
-  const st = thAt(p), lt = lastTide && lastTide.cal && distNM(p, lastTide.p) < 4 && (lastTide.cal.autoM || !lastTide.cal.auto);
-  if (st && st.fr !== 'M' && (st.d < 3 || !lt)){ const v = thLevel(st, t); return v == null ? null : Math.max(0, v + Math.min(0, surgeAt(t))); }
+  const st = thAt(p), lt = lastTide && lastTide.cal && distNM(p, lastTide.p) < 8 && (lastTide.cal.autoM || !lastTide.cal.auto) && (lastTide.cal.autoM ? distNM(p, lastTide.p) < 4 : !!tideCalNear(p));
+  if (st && st.fr !== 'M' && !lt){ const v = thLevel(st, t); return v == null ? null : Math.max(0, v + Math.min(0, surgeAt(t))); }
   if (!lastTide || !lastTide.cal || distNM(p, lastTide.p) > 8) return null;
   const T = lastTide.T, L = lastTide.L;
   for (let i = 0; i < T.length-1; i++) if (t >= T[i] && t <= T[i+1] && L[i] != null && L[i+1] != null) return L[i] + (L[i+1] - L[i])*(t - T[i])/(T[i+1] - T[i]);
@@ -2677,9 +2704,12 @@ async function briefing(){
     const samples = []; let total = 0;
     for (let i = 0; i < path.length-1; i++){ const L0 = distNM(path[i], path[i+1]); total += L0; const k = Math.max(1, Math.ceil(L0/0.15)); for (let j = 0; j <= k; j++) samples.push([path[i][0] + (path[i+1][0]-path[i][0])*j/k, path[i][1] + (path[i+1][1]-path[i][1])*j/k]); }
     const step = Math.max(1, Math.ceil(samples.length/80)), sm = samples.filter((x, i) => i % step === 0);
-    const ds = (await Promise.all(sm.map(p => depthAt(p).catch(() => null)))).filter(v => v != null);
+    // marée la plus basse pendant la sortie (pas la marée de maintenant)
+    let tLow = null, stL = thAt(path[0]);
+    if (stL && stL.fr !== 'M'){ const exL = thExtremes(stL, t0/1000, t1/1000).filter(e => !e.hi); const lv = [t0/1000, t1/1000].map(t => ({ t, h:thLevel(stL, t) })).concat(exL).filter(e => e.h != null); if (lv.length) tLow = lv.reduce((a, b) => b.h < a.h ? b : a).t; }
+    const ds = (await Promise.all(sm.map(p => depthAt(p, tLow || undefined).catch(() => null)))).filter(v => v != null);
     const need = cfg.draft + cfg.margin;
-    if (ds.length){ const mn = Math.min(...ds); add(mn < cfg.draft ? 2 : mn < need ? 1 : 0, 'Profondeur sur ta route', `minimum estimé ${mn < 0 ? 'à sec' : n1(mn) + ' m'} (il te faut ${n1(need)} m avec la marge)` + (mn < need ? ' : vérifie la marée et passe au large' : '')); }
+    if (ds.length){ const mn = Math.min(...ds); add(mn < cfg.draft ? 2 : mn < need ? 1 : 0, 'Profondeur sur ta route', `minimum estimé ${mn < 0 ? 'à sec' : n1(mn) + ' m'}${tLow ? ` au moment le plus bas de la marée (${hhmm(tLow)})` : ''} (il te faut ${n1(need)} m avec la marge)` + (mn < need ? ' : vérifie la marée et passe au large' : '')); }
     else add(1, 'Profondeur sur ta route', 'pas de donnée de profondeur ici');
     const spd = +$('spd').value || 10, conso = +$('conso').value || 0, fuel = +$('fuelOn').value || 0;
     if (conso){ const needL = total*2/spd*conso;
@@ -2716,7 +2746,7 @@ async function nearestPort(){
 async function goTo(dest){
   $('homePanel').hidden = true;
   const here = herePos(), atSea = (coast.length || coastOff.length) && coastDistM(here) < 8000;
-  if (!atSea){ await planRiver(dest); if (nav) return; }
+  if (!atSea){ const prev = nav; await planRiver(dest); if (nav && nav !== prev) return; }
   startNav([dest], 'direct');
 }
 $('homeFab').addEventListener('click', async () => {
@@ -3024,7 +3054,7 @@ function lightTxt(t){
   const CH = { F:'fixe', Fl:'à éclats', LFl:'à éclats longs', Q:'scintillant', VQ:'scintillant rapide', UQ:'scintillant ultra-rapide', Iso:'isophase', Oc:'à occultations', Mo:'morse', Al:'alternatif', FFl:'fixe et à éclats' };
   const cols = String(g('colour') || '').split(';').filter(Boolean), grp = g('group'), per = g('period'), rng = g('range'), sectors = t['seamark:light:2:colour'];
   const abbr = `${ch}${grp ? '(' + grp + ')' : ''} ${cols.map(c => ({ white:'W', red:'R', green:'G', yellow:'Y', blue:'Bu' })[c] || '').join('')} ${per ? per + 's' : ''}`.trim();
-  return `Feu ${CH[String(ch).replace(/\(.*$/, '')] || ch} ${cols.map(c => COLFR[c] || c).join(' et ')}${grp ? ', par groupes de ' + grp : ''}${per ? ', toutes les ' + per + ' s' : ''}${rng ? ', visible jusqu\'à ' + rng + ' milles' : ''}${sectors ? ' (feu à secteurs de couleur)' : ''} · <b>${esc(abbr)}</b>`;
+  return `Feu ${esc(CH[String(ch).replace(/\(.*$/, '')] || ch)} ${cols.map(c => esc(COLFR[c] || c)).join(' et ')}${grp ? ', par groupes de ' + esc(grp) : ''}${per ? ', toutes les ' + esc(per) + ' s' : ''}${rng ? ', visible jusqu\'à ' + esc(rng) + ' milles' : ''}${sectors ? ' (feu à secteurs de couleur)' : ''} · <b>${esc(abbr)}</b>`;
 }
 function seamarkHtml(t){
   const type = t['seamark:type'], name = t['seamark:name'] || t.name;
