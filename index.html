@@ -189,6 +189,10 @@ details.lesson ol.lsteps b{color:var(--accent);font-weight:600}
 .srow .sico{font-size:18px;margin-right:8px}
 .srow{display:flex;align-items:center;text-align:left}
 .lpm{display:flex;flex-direction:column;gap:6px;margin-top:8px}.lpm .btn{text-align:left;margin:0}
+#rockWarn{position:fixed;inset:0;z-index:2600;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:14px}
+#rockWarn[hidden]{display:none}
+.rkBox{border-color:#ff8a3d!important}.rkWhy{background:rgba(255,138,61,.14);border-radius:8px;padding:8px 10px;font-weight:600;line-height:1.4}
+.rkL{display:flex;flex-direction:column;gap:7px;font-size:14px;line-height:1.4}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -368,6 +372,18 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
   <div class="muted" style="text-align:center">Garde l'écran allumé. Le fond est une estimation, pas un sondeur.</div>
 </div>
 <div id="lakeBox" hidden><div class="lgBox" id="lakeIn"></div></div>
+<div id="rockWarn" hidden><div class="lgBox rkBox">
+  <b class="lgT" style="color:#ff8a3d">⚠ Zone à cailloux</b>
+  <div id="rockWhy" class="rkWhy"></div>
+  <div class="rkL">
+    <div>🐢 <b>Ralentis</b> près des roches et dans les passes (5 nœuds ou moins).</div>
+    <div>🚥 <b>Suis le balisage</b> (bouées, balises, alignements) : il prime sur l'écran.</div>
+    <div>👀 <b>Regarde dehors</b>, et si possible mets quelqu'un à l'avant pour guetter les remous et les têtes de roche.</div>
+    <div>↪️ <b>Ne coupe pas les virages</b> de la route : elle contourne des dangers.</div>
+    <div>🗺️ La carte de l'appli <b>peut ignorer des petits cailloux</b> : garde la carte officielle sous les yeux.</div>
+  </div>
+  <div class="lgBtns"><button class="btn primary" id="rockOk">J'ai compris, je reste attentif</button></div>
+</div></div>
 <div id="legend" hidden>
   <div class="lgBox">
     <b class="lgT">Les boutons</b>
@@ -2520,6 +2536,13 @@ function startNav(points, mode){
   setTimeout(() => { if (nav){ follow = true; $('followBtn').classList.add('active'); map.setView(gps ? gps.p : from, 15); } }, 3500);
   computeNavHazards();
   const nD = nav.haz.filter(h => isDanger(h.o)).length;
+  // garde-fou : zone à cailloux ou passe étroite → message bien visible avant de partir
+  { const inf = seaRouteInfo && Date.now() - seaRouteInfo.t < 180000 && distNM(seaRouteInfo.to, path[path.length - 1]) < 0.3 ? seaRouteInfo : null;
+    const rk = nav.haz.filter(h => /^(rock|wreck|obstruction|reef|shoal|danger)$/.test(h.o.kind)).length, nR = Math.max(rk, inf ? inf.nRock : 0), nM = inf ? inf.nearM : 0;
+    if (mode !== 'river' && (nR >= 2 || (inf && inf.nClose) || rk >= 1 || nM >= 100)){
+      $('rockWhy').innerHTML = [nR ? `${nR} roche(s), épave(s) ou obstruction(s) connue(s) près de ta route.` : '', nM >= 100 ? `Passe étroite : environ ${nM >= 1000 ? n1(nM/1000) + ' km' : nM + ' m'} à moins de 100 m d'un haut-fond ou de la côte.` : '', mode === 'direct' ? 'Route en ligne droite : elle ne contourne pas les dangers.' : ''].filter(Boolean).join('<br>');
+      $('rockWarn').hidden = false; setTimeout(() => say('Attention, zone à cailloux. Ralentis, suis le balisage et regarde dehors.'), 1200);
+    } }
   say(`Navigation démarrée. ${spokenD(cum[cum.length-1])} à parcourir.` + (nD ? ` Attention, ${nD} danger${nD > 1 ? 's' : ''} près de la route.` : ''));
   const b = navLine.getBounds();
   if (b.getNorth() - b.getSouth() < 1.5 && b.getEast() - b.getWest() < 2)
@@ -3350,6 +3373,7 @@ setTimeout(() => loadTideDb(), 4000);
 // où il y a toujours au moins tirant d'eau + marge, en restant loin des roches, épaves et obstructions connues.
 const inGridZone = (a, b) => [a, b].every(p => Math.abs(p[0]) < 80);   // EMODnet en Europe, relief mondial ailleurs
 const inEmod = (a, b) => [a, b].every(p => p[0] > 11 && p[0] < 72 && p[1] > -36 && p[1] < 42.9);
+let seaRouteInfo = null;
 async function seaRoute(from, to, opt){
   opt = opt || {};
   let need = cfg.draft + cfg.margin; const need0 = need;
@@ -3462,11 +3486,16 @@ async function seaRoute(from, to, opt){
   let tot = distNM(from, path[0]); for (let i = 1; i < path.length; i++) tot += distNM(path[i-1], path[i]);
   const direct = distNM(from, to), minD = Math.min(...cells.map(i => dep[i]));
   const nearM = Math.round(cells.filter(i => near[i]).length*Math.min(mX, mY));
+  const rockPts = [].concat(iencPts, shomPts, osmPts, repPts, extraHaz).filter(o => o && o.p && (o.kind === 'rock' || o.kind === 'wreck' || o.kind === 'obstruction' || o.kind === 'reef' || o.kind === 'shoal' || o.kind === 'danger'));
+  const pathAll = [from].concat(keep.slice(1).map(i => ll(Math.floor(i/w), i % w)), [to]);
+  let nRock = 0, nClose = 0; rockPts.forEach(o => { let md = 9; for (let i = 1; i < pathAll.length; i++) md = Math.min(md, projSeg(o.p, pathAll[i-1], pathAll[i]).d); if (md < 0.27) nRock++; if (md < 0.1) nClose++; });
+  seaRouteInfo = { nearM, nRock, nClose, t:Date.now(), to:to.slice() };
   const nearTxt = nearM >= 100 ? ` ⚠ Environ ${nearM >= 1000 ? n1(nearM/1000) + ' km' : nearM + ' m'} du trajet passent à moins de 100 m d'un haut-fond, d'un danger ou de la côte (passe étroite) : ralentis et passe à vue, en suivant le balisage.` : '';
   const short = `Passage calculé : ${fmtD(tot)}${tot > direct*1.05 ? ` (ligne droite ${fmtD(direct)})` : ''}, ${path.length} point(s).`;
   const extra = [vecOk ? `trait de côte et îlots OpenStreetMap pris en compte${nZone ? ', ' + nZone + ' zone(s) interdite(s) évitée(s)' : ''}${nFair ? ', chenaux balisés suivis quand c\'est possible' : ''}` : 'trait de côte détaillé non chargé (réseau ou serveur) : vérifie près des côtes', tideMin != null ? `marée comptée : au moins +${n1(tideMin)} m d'eau pendant ta sortie, donc ${n1(need)} m d'eau suffisent au lieu de ${n1(need0)} m (refais le calcul si tu pars plus tard)` : '', g.world ? 'hors Europe : relief mondial SRTM15+ (cases d\'environ 450 m), à vérifier sur la carte officielle' : ''].filter(Boolean).join(' · ');
   const coarse = Math.max(mX, mY) > 300 ? ` Trajet long : profondeurs simplifiées (cases de ${Math.round(Math.max(mX, mY))} m), les petites îles et roches peuvent manquer, suis le balisage près des côtes.` : '';
-  const msg = `${short} ${extra}.${nearTxt}${coarse} Au moins ${n1(Math.max(need, minD))} m d'eau ${tideMin != null ? 'sur la carte (zéro des cartes), plus la marée' : 'même aux plus basses mers'} selon les profondeurs ${g.world ? 'SRTM15+' : 'EMODnet'} (cases de ${Math.round(Math.max(mX, mY))} m), pour ${n1(cfg.draft)} m de tirant d'eau + ${n1(cfg.margin)} m de marge${nHaz ? `, en évitant ${nHaz} roche(s)/épave(s) connue(s)` : ''}.` +
+  const rockTxt = nRock >= 2 || nClose ? ` ⚠ Zone à cailloux : ${nRock} roches, épaves ou obstructions connues à moins de 500 m de la route.` : '';
+  const msg = `${short} ${extra}.${nearTxt}${rockTxt}${coarse} Au moins ${n1(Math.max(need, minD))} m d'eau ${tideMin != null ? 'sur la carte (zéro des cartes), plus la marée' : 'même aux plus basses mers'} selon les profondeurs ${g.world ? 'SRTM15+' : 'EMODnet'} (cases de ${Math.round(Math.max(mX, mY))} m), pour ${n1(cfg.draft)} m de tirant d'eau + ${n1(cfg.margin)} m de marge${nHaz ? `, en évitant ${nHaz} roche(s)/épave(s) connue(s)` : ''}.` +
     `${s0.d > 0 ? ` Sortie du port au moteur et à vue (${Math.round(s0.d)} m peu profonds ou non cartographiés).` : ''}${s1.d > 0 ? ` Fin du trajet à vue sur ${Math.round(s1.d)} m (port ou zone peu profonde).` : ''} Les petites roches isolées et les bancs mobiles peuvent manquer : garde un œil sur la carte et le balisage.`;
   return { path, msg, short };
 }
@@ -3686,6 +3715,7 @@ $('tourSecu').addEventListener('click', tourStart);
 // ---------- ergonomie débutant : légende des boutons, premiers pas ----------
 $('helpFab').addEventListener('click', () => { $('legend').hidden = false; });
 $('lgClose').addEventListener('click', () => { $('legend').hidden = true; });
+$('rockOk').addEventListener('click', () => { $('rockWarn').hidden = true; });
 $('legend').addEventListener('click', e => { if (e.target === $('legend')) $('legend').hidden = true; });
 $('lgTour').addEventListener('click', () => { $('legend').hidden = true; tourStart(); });
 $('ctrOn').addEventListener('click', e => { e.preventDefault(); store.set('ctrOff', 0); $('legend').hidden = true; map.fire('moveend'); });
