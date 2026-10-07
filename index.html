@@ -238,7 +238,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.1
 .muted{color:var(--muted);font-size:13px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .fld{white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
-.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-weight:600;font-size:14px}
+.btn{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-weight:600;font-size:14px}
 .btn.primary{background:var(--accent);color:#1a1200;border-color:transparent}
 .btn.danger{background:var(--bad);color:#fff;border-color:transparent}
 input[type=number]{width:64px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;font-family:var(--f-data)}
@@ -316,6 +316,15 @@ select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);bor
 body.nav #alertBar{top:calc(env(safe-area-inset-top,0px) + 250px)}
 body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 .leaflet-popup-content{font-size:13px;margin:10px 12px}
+/* fenêtres d'info aux couleurs de l'appli (texte clair sur fond sombre, boutons bien visibles) */
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--fg);border:1px solid var(--line);box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.leaflet-popup-content{line-height:1.45}
+.leaflet-popup-content a{color:var(--accent)}
+.leaflet-popup-content b{color:var(--fg)}
+.leaflet-popup-content hr{border:0;border-top:1px solid var(--line);margin:8px 0}
+.leaflet-popup-content .btn{margin-top:4px}
+.leaflet-container a.leaflet-popup-close-button{color:var(--muted);font-size:20px;width:26px;height:26px}
+.leaflet-container a.leaflet-popup-close-button:hover{color:var(--fg)}
 .wind-ico{display:flex;flex-direction:column;align-items:center;font-family:var(--f-data);font-size:11px;font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
 .boat-ico .b3d{filter:drop-shadow(3px 5px 3px rgba(0,0,0,.55))}
 .boat-ico .b3r{width:44px;height:66px;transform-origin:50% 50%}
