@@ -57,7 +57,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);
   border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,0px);display:flex;flex-direction:column;max-height:58%}
 #sheet.collapsed .body{display:none}
-.tabs{display:flex;gap:2px;padding:6px 8px 0;overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;flex-shrink:0;gap:2px;padding:6px 8px 0;overflow-x:auto;scrollbar-width:none}
 .tab{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;font-family:var(--f-display);font-weight:600;
   letter-spacing:.08em;text-transform:uppercase;font-size:14px;color:var(--muted)}
 .obsrow{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;background:var(--panel2);border:0;border-radius:6px;padding:8px 10px}
@@ -108,6 +108,37 @@ svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
 .emerg b{display:block;font-family:var(--f-data);font-size:22px;color:var(--accent)}
 .emerg span{font-size:11px;color:var(--muted)}
 .leaflet-container{font-family:var(--f-body)}
+select,input[type=text],input[type=search]{background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:8px;font:inherit;min-width:0}
+.mk{position:absolute;transform:translate(-50%,-50%);background:var(--c);color:#111;font:600 11px/1.2 var(--f-data);padding:2px 5px;border-radius:4px;border:1.5px solid #fff;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.55)}
+.mk.low{background:#ef5350;color:#fff}
+.mk.rep{border-style:dashed}
+.replist{display:flex;flex-direction:column;gap:4px}
+.reprow{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border-radius:6px;padding:8px 10px}
+.reprow small{display:block;color:var(--muted);font-size:11px}
+.reprow .dot{width:12px;height:12px;border-radius:3px}
+#searchRes{display:flex;flex-direction:column;gap:4px}
+.srow{text-align:left;background:var(--panel2);border:0;border-radius:6px;padding:8px 10px}
+.srow small{display:block;color:var(--muted);font-size:11px}
+select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;font:inherit}
+#zoneChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--warn);color:var(--warn)}
+#netChip{grid-column:1/-1;justify-self:center;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--muted);color:var(--muted)}
+.bar{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);width:0}
+#zoneChip.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+#navTop{position:absolute;left:10px;right:64px;top:calc(env(safe-area-inset-top,0px) + 122px);z-index:1001;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:10px 12px;display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+#navArrow{width:56px;height:56px;border-radius:50%;background:var(--accent);display:grid;place-items:center}
+#navArrowSvg{transition:transform .4s}
+#navDist{font-family:var(--f-data);font-size:28px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+#navInstr{font-weight:600;font-size:15px;margin-top:3px}
+#navSub{font-size:12px;color:var(--muted);margin-top:2px}
+#navSub.off{color:var(--bad);font-weight:600}
+#navHaz{grid-column:1/-1;font-size:13px;color:var(--warn);font-weight:600}
+#navBottom{position:absolute;left:0;right:0;bottom:0;z-index:1001;background:var(--panel);border-top:1px solid var(--line);border-radius:14px 14px 0 0;
+  padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto auto;gap:8px;align-items:center}
+.nb .k{font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.nb .v{font-family:var(--f-data);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+body.nav #alertBar{top:calc(env(safe-area-inset-top,0px) + 250px)}
+body.nav #toolHint{display:none}
 .leaflet-popup-content{font-size:13px;margin:10px 12px}
 .wind-ico{display:flex;flex-direction:column;align-items:center;font-family:var(--f-data);font-size:11px;font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
 .boat-ico svg{filter:drop-shadow(0 0 3px #000)}
@@ -123,15 +154,31 @@ svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
   <div class="inst"><div class="k">Sonde</div><div class="v" id="depthNow">--<small> m</small></div></div>
   <button id="gpsBtn">GPS</button>
   <div id="posLine">Position inconnue · touche GPS pour te localiser</div>
+  <div id="netChip" hidden>Hors ligne · cartes et données téléchargées</div>
+  <div id="zoneChip" hidden></div>
 </div>
 
 <div id="fab">
   <button class="fab" id="mobBtn" title="Homme à la mer">MOB</button>
   <button class="fab" id="followBtn" title="Suivre le bateau">◎</button>
   <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
+  <button class="fab" id="repFab" title="Signaler">⚑</button>
+  <button class="fab" id="searchFab" title="Rechercher un lieu">⌕</button>
 </div>
 <div id="toolHint" hidden></div>
 <div id="alertBar" hidden></div>
+<div id="navTop" hidden>
+  <div id="navArrow"><svg id="navArrowSvg" width="34" height="34" viewBox="0 0 24 24"><path d="M12 2 L20 21 L12 16 L4 21 Z" fill="#1a1200"/></svg></div>
+  <div style="min-width:0"><div id="navDist">--</div><div id="navInstr"></div><div id="navSub"></div></div>
+  <div id="navHaz" hidden></div>
+</div>
+<div id="navBottom" hidden>
+  <div class="nb"><div class="k">Arrivée</div><div class="v" id="navEta">--:--</div></div>
+  <div class="nb"><div class="k">Reste</div><div class="v" id="navRem">--</div></div>
+  <div class="nb"><div class="k">Durée</div><div class="v" id="navDur">--</div></div>
+  <button class="fab" id="navVoice" title="Voix">🔊</button>
+  <button class="btn danger" id="navStop">Arrêter</button>
+</div>
 
 <div id="sheet">
   <div class="tabs">
@@ -155,6 +202,8 @@ svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
 
     <!-- ROUTE -->
     <div class="pane" id="p-route" hidden>
+      <div class="row"><input type="search" id="searchQ" placeholder="Rechercher un port, une ville, une plage… (monde entier)" style="flex:1"><button class="btn" id="searchBtn">Chercher</button></div>
+      <div id="searchRes"></div>
       <div class="row">
         <button class="btn primary" id="routeTool">Tracer une route</button>
         <button class="btn" id="routeUndo">Annuler dernier</button>
@@ -165,6 +214,15 @@ svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
         Conso <input type="number" id="conso" value="20" min="0" step="1"> L/h
       </div>
       <div id="routeOut" class="pane"></div>
+      <h3>Navigation guidée</h3>
+      <div class="row">
+        <button class="btn primary" id="navStart">Naviguer sur ma route</button>
+        <button class="btn" id="navGoto">Aller à un point</button>
+        <button class="btn" id="navRiver">Itinéraire par le fleuve</button>
+      </div>
+      <div class="row muted">Distances en <select id="unit"><option value="km">km</option><option value="nm">milles nautiques</option></select>
+        <label class="chk" style="padding:0"><input type="checkbox" id="voice" checked> Annonces vocales</label></div>
+      <div id="navMsg" class="muted">« Aller à un point » trace une ligne droite : vérifie qu'elle ne coupe pas la terre ni un danger. « Itinéraire par le fleuve » suit automatiquement les rivières et canaux.</div>
     </div>
 
     <!-- OBSTACLES -->
@@ -181,14 +239,17 @@ svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
       <h3>Sources de données</h3>
       <div class="muted">1. SHOM : épaves et obstructions officielles (France, licence CC BY-SA 4.0)<br>
         2. OpenStreetMap / OpenSeaMap : roches, épaves, obstructions, écluses, barrages, ponts, ports et carburant<br>
-        3. EMODnet : profondeur (grille d'environ 115 m, imprécise près des côtes, marée non incluse)</div>
+        3. IGN (BD TOPO) : ponts, écluses et barrages officiels, trait de côte, cours d'eau<br>
+        4. EMODnet : profondeur (grille d'environ 115 m, imprécise près des côtes, marée non incluse)</div>
       <div id="shomStatus" class="muted"></div>
-      <div class="row">
-        <button class="btn" id="shomReload">Télécharger la base SHOM</button>
-        <label class="btn" for="shomFile">Importer le .zip</label>
-        <input type="file" id="shomFile" accept=".zip" hidden>
+      <div id="shomManual" hidden>
+        <div class="row">
+          <button class="btn" id="shomReload">Réessayer</button>
+          <label class="btn" for="shomFile">Importer le .zip</label>
+          <input type="file" id="shomFile" accept=".zip" hidden>
+        </div>
+        <div class="muted">Le téléchargement automatique a échoué. Réessaie avec du réseau, ou télécharge le fichier SHP sur data.gouv.fr (« Épaves et obstructions répertoriées par le Shom ») et importe-le.</div>
       </div>
-      <div class="muted">Si le téléchargement échoue : télécharge le fichier SHP sur data.gouv.fr (« Épaves et obstructions répertoriées par le Shom »), puis importe le .zip ici. Il est ensuite gardé en mémoire sur ton téléphone, donc utilisable sans réseau.</div>
 
       <h3>Cartes officielles des fleuves (IENC)</h3>
       <div class="muted">Les cartes électroniques officielles de VNF (Seine, Oise, Moselle, Grande Saône…) et de la CNR (Rhône) donnent la <b>hauteur libre de chaque pont</b>, les écluses, les barrages, les lignes aériennes et la profondeur du chenal. Télécharge-les gratuitement sur le site de VNF (rubrique cartes ECDIS / IENC) ou sur InfoRhône pour le Rhône, puis importe ici le .zip ou les fichiers .000. Elles restent ensuite sur ton téléphone, sans réseau.</div>
@@ -233,13 +294,22 @@ svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
       </div>
       <div id="mobOut" class="muted">Homme à la mer : appuie sur MOB pour marquer la position et afficher le cap pour y revenir.</div>
 
-      <h3>Mes dangers (roches, hauts-fonds…)</h3>
-      <div class="muted">Marque les endroits dangereux que tu connais. Le téléphone vibre et une alerte s'affiche si tu passes à moins de la distance choisie.</div>
+      <h3>Signaler un problème ou une info</h3>
+      <div class="muted">Roche, banc de sable, filets, pont mesuré, profondeur relevée, bon mouillage… Tout s'affiche sur la carte, entre dans la liste des obstacles et dans les annonces de navigation. Les dangers déclenchent une alerte quand tu t'en approches.</div>
+      <div class="row"><select id="repType"></select></div>
+      <div class="row"><input type="number" id="repVal" step="0.1" placeholder="valeur (m)" style="width:110px"><input type="text" id="repNote" placeholder="précision (facultatif)" style="flex:1"></div>
       <div class="row">
-        <button class="btn primary" id="dangerTool">Ajouter un danger</button>
-        <span class="muted">Alerte à <input type="number" id="dangerDist" value="150" min="20" step="10"> m</span>
+        <button class="btn primary" id="repHere">Signaler à ma position</button>
+        <button class="btn" id="dangerTool">Placer sur la carte</button>
       </div>
-      <div id="dangerOut" class="muted"></div>
+      <div class="row muted">Alerte à <input type="number" id="dangerDist" value="150" min="20" step="10"> m des dangers</div>
+      <div id="dangerOut" class="pane"></div>
+      <div class="row">
+        <button class="btn" id="repExport">Exporter mes signalements</button>
+        <label class="btn" for="repImport">Importer un fichier</label>
+        <input type="file" id="repImport" accept=".json,application/json" hidden>
+      </div>
+      <div class="muted">Pour partager avec tes amis : exporte le fichier et envoie-le. Ils l'importent dans leur appli, et vos signalements s'ajoutent les uns aux autres.</div>
 
       <h3>Avant de partir</h3>
       <div id="checklist"></div>
@@ -248,11 +318,21 @@ svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
 
     <!-- COUCHES -->
     <div class="pane" id="p-couches" hidden>
+      <h3>Hors ligne (haute mer, sans réseau)</h3>
+      <div class="muted">Télécharge la zone affichée à l'écran avant de partir : fonds de carte, balisage, profondeurs, épaves, roches, ponts, écluses et trait de côte restent dans ton téléphone. Les zones que tu regardes avec du réseau sont aussi gardées automatiquement.</div>
+      <div class="row muted">Détail jusqu'au zoom <select id="offZ"><option value="12">12 (très large, léger)</option><option value="13">13 (large)</option><option value="14" selected>14 (recommandé)</option><option value="15">15 (précis)</option><option value="16">16 (très précis, lourd)</option></select></div>
+      <div id="offEst" class="muted"></div>
+      <div class="row"><button class="btn primary" id="offGo">Télécharger cette zone</button><button class="btn" id="offStop" hidden>Arrêter</button></div>
+      <div id="offProg" class="pane" hidden><div class="bar"><i id="offBar"></i></div><div id="offTxt" class="muted"></div></div>
+      <div id="offList" class="pane"></div>
+      <div class="row"><button class="btn" id="offClear">Tout effacer</button></div>
+      <div id="offUsage" class="muted"></div>
+
       <h3>Fond de carte</h3>
       <div id="baseList"></div>
       <h3>Superpositions</h3>
       <div id="ovList"></div>
-      <div class="muted">Les balises, bouées, phares et dangers viennent d'OpenSeaMap. La bathymétrie vient d'EMODnet (Europe). Ces données sont libres et complémentaires : elles ne remplacent pas une carte officielle SHOM.</div>
+      <div class="muted">Sources : SHOM et IGN (France), NOAA (États-Unis), GEBCO (profondeurs du monde entier), EMODnet (Europe), OpenSeaMap et OpenStreetMap (monde), tes propres signalements. Ces données ne remplacent pas une carte officielle à bord.</div>
     </div>
   </div>
 </div>
@@ -318,17 +398,35 @@ map.on('moveend', () => store.set('view', { c:[map.getCenter().lat, map.getCente
 const BASES = {
   ocean: { name:'Océan (Esri, relief sous-marin)', layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom:16, attribution:'© Esri, GEBCO, NOAA' }) },
   osm:   { name:'Plan (OpenStreetMap)', layer: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }) },
-  sat:   { name:'Satellite (voir roches et hauts-fonds)', layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19, attribution:'© Esri' }) }
+  ign:   { name:'Photo aérienne IGN (France, très précise)', layer: L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { maxZoom:19, attribution:'© IGN' }) },
+  planign:{ name:'Plan IGN (France)', layer: L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { maxZoom:19, attribution:'© IGN' }) },
+  gebco: { name:'Relief océanique GEBCO (monde)', layer: L.tileLayer.wms('https://wms.gebco.net/mapserv?', { layers:'GEBCO_LATEST', format:'image/png', attribution:'GEBCO Compilation Group' }) },
+  sat:   { name:'Satellite monde (Esri)', layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19, attribution:'© Esri' }) }
 };
+const shomT = (layer, o) => L.tileLayer(`https://services.data.shom.fr/INSPIRE/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=${layer}&style=normal&tilematrixset=3857&format=image/png&tilematrix={z}&tilerow={y}&tilecol={x}`, Object.assign({ maxZoom:19, maxNativeZoom:17, attribution:'© SHOM' }, o));
+const ArcTiles = L.TileLayer.extend({ getTileUrl(c){ const sz = 40075016.68557849/Math.pow(2, c.z), x0 = -20037508.342789244 + c.x*sz, y1 = 20037508.342789244 - c.y*sz;
+  return `${this._url}?bbox=${x0},${y1-sz},${x0+sz},${y1}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`; } });
+const arcgisTiles = (url, attr) => new ArcTiles(url, { maxZoom:19, attribution:attr });
 const windLayer = L.layerGroup();
+const repLayer = L.layerGroup();
 const obsLayer = L.layerGroup();
+const zoneLayer = L.layerGroup();
 const OVERLAYS = {
   seamark: { name:'Balises, bouées, phares (OpenSeaMap)', on:true, layer: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { maxZoom:18, attribution:'© OpenSeaMap' }) },
   depth:   { name:'Profondeurs en couleur (EMODnet)', on:false, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:mean_atlas_land', format:'image/png', transparent:true, opacity:.55, attribution:'© EMODnet Bathymetry' }) },
   contours:{ name:'Lignes de sonde / isobathes (EMODnet)', on:true, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:contours', format:'image/png', transparent:true, attribution:'© EMODnet Bathymetry' }) },
   wind:    { name:'Flèches de vent sur la carte', on:true, layer: windLayer },
+  rep:     { name:'Mes signalements', on:true, layer: repLayer },
+  zone:    { name:'Limite de la bande des 300 m (approximative)', on:true, layer: zoneLayer },
   obs:     { name:'Épaves, roches, obstructions (points cliquables, SHOM + OSM)', on:true, layer: obsLayer },
-  shomwms: { name:'Épaves SHOM en image (essai, peut ne pas s\'afficher)', on:false, layer: L.tileLayer.wms('https://services.data.shom.fr/INSPIRE/wms/v', { layers:'EPAVES_BDD_WLD_WGS84G_WMS', version:'1.3.0', format:'image/png', transparent:true, attribution:'© SHOM CC BY-SA 4.0' }) }
+  noaa:    { name:'Cartes marines officielles NOAA (États-Unis)', on:false, layer: arcgisTiles('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/export', '© NOAA') },
+  shomBal: { name:'Balisage officiel SHOM (bouées, balises, phares)', on:true, layer: shomT('BALISAGE_PYR_PNG_3857_WMTS') },
+  shomBathy:{ name:'Profondeurs officielles SHOM (couleurs)', on:true, layer: shomT('BATHYELLI_ZH_PYR_PNG_3857_WMTS', { opacity:.5 }) },
+  shomEpv: { name:'Épaves et obstructions SHOM (symboles)', on:true, layer: shomT('EPAVES_PYR-PNG_WLD_3857_WMTS') },
+  shomCab: { name:'Câbles et conduites sous-marins SHOM (ne pas mouiller dessus)', on:false, layer: shomT('CABLES_PYR-PNG_WLD_3857_WMTS') },
+  shomPort:{ name:'Informations portuaires SHOM', on:false, layer: shomT('PORTS_WMTS_3857') },
+  shomDst: { name:'Rails de navigation des cargos SHOM', on:false, layer: shomT('DST_PYR_PNG_3857_WMTS') },
+  shomCur: { name:'Courants de marée, vitesses max SHOM', on:false, layer: shomT('COURANTS2D_WMTS_VMAX_3857', { opacity:.6 }) }
 };
 let baseKey = store.get('base', 'ocean');
 const ovState = store.get('ov', {});
@@ -340,10 +438,13 @@ $('baseList').innerHTML = Object.entries(BASES).map(([k, b]) =>
   `<label class="chk"><input type="radio" name="base" id="base-${k}" value="${k}" ${k===baseKey?'checked':''}> ${b.name}</label>`).join('');
 $('ovList').innerHTML = Object.entries(OVERLAYS).map(([k, o]) =>
   `<label class="chk"><input type="checkbox" id="ov-${k}" data-k="${k}" ${map.hasLayer(o.layer)?'checked':''}> ${o.name}</label>`).join('');
-$('baseList').addEventListener('change', e => {
-  map.removeLayer(BASES[baseKey].layer); baseKey = e.target.value;
-  BASES[baseKey].layer.addTo(map).bringToBack(); store.set('base', baseKey);
-});
+function setBase(k, keep){
+  if (!BASES[k] || k === baseKey) return;
+  map.removeLayer(BASES[baseKey].layer); baseKey = k;
+  BASES[baseKey].layer.addTo(map).bringToBack(); if (!keep) store.set('base', baseKey);
+  const r = document.getElementById('base-' + k); if (r) r.checked = true;
+}
+$('baseList').addEventListener('change', e => setBase(e.target.value));
 $('ovList').addEventListener('change', e => {
   const k = e.target.dataset.k, o = OVERLAYS[k];
   e.target.checked ? o.layer.addTo(map) : map.removeLayer(o.layer);
@@ -367,7 +468,9 @@ let tool = null;
 function setTool(t, hint){
   tool = (tool === t) ? null : t;
   $('toolHint').hidden = !tool; $('toolHint').textContent = hint || '';
-  ['routeTool','dangerTool','wxTap'].forEach(id => $(id).classList.remove('primary'));
+  ['routeTool','dangerTool','wxTap','navGoto','navRiver'].forEach(id => $(id).classList.remove('primary'));
+  if (tool === 'goto') $('navGoto').classList.add('primary');
+  if (tool === 'river') $('navRiver').classList.add('primary');
   if (tool === 'route') $('routeTool').classList.add('primary');
   if (tool === 'danger') $('dangerTool').classList.add('primary');
   if (tool === 'wx') $('wxTap').classList.add('primary');
@@ -376,8 +479,10 @@ function setTool(t, hint){
 }
 map.on('click', e => {
   const p = [e.latlng.lat, e.latlng.lng];
+  if (tool === 'goto'){ setTool('goto'); startNav([p], 'direct'); return; }
+  if (tool === 'river'){ setTool('river'); planRiver(p); return; }
   if (tool === 'route'){ route.push(p); saveRoute(); drawRoute(); }
-  else if (tool === 'danger'){ dangers.push({ p, t:Date.now() }); saveDangers(); drawDangers(); setTool('danger'); }
+  else if (tool === 'danger'){ addReport(p); setTool('danger'); }
   else if (tool === 'wx'){ setTool('wx'); loadWeather(p, 'point touché'); $('sheet').classList.remove('collapsed'); }
   else {
     L.popup().setLatLng(e.latlng).setContent(
@@ -425,7 +530,7 @@ function onFix(pos){
   else { boat.setLatLng(p).setIcon(boatIcon(cog)); accCircle.setLatLng(p).setRadius(c.accuracy); }
   if (follow) map.panTo(p, { animate:true });
   if (!track.length || distNM(track[track.length-1], p) > 0.01){ track.push(p); if (track.length > 5000) track.shift(); trackLine.setLatLngs(track); }
-  checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver();
+  checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver(); navUpdate(); zoneUpdate();
 }
 $('followBtn').classList.add('active');
 $('followBtn').addEventListener('click', () => { follow = !follow; $('followBtn').classList.toggle('active', follow); if (follow && gps) map.panTo(gps.p); });
@@ -442,7 +547,7 @@ let wxBusy = false;
 async function loadWeather(p, label){
   if (wxBusy) return; wxBusy = true;
   $('wxOut').innerHTML = `<div class="muted">Chargement de la météo pour ${label}…</div>`;
-  const q = `latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}&timezone=auto&timeformat=unixtime&forecast_days=3`;
+  const q = `latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}&timezone=auto&timeformat=unixtime&forecast_days=7`;
   try{
     const [w, m] = await Promise.all([
       fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=${W_HOURLY}&daily=sunrise,sunset&wind_speed_unit=kn`).then(r => r.json()),
@@ -450,8 +555,13 @@ async function loadWeather(p, label){
     ]);
     if (!w || !w.hourly) throw new Error(w && w.reason || 'réponse vide');
     renderWeather(p, label, w, (m && m.hourly) ? m : null);
+    idbSet('wx', { p, label, w, m:(m && m.hourly) ? m : null, t:Date.now() });
   }catch(e){
-    $('wxOut').innerHTML = `<div class="verdict v1"><div>Météo indisponible (${e.message}). Vérifie la connexion internet : au large, le réseau mobile se perd souvent. Consulte la météo avant de partir.</div></div>`;
+    const c = await idbGet('wx');
+    if (c && c.w && Date.now() - c.t < 7*86400000){
+      renderWeather(c.p, c.label, c.w, c.m);
+      $('wxOut').insertAdjacentHTML('afterbegin', `<div class="verdict v1"><div><b>Hors ligne</b><div>Prévisions téléchargées le ${new Date(c.t).toLocaleString('fr-FR', { weekday:'short', hour:'2-digit', minute:'2-digit' })} pour ${esc(c.label)}. Elles vieillissent : sois prudent.</div></div></div>`);
+    } else $('wxOut').innerHTML = `<div class="verdict v1"><div>Météo indisponible (${e.message}). Au large le réseau se perd souvent : ouvre l'appli avant de partir pour garder les prévisions sur 7 jours.</div></div>`;
   }finally{ wxBusy = false; }
 }
 
@@ -596,28 +706,80 @@ $('routeUndo').addEventListener('click', () => { route.pop(); saveRoute(); drawR
 $('routeClear').addEventListener('click', () => { route = []; saveRoute(); drawRoute(); });
 $('spd').addEventListener('input', drawRoute); $('conso').addEventListener('input', drawRoute);
 
-// ---------- DANGERS ----------
-let dangers = store.get('dangers', []);
-const dangerLayer = L.layerGroup().addTo(map);
-function saveDangers(){ store.set('dangers', dangers); }
-function drawDangers(){
-  dangerLayer.clearLayers();
-  const rM = +$('dangerDist').value || 150;
-  dangers.forEach((d, i) => {
-    L.circle(d.p, { radius:rM, color:'#ef5350', weight:1, fillOpacity:.12, interactive:false }).addTo(dangerLayer);
-    L.marker(d.p, { icon:L.divIcon({ className:'', iconSize:[24,24], iconAnchor:[12,12],
-      html:'<div style="width:24px;height:24px;background:#ef5350;color:#fff;font-weight:700;display:grid;place-items:center;transform:rotate(45deg);border:2px solid #fff"><span style="transform:rotate(-45deg)">!</span></div>' }) })
-      .bindPopup(`<b>Danger</b><br>${fmtPos(d.p)}<br>ajouté le ${new Date(d.t).toLocaleDateString('fr-FR')}<br><button class="btn danger" data-del="${i}" style="margin-top:6px">Supprimer</button>`)
-      .addTo(dangerLayer);
-  });
-  $('dangerOut').textContent = dangers.length ? `${dangers.length} danger(s) enregistré(s) sur ce téléphone.` : 'Aucun danger enregistré.';
+// ---------- SIGNALEMENTS ----------
+const RTYPES = {
+  rock:   { l:'Roche / haut-fond', k:'rock', dg:true },
+  sand:   { l:'Banc de sable / envasement', k:'obstruction', dg:true },
+  wreck:  { l:'Épave', k:'wreck', dg:true },
+  debris: { l:'Objet flottant / débris', k:'obstruction', dg:true },
+  nets:   { l:'Filets, casiers, bouées de pêche', k:'obstruction', dg:true },
+  current:{ l:'Courant fort / remous', k:'danger', dg:true },
+  works:  { l:'Travaux / zone interdite', k:'danger', dg:true },
+  buoy:   { l:'Balise manquante ou éteinte', k:'danger', dg:true },
+  lowbr:  { l:'Pont : hauteur mesurée', k:'bridge', dg:false, unit:'hauteur libre (m)' },
+  depth:  { l:'Profondeur relevée', k:'depth', dg:false, unit:'profondeur (m)' },
+  anchor: { l:'Bon mouillage', k:'marina', dg:false },
+  port:   { l:'Ponton / port / quai', k:'marina', dg:false },
+  fuel:   { l:'Carburant', k:'fuel', dg:false },
+  other:  { l:'Autre danger', k:'danger', dg:true }
+};
+let reports = store.get('reports', null);
+if (!reports){ reports = (store.get('dangers', []) || []).map((d, i) => ({ id:'r' + d.t + i, t:'other', p:d.p, v:null, note:'', d:d.t })); store.set('reports', reports); }
+let repPts = [];
+const dangers = { map:() => [] }; // compatibilité
+$('repType').innerHTML = Object.entries(RTYPES).map(([k, r]) => `<option value="${k}">${r.l}</option>`).join('');
+const updRepVal = () => { const r = RTYPES[$('repType').value]; $('repVal').hidden = !r.unit; $('repVal').placeholder = r.unit || ''; };
+$('repType').addEventListener('change', updRepVal); updRepVal();
+function saveReports(){ store.set('reports', reports); }
+function repToPt(r){
+  const T = RTYPES[r.t] || RTYPES.other;
+  return { p:r.p, kind:T.k, n:T.l + (r.note ? ' : ' + r.note : ''), d:T.k === 'depth' || T.k === 'rock' ? r.v : null, h:T.k === 'bridge' ? r.v : null,
+    c:null, x:'signalé le ' + new Date(r.d).toLocaleDateString('fr-FR'), src:'Mon signalement', rep:true, rid:r.id, dg:T.dg };
 }
+function addReport(p){
+  const t = $('repType').value, v = parseFloat($('repVal').value), T = RTYPES[t];
+  if (T.unit && !isFinite(v)){ hint('Indique la valeur mesurée (en mètres) avant de placer ce signalement.', 5000); return; }
+  reports.push({ id:'r' + Date.now() + Math.random().toString(36).slice(2, 6), t, p, v:T.unit ? v : null, note:$('repNote').value.trim().slice(0, 120), d:Date.now() });
+  saveReports(); drawReports(); hint('Signalé : ' + T.l, 3000);
+  $('repNote').value = '';
+}
+function drawReports(){
+  repPts = reports.map(repToPt);
+  repLayer.clearLayers();
+  const rM = +$('dangerDist').value || 150;
+  repPts.forEach(o => {
+    if (o.dg) L.circle(o.p, { radius:rM, color:'#ef5350', weight:1, fillOpacity:.08, interactive:false }).addTo(repLayer);
+    L.marker(o.p, { icon:L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk rep${lowBridge(o) ? ' low' : ''}" style="--c:${KCOL[o.kind] || '#ef5350'}">${esc(obsLabel(o))}</div>` }) })
+      .bindPopup(() => obsPopup(o) + `<br><button class="btn danger" data-rdel="${o.rid}" style="margin-top:6px">Supprimer</button>`).addTo(repLayer);
+  });
+  const list = repPts.slice().reverse();
+  $('dangerOut').innerHTML = list.length ? `<div class="replist">${list.slice(0, 30).map(o => `<div class="reprow"><span class="dot" style="background:${KCOL[o.kind] || '#ef5350'}"></span><span>${esc(o.n)}<small>${o.d != null ? 'sonde ' + n1(o.d) + ' m · ' : ''}${o.h != null ? 'hauteur ' + n1(o.h) + ' m · ' : ''}${o.x}</small></span><button class="btn" data-rgo="${o.rid}">Voir</button></div>`).join('')}</div>`
+    : '<div class="muted">Aucun signalement pour le moment.</div>';
+}
+$('dangerOut').addEventListener('click', e => { const b = e.target.closest('[data-rgo]'); if (!b) return; const o = repPts.find(x => x.rid === b.dataset.rgo); if (o){ map.setView(o.p, 16); $('sheet').classList.add('collapsed'); $('toggleSheet').textContent = '▴'; } });
 map.on('popupopen', e => {
-  const b = e.popup.getElement().querySelector('[data-del]');
-  if (b) b.addEventListener('click', () => { dangers.splice(+b.dataset.del, 1); saveDangers(); drawDangers(); map.closePopup(); });
+  const b = e.popup.getElement().querySelector('[data-rdel]');
+  if (b) b.addEventListener('click', () => { reports = reports.filter(r => r.id !== b.dataset.rdel); saveReports(); drawReports(); map.closePopup(); });
 });
-$('dangerTool').addEventListener('click', () => setTool('danger', 'Touche la carte à l\'endroit du danger'));
-$('dangerDist').addEventListener('input', drawDangers);
+$('dangerTool').addEventListener('click', () => setTool('danger', 'Touche la carte à l\'endroit à signaler'));
+$('repHere').addEventListener('click', () => { if (!gps){ hint('Active le GPS pour signaler à ta position, ou utilise « Placer sur la carte ».', 5000); return; } addReport(gps.p.slice()); });
+$('repFab').addEventListener('click', () => { document.querySelector('.tab[data-t="secu"]').click(); $('repType').focus(); });
+$('dangerDist').addEventListener('input', drawReports);
+$('repExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ app:'carte-marine', v:1, reports }, null, 1)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'signalements-carte-marine.json';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+});
+$('repImport').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try{
+    const j = JSON.parse(await f.text()), list = Array.isArray(j) ? j : j.reports || [];
+    let n = 0; list.forEach(r => { if (r && r.id && Array.isArray(r.p) && RTYPES[r.t] && !reports.some(x => x.id === r.id)){ reports.push({ id:String(r.id), t:r.t, p:[+r.p[0], +r.p[1]], v:r.v == null ? null : +r.v, note:String(r.note || '').slice(0, 120), d:+r.d || Date.now() }); n++; } });
+    saveReports(); drawReports(); hint(n + ' signalement(s) ajouté(s).', 4000);
+  }catch(err){ hint('Fichier illisible : ce n\'est pas un export de signalements.', 5000); }
+  e.target.value = '';
+});
+function drawDangers(){ drawReports(); }
 let lastAlert = 0;
 const alerts = {};
 function setAlert(k, msg){
@@ -631,7 +793,7 @@ function checkDangers(){
   if (!gps) return;
   const lim = (+$('dangerDist').value || 150)/1852;
   let near = null;
-  dangers.forEach(d => { const dd = distNM(gps.p, d.p); if (dd < lim && (!near || dd < near.d)) near = { d:dd, p:d.p, label:'DANGER' }; });
+  repPts.forEach(o => { if (!o.dg) return; const dd = distNM(gps.p, o.p); if (dd < lim && (!near || dd < near.d)) near = { d:dd, p:o.p, label:(RTYPES[(reports.find(r => r.id === o.rid) || {}).t] || RTYPES.other).l.toUpperCase() }; });
   obsNear.forEach(o => { if (!(HAZ.has(o.kind) || lowBridge(o))) return; const dd = distNM(gps.p, o.p); if (dd < lim && (!near || dd < near.d)) near = { d:dd, p:o.p, label:(lowBridge(o) ? 'PONT BAS' : (KIND[o.kind] || 'Obstacle').toUpperCase()) }; });
   setAlert('danger', near ? `⚠ ${near.label} à ${Math.round(near.d*1852)} m au ${pad3(bearing(gps.p, near.p))}°. Réduis la vitesse.` : null);
 }
@@ -684,7 +846,8 @@ const KIND = { wreck:'Épave', rock:'Roche', obstruction:'Obstruction', weir:'Ba
   marina:'Port / halte', fuel:'Carburant', slipway:'Cale de mise à l\'eau', cable:'Câble ou ligne aérienne' };
 const KCOL = { wreck:'#b36bff', rock:'#ff8a3d', obstruction:'#ef5350', weir:'#ff3b6b', dam:'#ff3b6b', lock:'#4fc3f7', bridge:'#9fb3c8',
   marina:'#3fbf7f', fuel:'#f2b134', slipway:'#8bd17c', cable:'#e0d060' };
-const HAZ = new Set(['wreck','rock','obstruction','weir','dam']);
+const HAZ = new Set(['wreck','rock','obstruction','weir','dam','danger']);
+KIND.depth = 'Profondeur relevée'; KCOL.depth = '#4fc3f7'; KIND.danger = 'Danger signalé'; KCOL.danger = '#ef5350';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let shomPts = [], osmPts = [], obsNear = [], obsCenter = null, obsT = 0, obsBusy = false;
 const cfg = Object.assign({ draft:0.7, margin:1, r:2, air:2 }, store.get('cfg', {}));
@@ -736,7 +899,7 @@ async function importZip(buf){
   shomPts = ingest(await shp(buf));
   if (!shomPts.length) throw new Error('aucune épave trouvée dans ce fichier');
   await idbSet('shom', { pts:shomPts, t:Date.now() });
-  setShomStatus(`${shomPts.length} épaves et obstructions SHOM chargées et gardées sur ce téléphone.`);
+  setShomStatus(`${shomPts.length} épaves et obstructions SHOM chargées et gardées sur ce téléphone.`); $('shomManual').hidden = true;
   drawObsInView();
 }
 async function loadShom(force){
@@ -752,7 +915,7 @@ async function loadShom(force){
   try{
     const r = await fetch(SHOM_URL); if (!r.ok) throw new Error('HTTP ' + r.status);
     await importZip(await r.arrayBuffer());
-  }catch(e){ setShomStatus('Téléchargement impossible (' + e.message + '). Importe le fichier .zip à la main.'); }
+  }catch(e){ setShomStatus('Base SHOM pas encore téléchargée (' + e.message + '). Elle se téléchargera automatiquement à la prochaine connexion.'); $('shomManual').hidden = false; }
 }
 $('shomReload').addEventListener('click', () => loadShom(true));
 $('shomFile').addEventListener('change', async e => {
@@ -774,6 +937,7 @@ function osmKind(t){
   if (t.leisure === 'slipway') return 'slipway';
   return null;
 }
+function findKind(arr, p, kinds, tol){ return arr.find(s => kinds.includes(s.kind) && Math.abs(s.p[0]-p[0]) < tol && Math.abs(s.p[1]-p[1]) < tol*1.5); }
 function nearKind(arr, p, kinds, tol){ return arr.some(s => kinds.includes(s.kind) && Math.abs(s.p[0]-p[0]) < tol && Math.abs(s.p[1]-p[1]) < tol*1.5); }
 async function overpass(q){
   for (const url of OVERPASS){
@@ -781,14 +945,14 @@ async function overpass(q){
   }
   return null;
 }
-async function loadOsm(c, rNM){
-  const a = `(around:${Math.round(rNM*1852)},${c[0].toFixed(5)},${c[1].toFixed(5)})`;
-  const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0])));
-  const bb = `(${(c[0]-dLat).toFixed(4)},${(c[1]-dLon).toFixed(4)},${(c[0]+dLat).toFixed(4)},${(c[1]+dLon).toFixed(4)})`;
-  const q1 = `[out:json][timeout:30];(nwr${a}["seamark:type"~"^(wreck|rock|obstruction|bridge)$"];nwr${a}["waterway"~"^(lock_gate|weir|dam|fuel)$"];nwr${a}["lock"="yes"];nwr${a}["leisure"~"^(marina|slipway)$"];);out center tags 800;`;
-  const q2 = `[out:json][timeout:30];way["waterway"~"^(river|canal)$"]${bb}->.w;way(around.w:0)["bridge"]["bridge"!="no"]${bb};out center tags 400;`;
-  const [j, jb] = await Promise.all([overpass(q1), overpass(q2)]);
-  if (!j && !jb) return false;
+function osmQueries(sel, bb){
+  return [
+    `[out:json][timeout:30];(nwr${sel}["seamark:type"~"^(wreck|rock|obstruction|bridge)$"];nwr${sel}["waterway"~"^(lock_gate|weir|dam|fuel)$"];nwr${sel}["lock"="yes"];nwr${sel}["leisure"~"^(marina|slipway)$"];);out center tags 1500;`,
+    `[out:json][timeout:30];way["waterway"~"^(river|canal)$"]${bb}->.w;way(around.w:0)["bridge"]["bridge"!="no"]${bb};out center tags 800;`
+  ];
+}
+function osmParse(j, jb, ref){
+  ref = ref || ignPts;
   const out = [];
   const els = (j ? j.elements : []).concat((jb ? jb.elements : []).map(e => Object.assign({ _br:true }, e)));
   els.forEach(el => {
@@ -800,6 +964,10 @@ async function loadOsm(c, rNM){
     if ((kind === 'lock' || kind === 'bridge') && nearKind(out, p, [kind], kind === 'lock' ? 0.0012 : 0.0002)) return;
     const dv = parseFloat(t['seamark:' + kind + ':value_of_sounding']);
     const hv = parseFloat(t['seamark:bridge:clearance_height'] ?? t['seamark:bridge:clearance_height_closed'] ?? t['bridge:clearance']);
+    if (['bridge','lock','dam','weir'].includes(kind)){
+      const ig = findKind(ref, p, kind === 'weir' ? ['dam'] : [kind], 0.0010);
+      if (ig){ if (kind === 'bridge' && isFinite(hv) && ig.h == null){ ig.h = hv; ig.src = 'IGN + OSM'; } if (!ig.n) ig.n = t.name || t['bridge:name'] || null; return; }
+    }
     const dims = [];
     if (kind === 'lock'){ if (t.maxlength) dims.push('longueur ' + t.maxlength + ' m'); if (t.maxwidth) dims.push('largeur ' + t.maxwidth + ' m'); if (t.maxdraft) dims.push('tirant d\'eau ' + t.maxdraft + ' m'); if (t['lock:height']) dims.push('chute ' + t['lock:height'] + ' m'); }
     if (kind === 'bridge' && (t.highway || t.railway)) dims.push(t.railway ? 'pont ferroviaire' : 'pont routier');
@@ -807,12 +975,29 @@ async function loadOsm(c, rNM){
       h:kind === 'bridge' && isFinite(hv) ? hv : null,
       c:t['seamark:' + kind + ':category'] || t['seamark:' + kind + ':water_level'] || null, x:dims.join(' · '), src:'OSM' });
   });
-  osmPts = out; return true;
+  return out;
+}
+async function loadOsm(c, rNM){
+  const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0])));
+  const bb = `(${(c[0]-dLat).toFixed(4)},${(c[1]-dLon).toFixed(4)},${(c[0]+dLat).toFixed(4)},${(c[1]+dLon).toFixed(4)})`;
+  const [q1, q2] = osmQueries(`(around:${Math.round(rNM*1852)},${c[0].toFixed(5)},${c[1].toFixed(5)})`, bb);
+  const [j, jb, ig] = await Promise.all([overpass(q1), overpass(q2), ignFeatures(c[0]-dLat, c[1]-dLon, c[0]+dLat, c[1]+dLon).catch(() => null)]);
+  if (ig) ignPts = enrichBridges(ig);
+  if (!j && !jb && !ig){ const off = offlineNear(c, rNM); if (off.length){ ignPts = []; osmPts = off; return true; } return false; }
+  if (!j && !jb) return !!ig;
+  osmPts = enrichBridges(osmParse(j, jb)); return true;
+}
+async function osmBBox(b){
+  const bb = `(${b.map(v => v.toFixed(4)).join(',')})`;
+  const [q1, q2] = osmQueries(bb, bb);
+  const [j, jb, ig] = await Promise.all([overpass(q1), overpass(q2), ignFeatures(b[0], b[1], b[2], b[3]).catch(() => null)]);
+  const ref = ig || [];
+  return enrichBridges(ref.concat(osmParse(j, jb, ref)));
 }
 
 function nearby(c, rNM){
   const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0]))), out = [];
-  for (const arr of [iencPts, shomPts, osmPts]) for (const o of arr){
+  for (const arr of [iencPts, ignPts, shomPts, osmPts, repPts]) for (const o of arr){
     if (Math.abs(o.p[0]-c[0]) > dLat || Math.abs(o.p[1]-c[1]) > dLon) continue;
     const dist = distNM(c, o.p);
     if (dist <= rNM) out.push(Object.assign({ dist, brg:bearing(c, o.p) }, o));
@@ -821,7 +1006,7 @@ function nearby(c, rNM){
 }
 function obsPopup(o){
   return `<b>${KIND[o.kind]}</b>${o.n ? ' ' + esc(o.n) : ''}<br>` +
-    (o.d != null ? `sonde ${n1(o.d)} m<br>` : '') + (o.h != null ? `hauteur libre ${n1(o.h)} m<br>` : '') + (o.c ? `${esc(o.c)}<br>` : '') +
+    (o.d != null ? `sonde ${n1(o.d)} m<br>` : '') + (o.h != null ? `hauteur libre ${hTxt(o)}<br>` : '') + (o.c ? `${esc(o.c)}<br>` : '') +
     (o.x ? `<span class="muted">${esc(o.x)}</span><br>` : '') + `<span class="muted">source ${o.src} · ${fmtPos(o.p)}</span>`;
 }
 function lowBridge(o){ return (o.kind === 'bridge' || o.kind === 'cable') && o.h != null && o.h < cfg.air + 0.5; }
@@ -836,9 +1021,9 @@ function renderObs(label){
   }
   const row = o => { const i = obsNear.indexOf(o);
     return `<button class="obsrow" data-i="${i}"><span class="dot" style="background:${KCOL[o.kind]}"></span>
-      <span>${KIND[o.kind]}${o.n ? ' · ' + esc(o.n) : ''}<small>${o.d != null ? 'sonde ' + n1(o.d) + ' m · ' : ''}${o.h != null ? 'hauteur libre ' + n1(o.h) + ' m' + (lowBridge(o) ? ' ⚠ ' : ' · ') : (o.kind === 'bridge' ? 'hauteur libre inconnue · ' : '')}${o.x ? esc(o.x) + ' · ' : ''}${o.c ? esc(o.c) + ' · ' : ''}${o.src}</small></span>
+      <span>${o.rep ? esc(o.n) : KIND[o.kind] + (o.n ? ' · ' + esc(o.n) : '')}<small>${o.d != null ? 'sonde ' + n1(o.d) + ' m · ' : ''}${o.h != null ? 'hauteur libre ' + hTxt(o) + (lowBridge(o) ? ' ⚠ ' : ' · ') : (o.kind === 'bridge' ? 'hauteur libre inconnue · ' : '')}${o.x ? esc(o.x) + ' · ' : ''}${o.c ? esc(o.c) + ' · ' : ''}${o.src}</small></span>
       <span class="od">${o.dist < 1 ? Math.round(o.dist*1852) + ' m' : n1(o.dist) + ' NM'}<small>${pad3(o.brg)}°</small></span></button>`; };
-  [['Dangers', o => HAZ.has(o.kind)], ['Écluses, ponts et lignes aériennes', o => o.kind === 'lock' || o.kind === 'bridge' || o.kind === 'cable'], ['Services (ports, carburant, cales)', o => ['marina','fuel','slipway'].includes(o.kind)]].forEach(([title, fn]) => {
+  [['Dangers', o => HAZ.has(o.kind)], ['Écluses, ponts et lignes aériennes', o => o.kind === 'lock' || o.kind === 'bridge' || o.kind === 'cable'], ['Services (ports, carburant, cales, mouillages)', o => ['marina','fuel','slipway'].includes(o.kind)], ['Profondeurs relevées', o => o.kind === 'depth']].forEach(([title, fn]) => {
     const list = obsNear.filter(fn); if (!list.length) return;
     html += `<h3>${title} (${list.length})</h3><div class="obslist">${list.slice(0, 15).map(row).join('')}</div>` + (list.length > 15 ? `<div class="muted">${list.length - 15} autres plus loin, visibles sur la carte.</div>` : '');
   });
@@ -866,17 +1051,48 @@ function autoObs(){
 $('obsRefresh').addEventListener('click', () => {
   if (gps) refreshObstacles(gps.p, 'ton bateau'); else { const c = map.getCenter(); refreshObstacles([c.lat, c.lng], 'le centre de la carte'); }
 });
+function obsLabel(o){
+  const m = v => n1(v).replace(' ', '') + ' m';
+  switch (o.kind){
+    case 'bridge': return o.h != null ? (o.hMin ? '≥' : '') + m(o.h) : 'Pont ?';
+    case 'cable': return 'Câble' + (o.h != null ? ' ' + m(o.h) : '');
+    case 'lock': return 'Écluse'; case 'dam': case 'weir': return 'Barrage';
+    case 'wreck': return 'Épave' + (o.d != null ? ' ' + m(o.d) : '');
+    case 'rock': return 'Roche' + (o.d != null ? ' ' + m(o.d) : '');
+    case 'obstruction': return o.rep ? (o.n || '').split(' : ')[0].split(' /')[0] : 'Obstruction';
+    case 'marina': return o.rep ? (o.n || '').split(' : ')[0] : 'Port';
+    case 'fuel': return 'Carburant'; case 'slipway': return 'Cale';
+    case 'depth': return 'Sonde ' + (o.d != null ? m(o.d) : '?');
+    default: return o.rep ? (o.n || '').split(' : ')[0] : (KIND[o.kind] || '!');
+  }
+}
 function drawObsInView(){
   obsLayer.clearLayers();
   if (!map.hasLayer(obsLayer) || map.getZoom() < 11) return;
-  const b = map.getBounds().pad(0.1); let n = 0;
-  for (const arr of [iencPts, shomPts, osmPts]) for (const o of arr){
-    if (!b.contains(o.p)) continue; if (++n > 400) return;
-    L.circleMarker(o.p, { radius:6, color:'#fff', weight:1.5, fillColor:KCOL[o.kind], fillOpacity:.95 }).bindPopup(() => obsPopup(o)).addTo(obsLayer);
+  const b = map.getBounds().pad(0.1), labels = map.getZoom() >= 14; let n = 0;
+  for (const arr of [iencPts, ignPts, shomPts, osmPts]) for (const o of arr){
+    if (!b.contains(o.p)) continue; if (++n > 500) return;
+    const mk = labels
+      ? L.marker(o.p, { icon:L.divIcon({ className:'', iconSize:[0,0], html:`<div class="mk${lowBridge(o) ? ' low' : ''}" style="--c:${KCOL[o.kind] || '#ccc'}">${esc(obsLabel(o))}</div>` }) })
+      : L.circleMarker(o.p, { radius:lowBridge(o) ? 8 : 6, color:'#fff', weight:1.5, fillColor:lowBridge(o) ? '#ef5350' : KCOL[o.kind], fillOpacity:.95 });
+    mk.bindPopup(() => obsPopup(o)).addTo(obsLayer);
   }
 }
 let obsDrawTimer = null;
-map.on('moveend', () => { clearTimeout(obsDrawTimer); obsDrawTimer = setTimeout(drawObsInView, 400); });
+let viewC = null, viewTimer = null;
+map.on('moveend', () => {
+  clearTimeout(obsDrawTimer); obsDrawTimer = setTimeout(drawObsInView, 400);
+  clearTimeout(viewTimer);
+  viewTimer = setTimeout(async () => {
+    if (map.getZoom() < 12 || obsBusy || (gps && follow)) return;
+    const c = map.getCenter(), p = [c.lat, c.lng];
+    if (viewC && distNM(viewC, p) < 0.7) return;
+    viewC = p; obsBusy = true;
+    const b = map.getBounds(), r = Math.min(3, Math.max(0.8, distNM([b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()])/2));
+    try{ await loadOsm(p, r); }catch(e){}
+    obsBusy = false; drawObsInView();
+  }, 1200);
+});
 
 // --- profondeur (EMODnet) et alerte fond faible
 const depthCache = new Map();
@@ -895,6 +1111,12 @@ async function depthAt(p){
       const j = await fetch(`https://ows.emodnet-bathymetry.eu/wms?service=WMS&version=1.1.1&request=GetFeatureInfo&layers=emodnet:mean&query_layers=emodnet:mean&srs=EPSG:4326&bbox=${bb}&width=101&height=101&x=50&y=50&info_format=application/json`).then(r => r.json());
       const pr = j.features && j.features[0] && j.features[0].properties;
       if (pr){ for (const k in pr) if (typeof pr[k] === 'number'){ d = -pr[k]; break; } }
+    }catch(e){}
+  }
+  if (d == null){
+    try{
+      const j = await fetch(`https://api.opentopodata.org/v1/gebco2020?locations=${p[0].toFixed(5)},${p[1].toFixed(5)}`).then(r => r.json());
+      const v = j.results && j.results[0] && j.results[0].elevation; if (typeof v === 'number') d = -v;
     }catch(e){}
   }
   if (depthCache.size > 300) depthCache.clear();
@@ -925,6 +1147,123 @@ async function updateDepth(){
 const aisPos = () => gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
 $('aisMT').addEventListener('click', () => { const c = aisPos(); window.open(`https://www.marinetraffic.com/en/ais/home/centerx:${c[1].toFixed(4)}/centery:${c[0].toFixed(4)}/zoom:12`, '_blank'); });
 $('aisVF').addEventListener('click', () => { window.open('https://www.vesselfinder.com/', '_blank'); });
+
+// ---------- IGN GÉOPLATEFORME (BD TOPO : données officielles, sans clé) ----------
+let ignPts = [];
+const GPF = 'https://data.geopf.fr/wfs/ows';
+async function gpfWfs(type, cql, props, pages){
+  const max = 5000; let all = [];
+  for (let pg = 0; pg < (pages || 1); pg++){
+    const u = `${GPF}?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=${type}&OUTPUTFORMAT=application/json&COUNT=${max}&STARTINDEX=${pg*max}&CQL_FILTER=${encodeURIComponent(cql)}` + (props ? `&PROPERTYNAME=${props}` : '');
+    const j = await fetch(u).then(r => { if (!r.ok) throw new Error('IGN ' + r.status); return r.json(); });
+    const f = j.features || []; all = all.concat(f); if (f.length < max) break;
+  }
+  return all;
+}
+const gpfBox = (S, W, N, E) => `BBOX(geometrie,${S.toFixed(5)},${W.toFixed(5)},${N.toFixed(5)},${E.toFixed(5)},'EPSG:4326')`;
+function geoLines(g){
+  if (!g) return [];
+  const ls = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : g.type === 'Polygon' ? g.coordinates : g.type === 'MultiPolygon' ? [].concat(...g.coordinates) : [];
+  return ls.map(l => l.filter(c => Math.abs(c[1]) <= 90).map(c => [c[1], c[0]])).filter(l => l.length > 1);
+}
+function geoCentroid(g){ let la = 0, lo = 0, n = 0; const walk = a => { if (typeof a[0] === 'number'){ lo += a[0]; la += a[1]; n++; } else a.forEach(walk); }; if (g) walk(g.coordinates); return n ? [la/n, lo/n] : null; }
+async function ignFeatures(S, W, N, E){
+  const bb = gpfBox(S, W, N, E), cons = `nature IN ('Pont','Ecluse','Écluse','Barrage') AND ${bb}`;
+  const [cs, cl, tr] = await Promise.all([
+    gpfWfs('BDTOPO_V3:construction_surfacique', cons, 'nature,toponyme,geometrie').catch(() => null),
+    gpfWfs('BDTOPO_V3:construction_lineaire', cons, 'nature,toponyme,geometrie').catch(() => null),
+    gpfWfs('BDTOPO_V3:troncon_hydrographique', bb, 'navigabilite,classe_de_largeur,geometrie').catch(() => null)
+  ]);
+  if (!cs && !cl) return null;
+  const water = [];
+  (tr || []).forEach(f => { const pr = f.properties || {}; if (pr.navigabilite || /50/.test(pr.classe_de_largeur || '')) geoLines(f.geometry).forEach(l => water.push(l)); });
+  const nearWater = p => water.some(l => { for (let i = 0; i < l.length-1; i++) if (projSeg(p, l[i], l[i+1]).d < 0.05) return true; return false; });
+  const out = [];
+  [].concat(cs || [], cl || []).forEach(f => {
+    const pr = f.properties || {}, nat = String(pr.nature || '');
+    const kind = nat === 'Pont' ? 'bridge' : /cluse/.test(nat) ? 'lock' : nat === 'Barrage' ? 'dam' : null;
+    const p = geoCentroid(f.geometry); if (!kind || !p) return;
+    if (kind === 'bridge' && !nearWater(p)) return;
+    if (findKind(out, p, [kind], 0.0008)) return;
+    out.push({ p, kind, n:pr.toponyme || null, d:null, h:null, c:null, x:'', src:'IGN' });
+  });
+  return out;
+}
+
+// ---------- HAUTEURS LIBRES DES PONTS (tableaux officiels VNF intégrés à l'appli) ----------
+// Saône : avis à la batellerie VNF n°1 2025, hauteur libre sur retenue normale (RN).
+// Rhône Lyon → Arles : avis à la batellerie VNF n°1 2023, tirant d'air minimum garanti 6,30 m sur le niveau de référence.
+const BRIDGE_DB = {
+  S:{ name:'Saône', box:[45.70, 4.70, 47.15, 5.40], lat:[[0,45.73],[17,45.88],[30,45.94],[55,46.11],[80,46.31],[111,46.56],[140,46.78],[187,47.01],[215,47.10]], rows:[
+    [0.01,'Pont de la Mulatière A7',6.5],[0.04,'Viaduc SNCF de la Mulatière',6.4],[2.37,'Viaduc SNCF de la Quarantaine',7.0],[2.4,'Pont autoroutier A6',10.0],
+    [2.51,'Pont Kitchener Marchand',6.0],[3.22,'Passerelle Saint-Georges',6.7],[3.55,'Pont Bonaparte',6.1],[3.8,'Passerelle du Palais de Justice',7.3],
+    [4.0,'Pont Maréchal Juin',7.9],[4.36,'Pont La Feuillée',6.4],[4.53,'Passerelle Saint-Vincent',6.7],[5.15,'Passerelle Homme de la Roche',7.8],
+    [5.87,'Pont Général Koenig',7.4],[6.47,'Pont Clémenceau',6.9],[6.87,'Pont Masaryk',7.4],[7.2,'Pont Schuman',7.3,'passe montante 7,30 m, avalante 8,55 m'],
+    [9.61,'Pont de l\'Île Barbe',7.4],[12.03,'Pont Paul Bocuse',8.4],[12.1,'Viaduc SNCF de Collonges',9.0],[14.61,'Pont de Fontaines-sur-Saône',9.0],
+    [16.88,'Pont de Couzon',8.7],[17.0,'Portique de l\'écluse de Rochetaillée',7.1],[20.5,'Pont de Neuville-sur-Saône',7.0],[25.0,'Pont autoroute A46',7.8],
+    [30.37,'Pont de Trévoux',9.2],[30.86,'Passerelle de Trévoux',9.0],[34.98,'Pont Saint-Bernard',9.0],[40.22,'Pont de Frans',9.2],[41.6,'Pont de Jassans',9.1],
+    [42.17,'Pont de Beauregard',9.0],[52.01,'Pont de Montmerle',10.4],[54.94,'Pont de Belleville',10.7],[63.4,'Pont de Thoissey',7.8],
+    [66.2,'Pont de Saint-Romain-des-Îles',7.1],[72.87,'Pont d\'Arciat',10.2],[76.55,'Pont de l\'A406',10.4],[78.2,'Viaduc SNCF de Mâcon',9.3],
+    [79.5,'Pont François Mitterrand',8.89],[80.4,'Pont Saint-Laurent Mâcon',6.0,'arche 2 : 6,00 m, arche 4 : 7,00 m'],[84.4,'Pont Nord de Mâcon A40',10.1],
+    [97.45,'Pont de Fleurville',9.6],[103.2,'Pont d\'Uchizy',9.0],[110.93,'Pont routier de Tournus',8.8],[111.95,'Pont urbain de Tournus',10.6],
+    [124.57,'Pont de Thorey',9.02],[129.55,'Pont d\'Ouroux',8.34,'passes 8,34 m et 9,19 m'],[138.21,'Pont de Bresse Chalon',9.23],[140.62,'Viaduc SNCF des Dombes',8.45],
+    [141.2,'Pont Jean Richard Chalon',8.68],[141.83,'Pont Saint-Laurent Chalon',7.25,'passes 7,25 m et 9,67 m'],[142.78,'Pont de Bourgogne Chalon',9.72],
+    [159.05,'Pont de Verjux',10.58],[164.58,'Viaduc de Chauvort',10.78,'passes 11,00 m et 10,78 m'],[166.59,'Pont de Bragny-sur-Saône',10.0,'passes 10,00 m et 10,45 m'],
+    [175.15,'Pont de l\'écluse d\'Écuelles',11.7],[182.75,'Viaduc de Chivres',8.21],[186.85,'Pont de Seurre',9.57],[187.77,'Pont de l\'écluse de Seurre',11.7],
+    [189.15,'Pont de Chamblanc',7.17],[191.37,'Pont A36',7.72],[192.58,'Pont de Labruyère',7.1],[194.72,'Pont de Pagny',7.1],
+    [213.6,'Viaduc SNCF de Saint-Usage',7.51],[214.97,'Pont de Saint-Jean-de-Losne',6.54] ]},
+  R:{ name:'Rhône', min:true, box:[43.60, 4.40, 45.74, 5.00], lat:[[0,45.73],[18,45.59],[29,45.52],[41,45.42],[91,45.07],[110,44.93],[128,44.80],[157,44.56],[166,44.48],[196,44.20],[222,44.05],[242,43.95],[268,43.81],[283,43.67]], rows:[
+    [3.92,'Pont de l\'écluse de Pierre-Bénite'],[4.5,'Pont A7 Pierre-Bénite'],[8.0,'Pont de Feyzin'],[10.8,'Pont de Solaize'],[17.23,'Viaduc SNCF d\'Arboras'],
+    [18.0,'Pont de Givors A47'],[18.93,'Pont suspendu de Chasse-sur-Rhône'],[26.6,'Pont A7 Vienne Nord'],[28.58,'Pont de Lattre-de-Tassigny'],[29.0,'Passerelle de Vienne'],
+    [32.7,'Pont aval A7 Vienne'],[34.0,'Pont de l\'écluse de Vaugris'],[41.2,'Pont de Condrieu'],[47.25,'Pont de Chavanay'],[55.9,'Pont de Salaise'],
+    [58.6,'Pont de Sablons'],[59.8,'Pont de l\'écluse de Sablons'],[61.9,'Viaduc SNCF de Peyraud'],[68.77,'Pont d\'Andance'],[75.55,'Pont de Saint-Vallier'],
+    [86.25,'Pont de l\'écluse de Gervans'],[91.04,'Passerelle Tain-l\'Hermitage Tournon'],[91.65,'Pont Gustave Toursier'],[98.92,'Pont de la Roche-de-Glun'],
+    [106.2,'Pont de l\'écluse de Bourg-lès-Valence'],[109.75,'Pont Frédéric Mistral Valence'],[112.7,'Pont des Lônes'],[119.55,'Pont de Charmes'],
+    [124.4,'Pont de l\'écluse de Beauchastel'],[128.0,'Pont routier de La Voulte'],[128.6,'Pont SNCF de La Voulte'],[133.41,'Pont du Pouzin'],
+    [142.4,'Pont de l\'écluse de Baix-le-Logis-Neuf'],[155.8,'Pont de Rochemaure'],[157.2,'Pont du Teil'],[159.08,'Pont de Gournier'],[166.3,'Pont de Viviers'],
+    [169.6,'Pont du Robinet'],[174.53,'Viaduc SNCF de Donzère'],[174.68,'Pont RN7 Donzère'],[178.6,'Pont de la Garde-Adhémar'],[179.5,'Viaduc TGV de la Garde-Adhémar'],
+    [180.5,'Pont de Saint-Paul'],[185.2,'Pont du Tricastin'],[192.15,'Pont suspendu de Bollène'],[195.3,'Viaduc SNCF de Mondragon'],[196.05,'Pont RN7 Mondragon'],
+    [197.2,'Pont suspendu de Mondragon'],[202.5,'Viaduc TGV de Mornas'],[216.45,'Pont de l\'écluse de Caderousse'],[221.6,'Viaduc TGV de Roquemaure'],
+    [221.9,'Pont A9 la Languedocienne'],[222.0,'Pont de Roquemaure'],[238.9,'Pont de l\'écluse d\'Avignon'],[242.1,'Pont Daladier'],[242.32,'Pont du Royaume'],
+    [242.8,'Pont de l\'Europe Avignon'],[246.1,'Viaduc TGV d\'Avignon'],[252.2,'Pont d\'Aramon'],[265.0,'Pont de l\'écluse de Vallabrègues'],
+    [267.5,'Pont de Tarascon D999'],[267.8,'Pont SNCF de Tarascon'],[269.5,'Pont de Tarascon Beaucaire'],[282.5,'Pont de Trinquetaille'],[283.0,'Pont d\'Arles RN113'] ]}
+};
+const BSTOP = new Set('pont ponts passerelle viaduc viaducs de du des la le les sur au aux et en sncf rn rd cd axe nord sud amont aval tete routier routiere autoroute autoroutier urbain nouveau ancien ferroviaire tgv suspendu saone rhone mont or canal ecluse general marechal president'.split(' '));
+const btok = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\bst\b/g, 'saint').replace(/mazaryck/g, 'masaryk').replace(/koening/g, 'koenig').replace(/[^a-z0-9]+/g, ' ').split(' ').filter(t => t.length > 1 && !BSTOP.has(t));
+const bRail = s => /sncf|tgv|ferroviaire|voie ferr/i.test(s);
+function expLat(tab, pk){ for (let i = 0; i < tab.length-1; i++) if (pk <= tab[i+1][0]){ const f = (pk - tab[i][0])/(tab[i+1][0] - tab[i][0]); return tab[i][1] + (tab[i+1][1] - tab[i][1])*f; } return tab[tab.length-1][1]; }
+function matchBridge(o){
+  const ct = btok(o.n); if (!ct.length) return null;
+  const cs = new Set(ct), cRailKnown = /ferroviaire|routier|sncf|tgv/i.test(o.n + ' ' + o.x), cRail = bRail(o.n + ' ' + o.x);
+  let best = null, second = null;
+  for (const key in BRIDGE_DB){
+    const r = BRIDGE_DB[key], b = r.box;
+    if (o.p[0] < b[0] || o.p[0] > b[2] || o.p[1] < b[1] || o.p[1] > b[3]) continue;
+    for (const row of r.rows){
+      if (Math.abs(o.p[0] - expLat(r.lat, row[0])) > 0.07) continue;
+      const tt = btok(row[1]); if (!tt.length) continue;
+      if (cRailKnown && bRail(row[1]) !== cRail) continue;
+      const common = tt.filter(t => cs.has(t)).length; if (!common) continue;
+      const score = common/tt.length + common/ct.length*0.5; if (common/tt.length < 0.5) continue;
+      const m = { r, row, score };
+      if (!best || score > best.score){ second = best; best = m; } else if (!second || score > second.score) second = m;
+    }
+  }
+  if (!best) return null;
+  if (second && second.score === best.score && Math.abs((second.row[2] || 6.3) - (best.row[2] || 6.3)) > 0.3) return null;
+  return best;
+}
+function enrichBridges(arr){
+  (arr || []).forEach(o => {
+    if (o.kind !== 'bridge' || o.h != null || o.vnf) return;
+    const m = matchBridge(o); if (!m) return;
+    o.vnf = true; o.h = m.row[2] != null ? m.row[2] : 6.3; o.hMin = !!m.r.min;
+    o.x = [o.x, (m.r.min ? 'minimum garanti VNF (Rhône)' : 'hauteur VNF sur retenue normale') + (m.row[3] ? ', ' + m.row[3] : '') + ` · PK ${m.row[0]} ${m.r.name}`].filter(Boolean).join(' · ');
+    o.src = (o.src || '') + ' + VNF';
+  });
+  return arr;
+}
+const hTxt = o => (o.hMin ? '≥ ' : '') + n1(o.h) + ' m';
 
 // ---------- CARTES OFFICIELLES IENC (S-57 : VNF, CNR…) ----------
 const S57 = { 11:'bridge', 38:'dam', 79:'lock', 86:'obstruction', 159:'wreck', 153:'rock', 21:'cable', 93:'cable', 34:'cable' };
@@ -1004,6 +1343,7 @@ function iencDepth(p){
 function rebuildIenc(){
   iencPts = []; iencAreas = [];
   Object.values(iencCells).forEach(c => { iencPts = iencPts.concat(c.pts); iencAreas = iencAreas.concat(c.areas); });
+  enrichBridges(iencPts);
   const nC = Object.keys(iencCells).length;
   if (!nC){ $('iencStatus').textContent = 'Aucune carte IENC importée.'; return; }
   const br = iencPts.filter(o => o.kind === 'bridge'), withH = br.filter(o => o.h != null).length;
@@ -1081,9 +1421,383 @@ $('lnkVigi').addEventListener('click', () => window.open('https://www.vigicrues.
 $('lnkVnf').addEventListener('click', () => window.open('https://www.vnf.fr/', '_blank'));
 function autoRiver(){ if (gps && !riverBusy && (!riverCenter || distNM(riverCenter, gps.p) > 5)) loadRiver(gps.p, 'ton bateau'); }
 
+// ---------- NAVIGATION GUIDÉE ----------
+KIND.danger = 'Danger signalé'; KCOL.danger = '#ef5350';
+let nav = null, sogEma = null, hintT = null;
+const navLine = L.polyline([], { color:'#3da5ff', weight:6, opacity:.85 }).addTo(map);
+if (!cfg.unit) cfg.unit = 'km';
+if (cfg.voice == null) cfg.voice = true;
+$('unit').value = cfg.unit; $('voice').checked = cfg.voice; $('navVoice').textContent = cfg.voice ? '🔊' : '🔇';
+$('unit').addEventListener('change', () => { cfg.unit = $('unit').value; store.set('cfg', cfg); navUpdate(); });
+const setVoice = v => { cfg.voice = v; store.set('cfg', cfg); $('voice').checked = v; $('navVoice').textContent = v ? '🔊' : '🔇'; };
+$('voice').addEventListener('change', () => setVoice($('voice').checked));
+$('navVoice').addEventListener('click', () => { setVoice(!cfg.voice); if (cfg.voice) say('Annonces vocales activées'); });
+
+function fmtD(nm){
+  if (cfg.unit === 'nm' && nm >= 0.5) return n1(nm) + ' NM';
+  const m = nm*1852;
+  if (m < 1000) return (m < 100 ? Math.round(m/10)*10 : Math.round(m/50)*50) + ' m';
+  return (m < 10000 ? n1(m/1000) : n0(m/1000)) + ' km';
+}
+const spokenD = nm => fmtD(nm).replace(/ m$/, ' mètres').replace(/ km$/, ' kilomètres').replace(/ NM$/, ' milles');
+function say(t){ if (!cfg.voice) return; try{ const u = new SpeechSynthesisUtterance(t); u.lang = 'fr-FR'; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){} }
+function hint(t, ms){ $('toolHint').hidden = false; $('toolHint').textContent = t; clearTimeout(hintT); hintT = setTimeout(() => { if (!tool) $('toolHint').hidden = true; }, ms || 5000); }
+const norm180 = a => ((a % 360) + 540) % 360 - 180;
+function turnTxt(d){ const a = Math.round(Math.abs(d)/5)*5; return Math.abs(d) < 20 ? 'tout droit' : (d > 0 ? 'vire à droite' : 'vire à gauche') + ' de ' + a + '°'; }
+function projSeg(p, a, b){
+  const k = Math.cos(toRad(a[0]))*60;
+  const bx = (b[1]-a[1])*k, by = (b[0]-a[0])*60, px = (p[1]-a[1])*k, py = (p[0]-a[0])*60;
+  const L2 = bx*bx + by*by; let t = L2 ? (px*bx + py*by)/L2 : 0; t = Math.max(0, Math.min(1, t));
+  return { t, d:Math.hypot(px - bx*t, py - by*t), side:bx*py - by*px };
+}
+function pointAlong(sx){
+  const P = nav.path, c = nav.cum; sx = Math.max(0, Math.min(c[c.length-1], sx));
+  for (let i = 0; i < P.length-1; i++) if (sx <= c[i+1]){ const f = (sx - c[i])/((c[i+1] - c[i]) || 1); return [P[i][0] + (P[i+1][0]-P[i][0])*f, P[i][1] + (P[i+1][1]-P[i][1])*f]; }
+  return P[P.length-1];
+}
+const NAVK = new Set(['wreck','rock','obstruction','weir','dam','bridge','lock','cable','danger']);
+function isDanger(o){ return HAZ.has(o.kind) || o.kind === 'danger' || lowBridge(o); }
+function hazLabel(o){
+  return (o.rep ? o.n : (lowBridge(o) ? 'Pont bas' : KIND[o.kind] || 'Danger') + (o.n ? ' ' + o.n : '')) +
+    (o.h != null ? ' · hauteur libre ' + hTxt(o) : o.kind === 'bridge' ? ' · hauteur inconnue' : '');
+}
+function computeNavHazards(){
+  if (!nav) return;
+  const P = nav.path, boxes = [];
+  for (let i = 0; i < P.length-1; i++){ const a = P[i], b = P[i+1]; boxes.push([Math.min(a[0],b[0])-0.0015, Math.min(a[1],b[1])-0.002, Math.max(a[0],b[0])+0.0015, Math.max(a[1],b[1])+0.002]); }
+  const all = [].concat(iencPts, ignPts, shomPts, osmPts, nav.osm || [], repPts);
+  const out = [];
+  for (const o of all){
+    if (!NAVK.has(o.kind)) continue;
+    let best = null;
+    for (let i = 0; i < boxes.length; i++){
+      const bx = boxes[i]; if (o.p[0] < bx[0] || o.p[0] > bx[2] || o.p[1] < bx[1] || o.p[1] > bx[3]) continue;
+      const r = projSeg(o.p, P[i], P[i+1]);
+      if (r.d < 0.07 && (!best || r.d < best.d)) best = { d:r.d, s:nav.cum[i] + r.t*(nav.cum[i+1] - nav.cum[i]) };
+    }
+    if (!best || out.some(h => h.o.kind === o.kind && Math.abs(h.s - best.s) < 0.03)) continue;
+    out.push({ o, s:best.s, off:best.d });
+  }
+  nav.haz = out.sort((a, b) => a.s - b.s);
+}
+function startNav(points, mode){
+  if (!points.length){ $('navMsg').textContent = 'Ajoute d\'abord au moins un point avec « Tracer une route ».'; return; }
+  if (!watchId) $('gpsBtn').click();
+  const from = gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
+  const path = [from].concat(points), cum = [0];
+  for (let i = 1; i < path.length; i++) cum.push(cum[i-1] + distNM(path[i-1], path[i]));
+  nav = { path, cum, mode, k:0, said:{}, haz:[], lastOff:0, t0:Date.now(), arrived:false };
+  navLine.setLatLngs(path);
+  document.body.classList.add('nav'); $('sheet').hidden = true; $('navTop').hidden = false; $('navBottom').hidden = false;
+  map.fitBounds(navLine.getBounds(), { padding:[70, 70] });
+  setTimeout(() => { if (nav){ follow = true; $('followBtn').classList.add('active'); map.setView(gps ? gps.p : from, 15); } }, 3500);
+  computeNavHazards();
+  const nD = nav.haz.filter(h => isDanger(h.o)).length;
+  say(`Navigation démarrée. ${spokenD(cum[cum.length-1])} à parcourir.` + (nD ? ` Attention, ${nD} danger${nD > 1 ? 's' : ''} près de la route.` : ''));
+  const b = navLine.getBounds();
+  if (b.getNorth() - b.getSouth() < 1.5 && b.getEast() - b.getWest() < 2)
+    osmBBox([b.getSouth()-0.01, b.getWest()-0.01, b.getNorth()+0.01, b.getEast()+0.01]).then(r => { if (nav){ nav.osm = r; computeNavHazards(); navUpdate(); } });
+  navUpdate();
+}
+function stopNav(){
+  nav = null; navLine.setLatLngs([]);
+  document.body.classList.remove('nav'); $('sheet').hidden = false; $('navTop').hidden = true; $('navBottom').hidden = true;
+  try{ speechSynthesis.cancel(); }catch(e){}
+}
+function navUpdate(){
+  if (!nav) return;
+  const P = nav.path, n = P.length, pos = gps ? gps.p : P[0];
+  if (gps && gps.sog != null) sogEma = sogEma == null ? gps.sog : sogEma*0.8 + gps.sog*0.2;
+  let best = null;
+  const k0 = Math.max(0, nav.k - 1), k1 = Math.min(n-2, nav.k + (nav.mode === 'river' ? 120 : 2));
+  for (let k = k0; k <= k1; k++){ const r = projSeg(pos, P[k], P[k+1]); if (!best || r.d < best.d) best = Object.assign(r, { k }); }
+  if (best.k > nav.k) nav.k = best.k;
+  else if (best.k < nav.k) best = Object.assign(projSeg(pos, P[nav.k], P[nav.k+1]), { k:nav.k });
+  if (nav.mode !== 'river' && nav.k < n-2 && distNM(pos, P[nav.k+1]) < 0.03){ nav.k++; best = Object.assign(projSeg(pos, P[nav.k], P[nav.k+1]), { k:nav.k }); }
+  const k = nav.k, sNow = nav.cum[k] + best.t*(nav.cum[k+1] - nav.cum[k]);
+  const rem = Math.max(0, nav.cum[n-1] - sNow) + best.d;
+  const spd = sogEma != null && sogEma > 1 ? sogEma : (+$('spd').value || 10), hrs = rem/spd;
+  const mins = Math.round(hrs*60);
+  $('navEta').textContent = new Date(Date.now() + hrs*3600000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  $('navRem').textContent = fmtD(rem);
+  $('navDur').textContent = mins >= 60 ? Math.floor(mins/60) + ' h ' + String(mins % 60).padStart(2, '0') : mins + ' min';
+  const speak = (key, txt) => { if (!nav.said[key]){ nav.said[key] = 1; say(txt); } };
+  const offM = best.d*1852, side = best.side > 0 ? 'droite' : 'gauche';
+  let tgtBrg, big, instr;
+  if (nav.mode === 'river'){
+    tgtBrg = bearing(pos, pointAlong(sNow + 0.16));
+    const h = nav.haz.find(h => h.s > sNow + 0.005 && h.s - sNow < 5);
+    if (h){ big = fmtD(h.s - sNow); instr = hazLabel(h.o); } else { big = fmtD(rem); instr = 'Suis le cours d\'eau jusqu\'à l\'arrivée'; }
+  } else {
+    const tgt = P[k+1], last = k+1 === n-1, dT = distNM(pos, tgt);
+    tgtBrg = bearing(pos, tgt); big = fmtD(dT);
+    instr = last ? 'jusqu\'à l\'arrivée' : 'jusqu\'au point ' + (k+1);
+    let turn = '';
+    if (!last){ const nb = bearing(P[k+1], P[k+2]); turn = turnTxt(norm180(nb - bearing(P[k], P[k+1]))); instr += ', puis ' + turn + ' (cap ' + pad3(nb) + '°)'; }
+    [1000, 300, 100].forEach(th => { const m = dT*1852; if (m < th && m > th*0.45) speak('w' + (k+1) + '_' + th, 'Dans ' + spokenD(th/1852) + ', ' + (last ? 'arrivée' : 'point ' + (k+1) + ', puis ' + turn)); });
+  }
+  const offLim = nav.mode === 'river' ? 200 : 150, off = offM > offLim;
+  $('navSub').className = off ? 'off' : '';
+  $('navSub').textContent = off ? `Hors route de ${Math.round(offM)} m · reviens vers la ${side}` : `cap ${pad3(tgtBrg)}°` + (sogEma != null ? ` · ${n1(sogEma)} nd` : '');
+  if (off && Date.now() - nav.lastOff > 30000){ nav.lastOff = Date.now(); say('Tu dévies de la route. Reviens vers la ' + side + '.'); }
+  // dangers sur la route
+  const ahead = nav.haz.filter(h => h.s > sNow - 0.01);
+  ahead.slice(0, 3).forEach((h, i) => { const m = (h.s - sNow)*1852; [1000, 300].forEach(th => { if (m < th && m > th*0.4) speak('h' + nav.haz.indexOf(h) + '_' + th, hazLabel(h.o).split(' · ')[0] + ' dans ' + spokenD(th/1852) + (lowBridge(h.o) ? ', attention, pont trop bas pour toi' : '')); }); });
+  const nd = ahead.find(h => isDanger(h.o) && h.s - sNow < 3);
+  const hz = $('navHaz');
+  if (nd){ hz.hidden = false; hz.textContent = `⚠ ${hazLabel(nd.o)} dans ${fmtD(Math.max(0, nd.s - sNow))}` + (nd.off > 0.02 ? ` à ${Math.round(nd.off*1852)} m de ta route` : ' sur ta route'); }
+  else if (Date.now() - nav.t0 < 8000 && !nav.haz.some(h => isDanger(h.o))){ hz.hidden = false; hz.textContent = 'Aucun danger répertorié près de ta route.'; }
+  else hz.hidden = true;
+  // arrivée
+  if (rem < 0.03 || (k === n-2 && distNM(pos, P[n-1]) < 0.03)){
+    big = 'Arrivé'; instr = 'Tu es à destination';
+    if (!nav.arrived){ nav.arrived = true; say('Tu es arrivé à destination.'); setTimeout(() => { if (nav && nav.arrived) stopNav(); }, 10000); }
+  }
+  $('navDist').textContent = big; $('navInstr').textContent = instr;
+  const cog = gps && gps.cog != null && gps.sog != null && gps.sog > 1 ? gps.cog : null;
+  $('navArrowSvg').style.transform = `rotate(${cog == null ? tgtBrg : norm180(tgtBrg - cog)}deg)`;
+}
+$('navStop').addEventListener('click', () => { stopNav(); say('Navigation arrêtée'); });
+$('navStart').addEventListener('click', () => startNav(route.slice(), 'route'));
+$('navGoto').addEventListener('click', () => setTool('goto', 'Touche la carte à l\'endroit où tu veux aller'));
+$('navRiver').addEventListener('click', () => setTool('river', 'Touche ta destination sur le fleuve ou le canal'));
+
+// --- itinéraire automatique sur les rivières et canaux (OpenStreetMap)
+function routeOnLines(lines, from, dest){
+  const idx = new Map(), co = [], adj = [];
+  const node = (la, lo) => { const key = la.toFixed(6) + ',' + lo.toFixed(6); let i = idx.get(key); if (i === undefined){ i = co.length; idx.set(key, i); co.push([la, lo]); adj.push([]); } return i; };
+  lines.forEach(({ pts, w }) => { let prev = null; pts.forEach(g => { const i = node(g[0], g[1]); if (prev !== null && prev !== i){ const d = distNM(co[prev], co[i])*w; adj[prev].push(i, d); adj[i].push(prev, d); } prev = i; }); });
+  if (!co.length) return 'Aucune rivière ni canal trouvé entre ces deux points.';
+  const nearest = p => { let bi = -1, bd = Infinity; for (let i = 0; i < co.length; i++){ const d = distNM(p, co[i]); if (d < bd){ bd = d; bi = i; } } return [bi, bd]; };
+  const [a, da] = nearest(from), [b, db] = nearest(dest);
+  if (da > 1.5 || db > 1.5) return (da > 1.5 ? 'Ton point de départ' : 'Ta destination') + ' est trop loin d\'un cours d\'eau navigable.';
+  const n = co.length, dist = new Float64Array(n).fill(Infinity), prv = new Int32Array(n).fill(-1), hp = [], hi = [];
+  const push = (d, i) => { hp.push(d); hi.push(i); let c = hp.length-1; while (c > 0){ const p = (c-1) >> 1; if (hp[p] <= hp[c]) break; [hp[p], hp[c]] = [hp[c], hp[p]]; [hi[p], hi[c]] = [hi[c], hi[p]]; c = p; } };
+  const pop = () => { const d = hp[0], i = hi[0], ld = hp.pop(), li = hi.pop(); if (hp.length){ hp[0] = ld; hi[0] = li; let c = 0; for (;;){ const l = 2*c+1, r = l+1; let m = c; if (l < hp.length && hp[l] < hp[m]) m = l; if (r < hp.length && hp[r] < hp[m]) m = r; if (m === c) break; [hp[m], hp[c]] = [hp[c], hp[m]]; [hi[m], hi[c]] = [hi[c], hi[m]]; c = m; } } return [d, i]; };
+  dist[a] = 0; push(0, a);
+  while (hp.length){ const [d, i] = pop(); if (d > dist[i]) continue; if (i === b) break; const ad = adj[i]; for (let q = 0; q < ad.length; q += 2){ const v = ad[q], nd = d + ad[q+1]; if (nd < dist[v]){ dist[v] = nd; prv[v] = i; push(nd, v); } } }
+  if (dist[b] === Infinity) return null;
+  const pts = []; for (let i = b; i !== -1; i = prv[i]) pts.push(co[i]); pts.reverse(); pts.push(dest);
+  return pts;
+}
+async function planRiver(dest){
+  const from = gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
+  const S = Math.min(from[0], dest[0]) - 0.05, W = Math.min(from[1], dest[1]) - 0.07, N = Math.max(from[0], dest[0]) + 0.05, E = Math.max(from[1], dest[1]) + 0.07;
+  if (N - S > 2.5 || E - W > 3.5){ hint('Trop loin : fais ton trajet en étapes de moins de 200 km.', 7000); return; }
+  hint('Calcul de l\'itinéraire par l\'eau (cours d\'eau officiels IGN)…' + (gps ? '' : ' Départ : centre de la carte.'), 40000);
+  let res = null, src = 'IGN';
+  try{
+    const f = await gpfWfs('BDTOPO_V3:troncon_hydrographique', `${gpfBox(S, W, N, E)} AND classe_de_largeur<>'Entre 0 et 15 m'`, 'navigabilite,classe_de_largeur,nature,geometrie', 8);
+    const lines = [];
+    f.forEach(ft => { const pr = ft.properties || {}; const w = pr.navigabilite ? 1 : /Plus de 50/.test(pr.classe_de_largeur || '') ? 1.2 : /50/.test(pr.classe_de_largeur || '') ? 1.6 : 4; geoLines(ft.geometry).forEach(l => lines.push({ pts:l, w })); });
+    if (lines.length) res = routeOnLines(lines, from, dest);
+  }catch(e){}
+  if (!Array.isArray(res)){
+    src = 'OpenStreetMap';
+    hint('Calcul avec OpenStreetMap…', 40000);
+    const j = await overpass(`[out:json][timeout:90];way["waterway"~"^(river|canal)$"]["boat"!="no"]["motorboat"!="no"](${S.toFixed(4)},${W.toFixed(4)},${N.toFixed(4)},${E.toFixed(4)});out tags geom;`);
+    if (j){
+      const lines = [];
+      (j.elements || []).forEach(el => { if (!el.geometry) return; const t = el.tags || {}; const good = t.CEMT || t.boat === 'yes' || t.motorboat === 'yes' || t.ship === 'yes'; lines.push({ pts:el.geometry.filter(Boolean).map(g => [g.lat, g.lon]), w:good ? 1 : t.waterway === 'canal' ? 1.3 : 2.5 }); });
+      const r2 = routeOnLines(lines, from, dest); if (Array.isArray(r2) || !res) res = r2;
+    }
+  }
+  if (!Array.isArray(res)){ hint(typeof res === 'string' ? res : 'Pas de passage continu sur l\'eau entre ces deux points.', 8000); return; }
+  $('toolHint').hidden = true;
+  startNav(res, 'river');
+  $('navMsg').textContent = `Itinéraire calculé sur les cours d'eau ${src}.`;
+}
+
+// ---------- BANDE DES 300 MÈTRES ----------
+let coast = [], coastOff = [], coastC = null, coastBusy = false;
+async function loadCoast(c){
+  if (coastBusy) return; coastBusy = true; coastC = c;
+  const dLat = 0.036, dLon = 0.036/Math.cos(toRad(c[0]));
+  const [j, off] = await Promise.all([
+    overpass(`[out:json][timeout:25];way["natural"="coastline"](around:4000,${c[0].toFixed(5)},${c[1].toFixed(5)});out geom;`),
+    gpfWfs('BDTOPO_V3:limite_terre_mer', gpfBox(c[0]-dLat, c[1]-dLon, c[0]+dLat, c[1]+dLon)).catch(() => null)
+  ]);
+  coastBusy = false;
+  if (off) coastOff = [].concat(...off.filter(f => !Object.values(f.properties || {}).some(v => /salure|transvers/i.test(String(v)))).map(f => geoLines(f.geometry)));
+  if (j) coast = (j.elements || []).filter(e => e.geometry).map(e => e.geometry.filter(Boolean).map(g => [g.lat, g.lon]));
+  if (!j && !off){ const z = offZones.filter(z => c[0] > z.b[0]-0.05 && c[0] < z.b[2]+0.05 && c[1] > z.b[1]-0.07 && c[1] < z.b[3]+0.07); if (z.length){ coast = [].concat(...z.map(z => z.coast || [])); coastOff = [].concat(...z.map(z => z.coastOff || [])); } }
+  drawZone(); zoneUpdate();
+}
+function drawZone(){
+  zoneLayer.clearLayers();
+  coast.forEach(line => {
+    if (line.length < 2) return;
+    const o = line[0], kx = Math.cos(toRad(o[0]))*111320, ky = 110540;
+    const xy = line.map(p => [(p[1]-o[1])*kx, (p[0]-o[0])*ky]);
+    const out = xy.map((pt, i) => {
+      const a = xy[Math.max(0, i-1)], b = xy[Math.min(xy.length-1, i+1)];
+      let dx = b[0]-a[0], dy = b[1]-a[1]; const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+      return [o[0] + (pt[1] - dx*300)/ky, o[1] + (pt[0] + dy*300)/kx];
+    });
+    L.polyline(out, { color:'#f2b134', weight:2, dashArray:'8 6', opacity:.9, interactive:false }).addTo(zoneLayer);
+  });
+}
+function zoneUpdate(){
+  const chip = $('zoneChip');
+  if (!gps){ chip.hidden = true; return; }
+  if (!coastC || distNM(coastC, gps.p) > 1) loadCoast(gps.p);
+  const ref = coastOff.length ? coastOff : coast;
+  if (!ref.length){ chip.hidden = true; setAlert('zone', null); return; }
+  let d = Infinity; ref.forEach(l => { for (let i = 0; i < l.length-1; i++){ const r = projSeg(gps.p, l[i], l[i+1]); if (r.d < d) d = r.d; } });
+  const m = d*1852;
+  if (m > 600){ chip.hidden = true; setAlert('zone', null); return; }
+  const inZone = m <= 300, fast = gps.sog != null && gps.sog > 5;
+  chip.hidden = false; chip.className = inZone && fast ? 'bad' : '';
+  chip.textContent = inZone ? `Bande des 300 m · rivage à ${Math.round(m)} m · 5 nd max` : `Bande des 300 m dans ${Math.round(m - 300)} m`;
+  setAlert('zone', inZone && fast ? `⚠ BANDE DES 300 M : 5 nœuds maximum (tu es à ${n1(gps.sog)} nd).` : null);
+}
+map.on('moveend', () => {
+  if (gps || !map.hasLayer(zoneLayer) || map.getZoom() < 13) return;
+  const c = map.getCenter(), p = [c.lat, c.lng];
+  if (!coastC || distNM(coastC, p) > 1) loadCoast(p);
+});
+
+// ---------- RECHERCHE DE LIEUX (monde entier) ----------
+async function searchPlace(){
+  const q = $('searchQ').value.trim(); if (q.length < 2) return;
+  $('searchRes').innerHTML = '<div class="muted">Recherche…</div>';
+  try{
+    const c = map.getCenter();
+    const j = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=fr&q=${encodeURIComponent(q)}&viewbox=${(c.lng-3).toFixed(2)},${(c.lat+3).toFixed(2)},${(c.lng+3).toFixed(2)},${(c.lat-3).toFixed(2)}`).then(r => r.json());
+    if (!j.length){ $('searchRes').innerHTML = '<div class="muted">Aucun lieu trouvé. Essaie avec le nom de la ville ou du port.</div>'; return; }
+    $('searchRes').innerHTML = j.map((r, i) => `<button class="srow" data-i="${i}">${esc(r.display_name.split(',')[0])}<small>${esc(r.display_name.split(',').slice(1, 4).join(','))}</small></button>`).join('');
+    $('searchRes').onclick = e => {
+      const b = e.target.closest('.srow'); if (!b) return; const r = j[+b.dataset.i], p = [+r.lat, +r.lon];
+      follow = false; $('followBtn').classList.remove('active'); map.setView(p, 14);
+      L.popup().setLatLng(p).setContent(`<b>${esc(r.display_name.split(',')[0])}</b><br><button class="btn primary" id="goHere" style="margin-top:6px">Y aller (ligne droite)</button> <button class="btn" id="goRiver" style="margin-top:6px">Y aller par le fleuve</button>`).openOn(map);
+      setTimeout(() => { const g = document.getElementById('goHere'), gr = document.getElementById('goRiver'); if (g) g.onclick = () => { map.closePopup(); startNav([p], 'direct'); }; if (gr) gr.onclick = () => { map.closePopup(); planRiver(p); }; }, 50);
+      $('sheet').classList.add('collapsed'); $('toggleSheet').textContent = '▴';
+    };
+  }catch(e){ $('searchRes').innerHTML = '<div class="muted">Recherche impossible sans réseau.</div>'; }
+}
+$('searchBtn').addEventListener('click', searchPlace);
+$('searchQ').addEventListener('keydown', e => { if (e.key === 'Enter') searchPlace(); });
+$('searchFab').addEventListener('click', () => { document.querySelector('.tab[data-t="route"]').click(); $('searchQ').focus(); });
+
+// ---------- HORS LIGNE : application, cartes et données téléchargées ----------
+let offZones = [], offStop = false;
+const OFF_HOSTS = /openseamap|services\.data\.shom\.fr|data\.geopf\.fr|gebco\.net|emodnet|charttools\.noaa/;
+const FRANCE = [41.0, -5.8, 51.6, 10.0];
+const inBox = (b, bb) => !(b[2] < bb[0] || b[0] > bb[2] || b[3] < bb[1] || b[1] > bb[3]);
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+function offlineNear(c, rNM){
+  const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0]))), out = [];
+  offZones.forEach(z => (z.pts || []).forEach(o => { if (Math.abs(o.p[0]-c[0]) < dLat && Math.abs(o.p[1]-c[1]) < dLon) out.push(o); }));
+  return out;
+}
+const lon2x = (lon, z) => Math.floor((lon + 180)/360*Math.pow(2, z));
+const lat2y = (lat, z) => { const r = toRad(lat); return Math.floor((1 - Math.log(Math.tan(r) + 1/Math.cos(r))/Math.PI)/2*Math.pow(2, z)); };
+function tileUrl(layer, x, y, z){
+  if (layer instanceof ArcTiles) return ArcTiles.prototype.getTileUrl.call(layer, { x, y, z });
+  if (layer.wmsParams){
+    const sz = 40075016.68557849/Math.pow(2, z), x0 = -20037508.342789244 + x*sz, y1 = 20037508.342789244 - y*sz;
+    const prm = Object.assign({}, layer.wmsParams, { width:256, height:256 }), v = parseFloat(prm.version) || 1.1;
+    prm[v >= 1.3 ? 'crs' : 'srs'] = 'EPSG:3857';
+    return layer._url + (layer._url.includes('?') ? '&' : '?') + Object.keys(prm).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(prm[k])).join('&') + '&bbox=' + [x0, y1-sz, x0+sz, y1].join(',');
+  }
+  if (layer._url) return layer._url.replace(/\{(\w+)\}/g, (m, k) => ({ x, y, z, s:'a', r:'' })[k] ?? m);
+  return null;
+}
+function offLayers(b){
+  const L0 = [], add = (lay, name) => { if (lay && lay._url && OFF_HOSTS.test(lay._url) && !L0.some(l => l.lay === lay)) L0.push({ lay, name }); };
+  const fr = inBox(b, FRANCE);
+  add(BASES.gebco.layer, 'relief GEBCO'); if (fr) add(BASES.planign.layer, 'plan IGN');
+  if (baseKey === 'ign') add(BASES.ign.layer, 'photo IGN');
+  add(OVERLAYS.seamark.layer, 'balisage OpenSeaMap');
+  if (fr){ add(OVERLAYS.shomBal.layer, 'balisage SHOM'); add(OVERLAYS.shomBathy.layer, 'profondeurs SHOM'); add(OVERLAYS.shomEpv.layer, 'épaves SHOM'); }
+  Object.values(OVERLAYS).forEach(o => { if (map.hasLayer(o.layer) && o.layer._url) add(o.layer, o.name); });
+  return L0;
+}
+function offPlan(){
+  const bd = map.getBounds(), b = [bd.getSouth(), bd.getWest(), bd.getNorth(), bd.getEast()], zMax = +$('offZ').value;
+  const layers = offLayers(b), jobs = [];
+  for (let z = 5; z <= zMax; z++){
+    const x0 = lon2x(b[1], z), x1 = lon2x(b[3], z), y0 = lat2y(b[2], z), y1 = lat2y(b[0], z);
+    layers.forEach(({ lay }) => { const nz = lay.options.maxNativeZoom; if (nz != null && z > nz) return; for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) jobs.push(tileUrl(lay, x, y, z)); });
+  }
+  return { b, zMax, layers, jobs:jobs.filter(Boolean) };
+}
+function offEstimate(){
+  const pl = offPlan(), n = pl.jobs.length, mb = n*0.012;
+  $('offEst').textContent = `${n.toLocaleString('fr-FR')} images de carte (${pl.layers.map(l => l.name).join(', ')}), environ ${mb < 1 ? '< 1' : n0(mb)} Mo.` + (n > 15000 ? ' Zone trop grande à ce niveau de détail : zoome sur la carte ou baisse le détail.' : '') +
+    (['osm','ocean','sat'].includes(baseKey) ? ' Le fond actuel n\'est pas téléchargeable (ses conditions l\'interdisent) : hors ligne, l\'appli passe sur le plan IGN ou le relief GEBCO.' : '');
+  $('offGo').disabled = n > 15000 || !n;
+}
+async function offDownload(){
+  const pl = offPlan(); if (pl.jobs.length > 15000) return;
+  if (!navigator.onLine){ hint('Il faut du réseau pour télécharger une zone.', 4000); return; }
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller){ $('offProg').hidden = false; $('offTxt').textContent = 'Le mode hors ligne s\'active au premier lancement : ferme l\'appli, rouvre-la avec du réseau, puis relance le téléchargement. (Il faut aussi que le fichier sw.js soit dans ton dépôt GitHub.)'; return; }
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+  offStop = false; $('offGo').hidden = true; $('offStop').hidden = false; $('offProg').hidden = false;
+  const total = pl.jobs.length + 1; let done = 0, fail = 0;
+  const step = () => { $('offBar').style.width = (done/total*100).toFixed(1) + '%'; $('offTxt').textContent = `${done.toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')}` + (fail ? ` · ${fail} échec(s)` : ''); };
+  $('offTxt').textContent = 'Téléchargement des roches, épaves, ponts, écluses et du trait de côte…';
+  let zone = null;
+  try{
+    const [b0, b1, b2, b3] = pl.b;
+    const [pts, cj, co] = await Promise.all([
+      osmBBox([b0, b1, b2, b3]).catch(() => []),
+      overpass(`[out:json][timeout:60];way["natural"="coastline"](${b0.toFixed(4)},${b1.toFixed(4)},${b2.toFixed(4)},${b3.toFixed(4)});out geom;`),
+      gpfWfs('BDTOPO_V3:limite_terre_mer', gpfBox(b0, b1, b2, b3), null, 4).catch(() => null)
+    ]);
+    zone = { id:'z' + Date.now(), b:pl.b, z:pl.zMax, t:Date.now(), base:inBox(pl.b, FRANCE) ? 'planign' : 'gebco', n:pl.jobs.length,
+      pts, coast:cj ? (cj.elements || []).filter(e => e.geometry).map(e => e.geometry.filter(Boolean).map(g => [g.lat, g.lon])) : [],
+      coastOff:co ? [].concat(...co.filter(f => !Object.values(f.properties || {}).some(v => /salure|transvers/i.test(String(v)))).map(f => geoLines(f.geometry))) : [] };
+  }catch(e){}
+  done = 1; step();
+  let i = 0;
+  const worker = async () => {
+    while (i < pl.jobs.length && !offStop){
+      const u = pl.jobs[i++];
+      try{ const r = await fetch(u, { mode:'cors' }); if (!r.ok) throw new Error(r.status); }catch(e){ try{ const r2 = await fetch(u, { mode:'no-cors' }); if (r2.status >= 500) fail++; }catch(e2){ fail++; } }
+      done++; if (done % 20 === 0) step();
+    }
+  };
+  await Promise.all(Array.from({ length:6 }, worker));
+  step();
+  if (zone){ offZones = offZones.filter(z => !(z.b.join() === zone.b.join())).concat(zone); await idbSet('zones', offZones); }
+  $('offGo').hidden = false; $('offStop').hidden = true;
+  $('offTxt').textContent = offStop ? 'Téléchargement arrêté. Ce qui a été téléchargé reste disponible.' : `Zone prête pour la navigation hors ligne : ${zone ? zone.pts.length : 0} obstacles et ${(done - 1 - fail).toLocaleString('fr-FR')} images de carte.` + (fail ? ` ${fail} images n'ont pas pu être téléchargées.` : '');
+  renderZones(); offUsage();
+}
+function renderZones(){
+  $('offList').innerHTML = offZones.length ? offZones.map((z, i) => `<div class="reprow"><span class="dot" style="background:var(--accent)"></span><span>Zone du ${new Date(z.t).toLocaleDateString('fr-FR')} · zoom ${z.z}<small>${(z.pts || []).length} obstacles · ${(z.n || 0).toLocaleString('fr-FR')} images · ${n1((z.b[2]-z.b[0])*111)} × ${n1((z.b[3]-z.b[1])*111*Math.cos(toRad(z.b[0])))} km</small></span><span class="row" style="gap:4px"><button class="btn" data-zgo="${i}">Voir</button><button class="btn" data-zdel="${i}">✕</button></span></div>`).join('')
+    : '<div class="muted">Aucune zone téléchargée.</div>';
+}
+$('offList').addEventListener('click', async e => {
+  const g = e.target.closest('[data-zgo]'), d = e.target.closest('[data-zdel]');
+  if (g){ const z = offZones[+g.dataset.zgo]; map.fitBounds([[z.b[0], z.b[1]], [z.b[2], z.b[3]]]); }
+  if (d){ offZones.splice(+d.dataset.zdel, 1); await idbSet('zones', offZones); renderZones(); }
+});
+async function offUsage(){
+  try{ const e = await navigator.storage.estimate(); $('offUsage').textContent = `Espace utilisé par l'appli : ${n0(e.usage/1048576)} Mo sur ${n0(e.quota/1048576).toLocaleString('fr-FR')} Mo disponibles.`; }catch(err){}
+}
+$('offGo').addEventListener('click', offDownload);
+$('offStop').addEventListener('click', () => { offStop = true; });
+$('offZ').addEventListener('change', offEstimate);
+$('offClear').addEventListener('click', async () => { try{ await caches.delete('cm-tiles'); }catch(e){} offZones = []; await idbSet('zones', []); renderZones(); offUsage(); hint('Données hors ligne effacées.', 3000); });
+map.on('moveend', () => { if (!$('p-couches').hidden) offEstimate(); });
+document.querySelector('.tab[data-t="couches"]').addEventListener('click', () => { offEstimate(); offUsage(); });
+function netState(){
+  const off = !navigator.onLine;
+  $('netChip').hidden = !off;
+  if (off && ['osm','ocean','sat'].includes(baseKey)){
+    const c = map.getCenter(), z = offZones.find(z => c.lat > z.b[0] && c.lat < z.b[2] && c.lng > z.b[1] && c.lng < z.b[3]);
+    setBase(z ? z.base : (inBox([c.lat, c.lng, c.lat, c.lng], FRANCE) ? 'planign' : 'gebco'), true);
+  }
+}
+window.addEventListener('online', () => { netState(); if (!shomPts.length) loadShom(false); });
+window.addEventListener('offline', netState);
+(async () => { const z = await idbGet('zones'); if (Array.isArray(z)) offZones = z; renderZones(); netState(); })();
+
 // ---------- démarrage ----------
-loadShom(false); loadIenc();
-drawRoute(); drawDangers(); drawChecks(); updateMob(); setTool(null);
+loadShom(false); loadIenc(); drawReports();
+drawRoute(); drawChecks(); updateMob(); setTool(null);
 loadWeather([map.getCenter().lat, map.getCenter().lng], 'centre de la carte');
 loadWindGrid();
 </script>
