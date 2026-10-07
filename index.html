@@ -77,6 +77,25 @@ details.lesson.done .ck{background:var(--ok);border-color:var(--ok);color:#00170
 details.lesson ol{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.45}
 details.lesson .tip{font-size:13px;color:var(--warn);margin:0 0 10px}
 details.lesson .row{padding-bottom:12px}
+.schema{background:#0e3a4f;border-radius:8px;margin:0 0 10px;overflow:hidden}
+.schema svg{display:block;width:100%;height:auto}
+.schema text{font-family:var(--f-body);font-size:11px;fill:#e6f0f4}
+.schema .cap{font-size:12px;color:#cfe3ea;padding:6px 10px 8px;background:#0b2f40}
+.vidbox video{width:100%;border-radius:8px;background:#000;display:block;margin-bottom:6px}
+.vidtag{font-size:11px;color:var(--ok);font-weight:600}
+@keyframes up{from{transform:translateY(0)}to{transform:translateY(-120px)}}
+@keyframes draw{from{stroke-dashoffset:var(--len,800)}to{stroke-dashoffset:0}}
+@keyframes crossL{0%{transform:translate(0,0)}100%{transform:translate(-230px,0)}}
+@keyframes giveway{0%{transform:translate(0,0) rotate(0)}30%{transform:translate(0,-18px) rotate(0)}55%{transform:translate(8px,-40px) rotate(35deg)}100%{transform:translate(60px,-120px) rotate(10deg)}}
+@keyframes dock{0%{transform:translate(0,0) rotate(-28deg)}55%{transform:translate(150px,-52px) rotate(-28deg)}80%{transform:translate(185px,-66px) rotate(-4deg)}100%{transform:translate(192px,-68px) rotate(0)}}
+@keyframes blink{0%,60%{opacity:1}61%,100%{opacity:.25}}
+.anim-up{animation:up 5s linear infinite}
+.anim-draw{stroke-dasharray:var(--len,800);animation:draw 4s ease-in-out infinite alternate}
+.anim-cross{animation:crossL 6s linear infinite}
+.anim-give{animation:giveway 6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+.anim-dock{animation:dock 6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
+.anim-blink{animation:blink 1.6s infinite}
+@media (prefers-reduced-motion:reduce){.anim-up,.anim-draw,.anim-cross,.anim-give,.anim-dock,.anim-blink{animation:none}}
 .obslist{display:flex;flex-direction:column;gap:4px}
 .tab.on{color:var(--fg);border-color:var(--accent)}
 .body{overflow-y:auto;padding:12px 14px 16px;-webkit-overflow-scrolling:touch}
@@ -2506,6 +2525,77 @@ async function tripWatch(){
 }
 
 // ---------- APPRENDRE : nœuds, manœuvres, règles pour débutants ----------
+// ---- schémas animés (fonctionnent sans réseau)
+const boatSvg = (c) => `<path d="M0 -14 L7 4 L5 12 L-5 12 L-7 4 Z" fill="${c || '#f2b134'}" stroke="#0b1a24" stroke-width="1.5"/>`;
+const can = (x, y) => `<g transform="translate(${x},${y})"><rect x="-6" y="-14" width="12" height="16" fill="#e53935" stroke="#fff" stroke-width="1"/><rect x="-6" y="-20" width="12" height="5" fill="#e53935"/></g>`;
+const cone = (x, y) => `<g transform="translate(${x},${y})"><path d="M-7 2 L7 2 L0 -18 Z" fill="#2e7d32" stroke="#fff" stroke-width="1"/></g>`;
+const cardinal = (x, y, kind) => {
+  const Y = '#fdd835', K = '#111', bands = { N:[K, Y], S:[Y, K], E:[K, Y, K], W:[Y, K, Y] }[kind];
+  const h = 24, bh = h/bands.length; let body = bands.map((c, i) => `<rect x="-6" y="${-h + i*bh}" width="12" height="${bh}" fill="${c}"/>`).join('');
+  const up = (yy) => `<path d="M-5 ${yy} L5 ${yy} L0 ${yy-8} Z" fill="#111"/>`, dn = (yy) => `<path d="M-5 ${yy-8} L5 ${yy-8} L0 ${yy} Z" fill="#111"/>`;
+  const top = { N:up(-34) + up(-26), S:dn(-34) + dn(-26), E:up(-34) + dn(-26), W:dn(-34) + up(-26) }[kind];
+  return `<g transform="translate(${x},${y})"><line x1="0" y1="-24" x2="0" y2="-26" stroke="#111" stroke-width="2"/>${body}${top}<text x="0" y="14" text-anchor="middle" style="font-weight:700">${kind === 'W' ? 'O' : kind}</text></g>`;
+};
+const SCHEMA = {
+  balisage:{ cap:'En rentrant au port : rouge à gauche (bâbord), vert à droite (tribord). Les cardinales indiquent de quel côté passer.', svg:`<svg viewBox="0 0 320 200">
+    <rect width="320" height="200" fill="#145a75"/><text x="80" y="16" text-anchor="middle">↑ vers le port</text>
+    ${can(40, 60)}${can(40, 120)}${can(40, 180)}${cone(120, 60)}${cone(120, 120)}${cone(120, 180)}
+    <g class="anim-up"><g transform="translate(80,200)">${boatSvg()}</g></g>
+    <text x="40" y="34" text-anchor="middle">bâbord</text><text x="120" y="34" text-anchor="middle">tribord</text>
+    <circle cx="250" cy="105" r="9" fill="#5d4037"/><text x="250" y="109" text-anchor="middle" style="font-size:9px">roche</text>
+    ${cardinal(250, 62, 'N')}${cardinal(250, 172, 'S')}${cardinal(298, 120, 'E')}${cardinal(202, 120, 'W')}
+    <text x="248" y="196" text-anchor="middle" style="font-size:10px">passe du côté de son nom</text></svg>` },
+  priorite:{ cap:'Le bateau rouge arrive sur ta droite (tribord) : c\'est toi (jaune) qui t\'écartes, en ralentissant ou en passant derrière lui.', svg:`<svg viewBox="0 0 320 190">
+    <rect width="320" height="190" fill="#145a75"/>
+    <g class="anim-cross"><g transform="translate(300,70) rotate(-90)">${boatSvg('#e53935')}</g></g>
+    <g class="anim-give"><g transform="translate(150,170)">${boatSvg()}</g></g>
+    <text x="10" y="18">Toi (jaune) : tu vois l'autre sur ta droite</text><text x="10" y="34">→ tu lui laisses la route</text></svg>` },
+  feux:{ cap:'Rouge à gauche (bâbord), vert à droite (tribord), blanc à l\'arrière et en tête de mât. Rouge et vert ensemble : il vient droit sur toi.', svg:`<svg viewBox="0 0 320 150">
+    <rect width="320" height="150" fill="#06121a"/>
+    <g transform="translate(55,70)"><path d="M-30 20 L0 -10 L30 20 Z" fill="#1c2b36"/><circle cx="0" cy="-22" r="5" fill="#fff" class="anim-blink"/><circle cx="-12" cy="8" r="5" fill="#2ecc40"/><circle cx="12" cy="8" r="5" fill="#ff3b30"/></g>
+    <text x="55" y="120" text-anchor="middle">de face</text><text x="55" y="136" text-anchor="middle" style="font-size:10px">il vient vers toi</text>
+    <g transform="translate(160,70)"><path d="M-35 18 L30 18 L38 2 L-30 2 Z" fill="#1c2b36"/><circle cx="10" cy="-22" r="5" fill="#fff"/><circle cx="22" cy="8" r="5" fill="#ff3b30"/></g>
+    <text x="160" y="120" text-anchor="middle">son côté gauche</text><text x="160" y="136" text-anchor="middle" style="font-size:10px">il va vers ta droite</text>
+    <g transform="translate(265,70)"><path d="M-25 20 L25 20 L20 2 L-20 2 Z" fill="#1c2b36"/><circle cx="0" cy="10" r="5" fill="#fff"/></g>
+    <text x="265" y="120" text-anchor="middle">de dos</text><text x="265" y="136" text-anchor="middle" style="font-size:10px">il s'éloigne</text></svg>` },
+  accoster:{ cap:'Arrive doucement en angle (20 à 30°), redresse parallèle au ponton, petit coup de marche arrière, puis passe les amarres.', svg:`<svg viewBox="0 0 320 170">
+    <rect width="320" height="170" fill="#145a75"/><rect x="0" y="0" width="320" height="34" fill="#8d6e63"/><text x="160" y="22" text-anchor="middle">ponton</text>
+    <path d="M40 150 L190 98 L240 82" fill="none" stroke="#fff" stroke-dasharray="4 5" opacity=".6"/>
+    <g class="anim-dock"><g transform="translate(40,140) rotate(90)"><path d="M0 -22 L9 0 L7 20 L-7 20 L-9 0 Z" fill="#f2b134" stroke="#0b1a24" stroke-width="1.5"/></g></g>
+    <text x="10" y="164" style="font-size:10px">vent et courant de face : ils freinent le bateau</text></svg>` },
+  mouiller:{ cap:'Longueur de ligne = 3 à 5 fois la profondeur (plus par vent fort). Ici, 4 m de fond → 12 à 20 m de ligne.', svg:`<svg viewBox="0 0 320 170">
+    <rect width="320" height="170" fill="#145a75"/><rect x="0" y="0" width="320" height="40" fill="#0e3a4f"/><line x1="0" y1="40" x2="320" y2="40" stroke="#9be7ff"/>
+    <path d="M0 150 Q80 140 160 152 T320 148 L320 170 L0 170 Z" fill="#c2a46b"/>
+    <path d="M250 32 L290 32 L284 44 L256 44 Z" fill="#f2b134"/>
+    <path d="M256 40 C200 110, 120 145, 60 148" fill="none" stroke="#ffd166" stroke-width="2.5" class="anim-draw" style="--len:260"/>
+    <path d="M52 140 L60 150 L68 140 M60 150 L60 132" stroke="#e6f0f4" stroke-width="3" fill="none"/>
+    <line x1="300" y1="44" x2="300" y2="146" stroke="#e6f0f4" stroke-dasharray="3 3"/><text x="296" y="100" text-anchor="end" style="font-size:10px">4 m</text>
+    <text x="110" y="100" text-anchor="middle">12 à 20 m de ligne</text></svg>` },
+  mob:{ cap:'Bouton MOB, quelqu\'un pointe la personne du doigt, bouée lancée, demi-tour, retour face au vent, moteur débrayé près de la personne.', svg:`<svg viewBox="0 0 320 170">
+    <rect width="320" height="170" fill="#145a75"/><text x="300" y="20" text-anchor="end">vent ↓</text>
+    <circle cx="160" cy="60" r="7" fill="#ff7043"/><text x="174" y="64">personne</text>
+    <path d="M160 150 L160 72 M160 72 C160 20, 250 20, 250 70 C250 120, 170 120, 160 76" fill="none" stroke="#ffd166" stroke-width="2.5" stroke-dasharray="6 5"/>
+    <path d="M160 150 L160 72 C160 20, 250 20, 250 70 C250 120, 172 112, 162 80" fill="none" stroke="#fff" stroke-width="3" class="anim-draw" style="--len:420"/>
+    <text x="10" y="150" style="font-size:10px">1. MOB  2. demi-tour  3. retour lent, débraye</text></svg>` },
+  huit:{ cap:'Le brin fait une boucle, passe derrière la partie qui tient, puis rentre dans la boucle par l\'avant : il dessine un 8.', svg:`<svg viewBox="0 0 320 150">
+    <rect width="320" height="150" fill="#0e3a4f"/>
+    <path d="M20 75 L110 75 C150 75, 160 30, 195 30 C235 30, 240 75, 200 75 C160 75, 165 120, 205 120 C245 120, 250 75, 300 75" fill="none" stroke="#3a6d82" stroke-width="10" stroke-linecap="round"/>
+    <path d="M20 75 L110 75 C150 75, 160 30, 195 30 C235 30, 240 75, 200 75 C160 75, 165 120, 205 120 C245 120, 250 75, 300 75" fill="none" stroke="#f2b134" stroke-width="7" stroke-linecap="round" class="anim-draw" style="--len:560"/>
+    <text x="20" y="62">partie qui tient</text><text x="300" y="62" text-anchor="end">brin libre</text></svg>` },
+  taquet:{ cap:'1 tour mort autour de la base, des « 8 » croisés sur les cornes, et une clé pour finir. Pas plus : ça doit se larguer vite.', svg:`<svg viewBox="0 0 320 160">
+    <rect width="320" height="160" fill="#0e3a4f"/>
+    <rect x="90" y="70" width="140" height="18" rx="9" fill="#b0bec5"/><rect x="145" y="64" width="30" height="30" rx="6" fill="#90a4ae"/>
+    <path d="M10 140 L130 98 C150 108, 192 106, 196 86 C200 64, 138 60, 126 74 L222 94 C234 98, 238 68, 222 64 L98 94 C86 98, 82 68, 98 64 L222 94 C238 98, 242 62, 220 62 C204 62, 206 84, 226 82" fill="none" stroke="#3a6d82" stroke-width="7" stroke-linecap="round"/>
+    <path d="M10 140 L130 98 C150 108, 192 106, 196 86 C200 64, 138 60, 126 74 L222 94 C234 98, 238 68, 222 64 L98 94 C86 98, 82 68, 98 64 L222 94 C238 98, 242 62, 220 62 C204 62, 206 84, 226 82" fill="none" stroke="#f2b134" stroke-width="5" stroke-linecap="round" class="anim-draw" style="--len:900"/>
+    <text x="12" y="150" style="font-size:10px">vers le bateau</text><text x="160" y="40" text-anchor="middle">taquet vu de dessus</text></svg>` },
+  ecluse:{ cap:'Défenses des deux côtés, amarres gardées en main autour des bollards : tu les reprends quand l\'eau monte, tu les files quand elle descend.', svg:`<svg viewBox="0 0 320 170">
+    <rect width="320" height="170" fill="#0e3a4f"/><rect x="0" y="0" width="40" height="170" fill="#78909c"/><rect x="280" y="0" width="40" height="170" fill="#78909c"/>
+    <rect x="40" y="60" width="240" height="110" fill="#145a75"><animate attributeName="y" values="110;50;110" dur="6s" repeatCount="indefinite"/><animate attributeName="height" values="60;120;60" dur="6s" repeatCount="indefinite"/></rect>
+    <g><animateTransform attributeName="transform" type="translate" values="0,50;0,-10;0,50" dur="6s" repeatCount="indefinite"/>
+      <path d="M90 90 L230 90 L220 106 L100 106 Z" fill="#f2b134" stroke="#0b1a24"/><circle cx="96" cy="98" r="5" fill="#90caf9"/><line x1="100" y1="92" x2="40" y2="70" stroke="#ffd166" stroke-width="2"/><line x1="220" y1="92" x2="280" y2="70" stroke="#ffd166" stroke-width="2"/></g>
+    <text x="160" y="20" text-anchor="middle">l'eau monte et descend : ajuste les amarres</text></svg>` }
+};
+
 const LEARN = [
   { cat:'Nœuds essentiels', items:[
     { id:'chaise', t:'Nœud de chaise', why:'Une boucle fixe qui ne glisse pas et se défait facilement : amarrer sur une bitte, un anneau, faire une boucle de sauvetage.', steps:[
@@ -2631,19 +2721,47 @@ const LEARN = [
       'Fais le « Bilan avant de partir » dans l\'onglet Route, et consulte aussi le bulletin côtier officiel.'],
       tip:'Dans le doute, ne sors pas.', q:'lire la météo marine débutant beaufort' } ]}
 ];
-let learned = store.get('learned', {});
+let learned = store.get('learned', {}), myVids = store.get('myVids', {});
+const vidUrls = {};
+async function showVid(id){
+  const box = document.getElementById('vb-' + id); if (!box || !myVids[id]) return;
+  if (!vidUrls[id]){ const v = await idbGet('vid_' + id); if (!v || !v.blob) return; vidUrls[id] = URL.createObjectURL(v.blob); }
+  box.innerHTML = `<video src="${vidUrls[id]}" controls playsinline preload="metadata"></video>`;
+}
+document.addEventListener('toggle', e => { const d = e.target; if (d.classList && d.classList.contains('lesson') && d.open) showVid(d.dataset.id); }, true);
+document.addEventListener('change', async e => {
+  const id = e.target.dataset && e.target.dataset.vid; if (!id) return;
+  const f = e.target.files[0]; if (!f) return;
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(err){}
+  hint('Enregistrement de la vidéo dans l\'appli…', 4000);
+  try{
+    await idbSet('vid_' + id, { blob:f, name:f.name, size:f.size, t:Date.now() });
+    const chk = await idbGet('vid_' + id); if (!chk || !chk.blob) throw new Error('espace insuffisant');
+    if (vidUrls[id]){ URL.revokeObjectURL(vidUrls[id]); delete vidUrls[id]; }
+    myVids[id] = true; store.set('myVids', myVids); renderLearn();
+    const d = document.querySelector(`details[data-id="${id}"]`); if (d){ d.open = true; showVid(id); }
+    hint(`Vidéo enregistrée (${n0(f.size/1048576)} Mo), lisible sans réseau.`, 4000);
+  }catch(err){ hint('Impossible d\'enregistrer la vidéo : ' + (err.message || 'espace insuffisant') + '.', 6000); }
+});
 function renderLearn(){
   const all = LEARN.flatMap(c => c.items), n = all.filter(i => learned[i.id]).length;
   $('learnBar').style.width = (n/all.length*100) + '%';
   $('learnTxt').textContent = `${n} fiche(s) apprise(s) sur ${all.length}`;
   $('learnList').innerHTML = LEARN.map(c => `<div class="lsec">${c.cat}</div>` + c.items.map(i => `
-    <details class="lesson${learned[i.id] ? ' done' : ''}" data-id="${i.id}"><summary><span class="ck">${learned[i.id] ? '✓' : ''}</span><span>${esc(i.t)}<small>${esc(i.why)}</small></span><span class="muted">▾</span></summary>
+    <details class="lesson${learned[i.id] ? ' done' : ''}" data-id="${i.id}"><summary><span class="ck">${learned[i.id] ? '✓' : ''}</span><span>${esc(i.t)}<small>${esc(i.why)}${myVids[i.id] ? ' · <span class="vidtag">ta vidéo est enregistrée</span>' : ''}</small></span><span class="muted">▾</span></summary>
+      ${SCHEMA[i.id] ? `<div class="schema">${SCHEMA[i.id].svg}<div class="cap">${esc(SCHEMA[i.id].cap)}</div></div>` : ''}
+      <div class="vidbox" id="vb-${i.id}"></div>
       <ol>${i.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
       ${i.tip ? `<div class="tip">À retenir : ${esc(i.tip)}</div>` : ''}
       <div class="row"><a class="btn primary" href="https://www.youtube.com/results?search_query=${encodeURIComponent(i.q)}" target="_blank" rel="noopener" style="text-decoration:none">Vidéos</a>
-      <button class="btn" data-learn="${i.id}">${learned[i.id] ? 'À revoir' : 'J\'ai appris'}</button></div></details>`).join('')).join('');
+      <button class="btn" data-learn="${i.id}">${learned[i.id] ? 'À revoir' : 'J\'ai appris'}</button>
+      <label class="btn" for="vf-${i.id}">${myVids[i.id] ? 'Changer ma vidéo' : 'Ajouter ma vidéo'}</label><input type="file" id="vf-${i.id}" data-vid="${i.id}" accept="video/*" hidden>
+      ${myVids[i.id] ? `<button class="btn" data-vdel="${i.id}">Supprimer la vidéo</button>` : ''}</div></details>`).join('')).join('');
 }
-$('learnList').addEventListener('click', e => { const b = e.target.closest('[data-learn]'); if (!b) return; const id = b.dataset.learn; learned[id] = !learned[id]; store.set('learned', learned); const open = id; renderLearn(); const d = document.querySelector(`details[data-id="${open}"]`); if (d) d.open = true; });
+$('learnList').addEventListener('click', async e => {
+  const vd = e.target.closest('[data-vdel]');
+  if (vd){ const id = vd.dataset.vdel; await idbSet('vid_' + id, null); if (vidUrls[id]){ URL.revokeObjectURL(vidUrls[id]); delete vidUrls[id]; } delete myVids[id]; store.set('myVids', myVids); renderLearn(); const d = document.querySelector(`details[data-id="${id}"]`); if (d) d.open = true; return; }
+  const b = e.target.closest('[data-learn]'); if (!b) return; const id = b.dataset.learn; learned[id] = !learned[id]; store.set('learned', learned); const open = id; renderLearn(); const d = document.querySelector(`details[data-id="${open}"]`); if (d) d.open = true; });
 renderLearn();
 
 // ---------- démarrage ----------
