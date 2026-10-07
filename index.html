@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1a24">
+<title>Ma Carte Marine</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout : carte plein écran, bandeau instruments en haut, tiroir à onglets en bas (table à cartes de nuit) */
+:root{
+  --bg:#0b1a24; --panel:#102532; --panel2:#163242; --line:#24485c;
+  --fg:#e6f0f4; --muted:#8fb0bf; --accent:#f2b134;
+  --ok:#3fbf7f; --warn:#f2b134; --bad:#ef5350; --sea:#1d6f8f;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"Barlow",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+body.night{ --fg:#ff6b5a; --muted:#b0453a; --accent:#ff6b5a; --ok:#ff6b5a; --warn:#ff8a5a; --bad:#ff3b2f; --panel:#140808; --panel2:#1e0c0c; --line:#3a1414; --bg:#0a0404 }
+body.night #map{ filter:brightness(.45) sepia(1) hue-rotate(-50deg) saturate(3) }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#map{position:absolute;inset:0;background:#aad3df}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Bandeau instruments */
+#hud{position:absolute;top:0;left:0;right:0;z-index:1000;padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 6px;
+  background:linear-gradient(var(--bg) 70%, transparent);display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:5px;align-items:stretch}
+.inst{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 8px;min-width:0}
+.inst .k{font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.inst .v.warn{color:var(--warn)} .inst .v.bad{color:var(--bad)}
+.inst .v{font-family:var(--f-data);font-size:17px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.inst .v small{font-size:11px;color:var(--muted);font-weight:400}
+#gpsBtn{background:var(--accent);color:#1a1200;border:0;border-radius:6px;font-family:var(--f-display);font-weight:700;letter-spacing:.06em;padding:0 12px;text-transform:uppercase}
+#gpsBtn.on{background:var(--ok);color:#00170b}
+#posLine{grid-column:1/-1;font-family:var(--f-data);font-size:11px;color:var(--muted);text-align:center}
+
+/* Boutons flottants */
+#fab{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 96px);z-index:1000;display:flex;flex-direction:column;gap:8px}
+.fab{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;font-size:18px}
+.fab.active{background:var(--accent);color:#1a1200}
+#mobBtn{background:var(--bad);color:#fff;border:0;font-family:var(--f-display);font-weight:700;font-size:13px}
+
+#toolHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 96px);z-index:1000;
+  background:var(--accent);color:#1a1200;padding:6px 12px;border-radius:20px;font-weight:600;font-size:13px;max-width:70vw;text-align:center}
+#alertBar{position:absolute;left:10px;right:64px;top:calc(env(safe-area-inset-top,0px) + 140px);z-index:1000;background:var(--bad);color:#fff;
+  padding:10px 12px;border-radius:8px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+
+/* Tiroir */
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);
+  border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,0px);display:flex;flex-direction:column;max-height:58%}
+#sheet.collapsed .body{display:none}
+.tabs{display:flex;gap:2px;padding:6px 8px 0;overflow-x:auto;scrollbar-width:none}
+.tab{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;font-family:var(--f-display);font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;font-size:14px;color:var(--muted)}
+.obsrow{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;background:var(--panel2);border:0;border-radius:6px;padding:8px 10px}
+.obsrow .dot{width:12px;height:12px;border-radius:50%}
+.obsrow small{display:block;color:var(--muted);font-size:11px}
+.obsrow .od{font-family:var(--f-data);text-align:right;font-weight:600}
+.obslist{display:flex;flex-direction:column;gap:4px}
+.tab.on{color:var(--fg);border-color:var(--accent)}
+.body{overflow-y:auto;padding:12px 14px 16px;-webkit-overflow-scrolling:touch}
+.pane{display:flex;flex-direction:column;gap:12px}
+h3{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
+.muted{color:var(--muted);font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-weight:600;font-size:14px}
+.btn.primary{background:var(--accent);color:#1a1200;border-color:transparent}
+.btn.danger{background:var(--bad);color:#fff;border-color:transparent}
+input[type=number]{width:72px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px;font-family:var(--f-data)}
+label.chk{display:flex;gap:10px;align-items:center;padding:6px 0}
+label.chk input{width:20px;height:20px;accent-color:var(--accent)}
+
+/* Météo */
+.verdict{border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center}
+.verdict b{font-family:var(--f-display);font-size:20px;letter-spacing:.06em;text-transform:uppercase}
+.v0{background:color-mix(in srgb,var(--ok) 22%,transparent);border:1px solid var(--ok)}
+.v1{background:color-mix(in srgb,var(--warn) 22%,transparent);border:1px solid var(--warn)}
+.v2{background:color-mix(in srgb,var(--bad) 25%,transparent);border:1px solid var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.cell{background:var(--panel2);border-radius:6px;padding:6px 8px}
+.cell .k{font-family:var(--f-display);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.cell .v{font-family:var(--f-data);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.cell .s{font-size:11px;color:var(--muted)}
+.tblWrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;font-family:var(--f-data);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;width:100%}
+th,td{padding:5px 7px;text-align:right;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-display);font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;position:sticky;top:0;background:var(--panel)}
+td:first-child,th:first-child{text-align:left}
+tr.l1 td:first-child{box-shadow:inset 3px 0 var(--warn)} tr.l2 td:first-child{box-shadow:inset 3px 0 var(--bad)}
+.arr{display:inline-block;width:12px}
+svg text{fill:var(--muted);font-family:var(--f-data);font-size:10px}
+
+/* Route */
+.legs{display:flex;flex-direction:column;gap:4px;font-family:var(--f-data);font-size:13px}
+.leg{display:grid;grid-template-columns:2.2em 1fr 1fr;gap:6px;background:var(--panel2);padding:6px 8px;border-radius:6px}
+.total{font-family:var(--f-data);font-size:15px}
+.total b{color:var(--accent)}
+.emerg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.emerg div{background:var(--panel2);border-radius:6px;padding:8px;text-align:center}
+.emerg b{display:block;font-family:var(--f-data);font-size:22px;color:var(--accent)}
+.emerg span{font-size:11px;color:var(--muted)}
+.leaflet-container{font-family:var(--f-body)}
+.leaflet-popup-content{font-size:13px;margin:10px 12px}
+.wind-ico{display:flex;flex-direction:column;align-items:center;font-family:var(--f-data);font-size:11px;font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
+.boat-ico svg{filter:drop-shadow(0 0 3px #000)}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="hud">
+  <div class="inst"><div class="k">Vitesse</div><div class="v" id="sog">--<small> nd</small></div></div>
+  <div class="inst"><div class="k">Cap (COG)</div><div class="v" id="cog">---<small>°</small></div></div>
+  <div class="inst"><div class="k">Vent ici</div><div class="v" id="windNow">--<small> nd</small></div></div>
+  <div class="inst"><div class="k">Sonde</div><div class="v" id="depthNow">--<small> m</small></div></div>
+  <button id="gpsBtn">GPS</button>
+  <div id="posLine">Position inconnue · touche GPS pour te localiser</div>
+</div>
+
+<div id="fab">
+  <button class="fab" id="mobBtn" title="Homme à la mer">MOB</button>
+  <button class="fab" id="followBtn" title="Suivre le bateau">◎</button>
+  <button class="fab" id="nightBtn" title="Mode nuit">☾</button>
+</div>
+<div id="toolHint" hidden></div>
+<div id="alertBar" hidden></div>
+
+<div id="sheet">
+  <div class="tabs">
+    <button class="tab on" data-t="meteo">Météo</button>
+    <button class="tab" data-t="route">Route</button>
+    <button class="tab" data-t="obst">Obstacles</button>
+    <button class="tab" data-t="river">Fleuve</button>
+    <button class="tab" data-t="secu">Sécurité</button>
+    <button class="tab" data-t="couches">Couches</button>
+    <button class="tab" id="toggleSheet" style="flex:0 0 40px">▾</button>
+  </div>
+  <div class="body">
+    <!-- MÉTÉO -->
+    <div class="pane" id="p-meteo">
+      <div class="row">
+        <button class="btn primary" id="wxHere">Météo ici (bateau / centre)</button>
+        <button class="btn" id="wxTap">Touche un point</button>
+      </div>
+      <div id="wxOut" class="pane"><div class="muted">Chargement de la météo marine…</div></div>
+    </div>
+
+    <!-- ROUTE -->
+    <div class="pane" id="p-route" hidden>
+      <div class="row">
+        <button class="btn primary" id="routeTool">Tracer une route</button>
+        <button class="btn" id="routeUndo">Annuler dernier</button>
+        <button class="btn" id="routeClear">Effacer</button>
+      </div>
+      <div class="row muted">
+        Vitesse <input type="number" id="spd" value="15" min="1" step="1"> nd
+        Conso <input type="number" id="conso" value="20" min="0" step="1"> L/h
+      </div>
+      <div id="routeOut" class="pane"></div>
+    </div>
+
+    <!-- OBSTACLES -->
+    <div class="pane" id="p-obst" hidden>
+      <h3>Mon bateau</h3>
+      <div class="row muted">Tirant d'eau <input type="number" id="draft" value="0.7" min="0.1" step="0.1"> m
+        marge <input type="number" id="margin" value="1" min="0" step="0.5"> m
+        rayon <input type="number" id="obsR" value="2" min="0.5" step="0.5"> NM
+        hauteur hors d'eau <input type="number" id="air" value="2" min="0.5" step="0.1"> m</div>
+      <div class="muted">Alerte « fond faible » si la sonde estimée devant le bateau passe sous tirant d'eau + marge. L'alerte obstacle utilise la distance réglée dans Sécurité.</div>
+      <div class="row"><button class="btn primary" id="obsRefresh">Actualiser autour de moi</button></div>
+      <div id="obsOut" class="pane"></div>
+
+      <h3>Sources de données</h3>
+      <div class="muted">1. SHOM : épaves et obstructions officielles (France, licence CC BY-SA 4.0)<br>
+        2. OpenStreetMap / OpenSeaMap : roches, épaves, obstructions, écluses, barrages, ponts, ports et carburant<br>
+        3. EMODnet : profondeur (grille d'environ 115 m, imprécise près des côtes, marée non incluse)</div>
+      <div id="shomStatus" class="muted"></div>
+      <div class="row">
+        <button class="btn" id="shomReload">Télécharger la base SHOM</button>
+        <label class="btn" for="shomFile">Importer le .zip</label>
+        <input type="file" id="shomFile" accept=".zip" hidden>
+      </div>
+      <div class="muted">Si le téléchargement échoue : télécharge le fichier SHP sur data.gouv.fr (« Épaves et obstructions répertoriées par le Shom »), puis importe le .zip ici. Il est ensuite gardé en mémoire sur ton téléphone, donc utilisable sans réseau.</div>
+
+      <h3>Cartes officielles des fleuves (IENC)</h3>
+      <div class="muted">Les cartes électroniques officielles de VNF (Seine, Oise, Moselle, Grande Saône…) et de la CNR (Rhône) donnent la <b>hauteur libre de chaque pont</b>, les écluses, les barrages, les lignes aériennes et la profondeur du chenal. Télécharge-les gratuitement sur le site de VNF (rubrique cartes ECDIS / IENC) ou sur InfoRhône pour le Rhône, puis importe ici le .zip ou les fichiers .000. Elles restent ensuite sur ton téléphone, sans réseau.</div>
+      <div id="iencStatus" class="muted"></div>
+      <div class="row">
+        <label class="btn primary" for="iencFile">Importer des cartes IENC</label>
+        <input type="file" id="iencFile" accept=".zip,.000" multiple hidden>
+        <button class="btn" id="iencClear">Effacer ces cartes</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="lnkIencVnf">Site VNF</button>
+        <button class="btn" id="lnkIencCnr">InfoRhône (CNR)</button>
+      </div>
+
+      <h3>Bateaux autour (AIS)</h3>
+      <div class="muted">Aucune source AIS gratuite ne peut être lue directement dans une page web. Ouvre un site de suivi sur ta position :</div>
+      <div class="row">
+        <button class="btn" id="aisMT">MarineTraffic</button>
+        <button class="btn" id="aisVF">VesselFinder</button>
+      </div>
+    </div>
+
+    <!-- FLEUVE -->
+    <div class="pane" id="p-river" hidden>
+      <div class="muted">Niveau et débit des cours d'eau (Rhône, Saône, Seine, Loire…) mesurés par les stations de l'État, mis à jour toutes les 5 à 60 minutes.</div>
+      <div class="row"><button class="btn primary" id="riverRefresh">Actualiser autour de moi</button></div>
+      <div id="riverOut" class="pane"></div>
+      <div class="row">
+        <button class="btn" id="lnkVigi">Vigicrues (vigilance crues)</button>
+        <button class="btn" id="lnkVnf">VNF (avis à la batellerie)</button>
+      </div>
+      <div class="muted">Les écluses, ponts, barrages, ports et carburant apparaissent dans l'onglet Obstacles. Pense à régler ta hauteur hors d'eau pour être alerté d'un pont trop bas. Sur un fleuve, les barrages et seuils sont très dangereux : reste loin en amont.</div>
+    </div>
+
+    <!-- SÉCURITÉ -->
+    <div class="pane" id="p-secu" hidden>
+      <h3>Urgence</h3>
+      <div class="emerg">
+        <div><b>16</b><span>VHF canal détresse</span></div>
+        <div><b>196</b><span>CROSS depuis un portable</span></div>
+        <div><b>112</b><span>Urgence européenne</span></div>
+      </div>
+      <div id="mobOut" class="muted">Homme à la mer : appuie sur MOB pour marquer la position et afficher le cap pour y revenir.</div>
+
+      <h3>Mes dangers (roches, hauts-fonds…)</h3>
+      <div class="muted">Marque les endroits dangereux que tu connais. Le téléphone vibre et une alerte s'affiche si tu passes à moins de la distance choisie.</div>
+      <div class="row">
+        <button class="btn primary" id="dangerTool">Ajouter un danger</button>
+        <span class="muted">Alerte à <input type="number" id="dangerDist" value="150" min="20" step="10"> m</span>
+      </div>
+      <div id="dangerOut" class="muted"></div>
+
+      <h3>Avant de partir</h3>
+      <div id="checklist"></div>
+      <button class="btn" id="checkReset">Tout décocher</button>
+    </div>
+
+    <!-- COUCHES -->
+    <div class="pane" id="p-couches" hidden>
+      <h3>Fond de carte</h3>
+      <div id="baseList"></div>
+      <h3>Superpositions</h3>
+      <div id="ovList"></div>
+      <div class="muted">Les balises, bouées, phares et dangers viennent d'OpenSeaMap. La bathymétrie vient d'EMODnet (Europe). Ces données sont libres et complémentaires : elles ne remplacent pas une carte officielle SHOM.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+"use strict";
+// ---------- utilitaires ----------
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('cm_'+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('cm_'+k, JSON.stringify(v)); }catch(e){} }
+};
+const R_NM = 3440.065, toRad = d => d*Math.PI/180, toDeg = r => r*180/Math.PI;
+function distNM(a, b){
+  const dLat = toRad(b[0]-a[0]), dLon = toRad(b[1]-a[1]);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.sin(dLon/2)**2;
+  return 2*R_NM*Math.asin(Math.sqrt(h));
+}
+function bearing(a, b){
+  const y = Math.sin(toRad(b[1]-a[1]))*Math.cos(toRad(b[0]));
+  const x = Math.cos(toRad(a[0]))*Math.sin(toRad(b[0])) - Math.sin(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.cos(toRad(b[1]-a[1]));
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+function dm(v, pos, neg){
+  const h = v >= 0 ? pos : neg; v = Math.abs(v);
+  const d = Math.floor(v), m = (v-d)*60;
+  return d + '°' + m.toFixed(3).padStart(6,'0') + "'" + h;
+}
+const fmtPos = p => dm(p[0],'N','S') + '  ' + dm(p[1],'E','W');
+const pad3 = n => String(Math.round(n)%360).padStart(3,'0');
+const card = d => ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'][Math.round(d/22.5)%16];
+const hhmm = t => new Date(t*1000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+const dayH = t => new Date(t*1000).toLocaleDateString('fr-FR',{weekday:'short'}) + ' ' + new Date(t*1000).getHours() + 'h';
+function beaufort(kn){
+  const lim = [1,4,7,11,17,22,28,34,41,48,56,64];
+  let f = 0; while (f < lim.length && kn >= lim[f]) f++; return f;
+}
+const BF_TXT = ['Calme','Très légère brise','Légère brise','Petite brise','Jolie brise','Bonne brise','Vent frais','Grand frais','Coup de vent','Fort coup de vent','Tempête','Violente tempête','Ouragan'];
+const arrow = (dir, size=12) => `<svg class="arr" width="${size}" height="${size}" viewBox="0 0 12 12" style="transform:rotate(${dir+180}deg)"><path d="M6 0 L10 9 L6 7 L2 9 Z" fill="currentColor"/></svg>`;
+const n1 = v => v == null ? '–' : (Math.round(v*10)/10).toLocaleString('fr-FR');
+const n0 = v => v == null ? '–' : Math.round(v);
+
+// Niveau de risque pour une petite unité (bateau à moteur ~5-7 m)
+function risk(w, g, h){
+  let lvl = 0; const why = [];
+  const up = (l, t) => { if (l > lvl) lvl = l; why.push(t); };
+  if (w >= 22) up(2, `vent ${n0(w)} nd (force ${beaufort(w)})`); else if (w >= 16) up(1, `vent ${n0(w)} nd (force ${beaufort(w)})`);
+  if (g >= 28) up(2, `rafales ${n0(g)} nd`); else if (g >= 20) up(1, `rafales ${n0(g)} nd`);
+  if (h != null){ if (h >= 2) up(2, `vagues ${n1(h)} m`); else if (h >= 1) up(1, `vagues ${n1(h)} m`); }
+  return { lvl, why };
+}
+const RISK_TXT = ['Conditions maniables','Prudence','Dangereux pour une petite unité'];
+
+// ---------- carte ----------
+const last = store.get('view', { c:[43.25, 5.3], z:10 });
+const map = L.map('map', { zoomControl:false, attributionControl:true }).setView(last.c, last.z);
+L.control.scale({ position:'bottomleft', imperial:true, metric:true, maxWidth:120 }).addTo(map);
+map.on('moveend', () => store.set('view', { c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom() }));
+
+const BASES = {
+  ocean: { name:'Océan (Esri, relief sous-marin)', layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom:16, attribution:'© Esri, GEBCO, NOAA' }) },
+  osm:   { name:'Plan (OpenStreetMap)', layer: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }) },
+  sat:   { name:'Satellite (voir roches et hauts-fonds)', layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19, attribution:'© Esri' }) }
+};
+const windLayer = L.layerGroup();
+const obsLayer = L.layerGroup();
+const OVERLAYS = {
+  seamark: { name:'Balises, bouées, phares (OpenSeaMap)', on:true, layer: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { maxZoom:18, attribution:'© OpenSeaMap' }) },
+  depth:   { name:'Profondeurs en couleur (EMODnet)', on:false, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:mean_atlas_land', format:'image/png', transparent:true, opacity:.55, attribution:'© EMODnet Bathymetry' }) },
+  contours:{ name:'Lignes de sonde / isobathes (EMODnet)', on:true, layer: L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', { layers:'emodnet:contours', format:'image/png', transparent:true, attribution:'© EMODnet Bathymetry' }) },
+  wind:    { name:'Flèches de vent sur la carte', on:true, layer: windLayer },
+  obs:     { name:'Épaves, roches, obstructions (points cliquables, SHOM + OSM)', on:true, layer: obsLayer },
+  shomwms: { name:'Épaves SHOM en image (essai, peut ne pas s\'afficher)', on:false, layer: L.tileLayer.wms('https://services.data.shom.fr/INSPIRE/wms/v', { layers:'EPAVES_BDD_WLD_WGS84G_WMS', version:'1.3.0', format:'image/png', transparent:true, attribution:'© SHOM CC BY-SA 4.0' }) }
+};
+let baseKey = store.get('base', 'ocean');
+const ovState = store.get('ov', {});
+BASES[baseKey].layer.addTo(map);
+Object.entries(OVERLAYS).forEach(([k, o]) => { if (ovState[k] ?? o.on) o.layer.addTo(map); });
+
+// panneau Couches
+$('baseList').innerHTML = Object.entries(BASES).map(([k, b]) =>
+  `<label class="chk"><input type="radio" name="base" id="base-${k}" value="${k}" ${k===baseKey?'checked':''}> ${b.name}</label>`).join('');
+$('ovList').innerHTML = Object.entries(OVERLAYS).map(([k, o]) =>
+  `<label class="chk"><input type="checkbox" id="ov-${k}" data-k="${k}" ${map.hasLayer(o.layer)?'checked':''}> ${o.name}</label>`).join('');
+$('baseList').addEventListener('change', e => {
+  map.removeLayer(BASES[baseKey].layer); baseKey = e.target.value;
+  BASES[baseKey].layer.addTo(map).bringToBack(); store.set('base', baseKey);
+});
+$('ovList').addEventListener('change', e => {
+  const k = e.target.dataset.k, o = OVERLAYS[k];
+  e.target.checked ? o.layer.addTo(map) : map.removeLayer(o.layer);
+  ovState[k] = e.target.checked; store.set('ov', ovState);
+  if (k === 'wind' && e.target.checked) loadWindGrid();
+  if (k === 'obs') drawObsInView();
+});
+
+// ---------- onglets / tiroir ----------
+document.querySelectorAll('.tab[data-t]').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab[data-t]').forEach(x => x.classList.toggle('on', x === t));
+  ['meteo','route','obst','river','secu','couches'].forEach(p => $('p-'+p).hidden = p !== t.dataset.t);
+  $('sheet').classList.remove('collapsed'); $('toggleSheet').textContent = '▾';
+}));
+$('toggleSheet').addEventListener('click', () => {
+  const c = $('sheet').classList.toggle('collapsed'); $('toggleSheet').textContent = c ? '▴' : '▾';
+});
+
+// ---------- outils (clic carte) ----------
+let tool = null;
+function setTool(t, hint){
+  tool = (tool === t) ? null : t;
+  $('toolHint').hidden = !tool; $('toolHint').textContent = hint || '';
+  ['routeTool','dangerTool','wxTap'].forEach(id => $(id).classList.remove('primary'));
+  if (tool === 'route') $('routeTool').classList.add('primary');
+  if (tool === 'danger') $('dangerTool').classList.add('primary');
+  if (tool === 'wx') $('wxTap').classList.add('primary');
+  if (!tool){ $('routeTool').classList.add('primary'); $('dangerTool').classList.add('primary'); }
+  if (tool) { $('sheet').classList.add('collapsed'); $('toggleSheet').textContent = '▴'; }
+}
+map.on('click', e => {
+  const p = [e.latlng.lat, e.latlng.lng];
+  if (tool === 'route'){ route.push(p); saveRoute(); drawRoute(); }
+  else if (tool === 'danger'){ dangers.push({ p, t:Date.now() }); saveDangers(); drawDangers(); setTool('danger'); }
+  else if (tool === 'wx'){ setTool('wx'); loadWeather(p, 'point touché'); $('sheet').classList.remove('collapsed'); }
+  else {
+    L.popup().setLatLng(e.latlng).setContent(
+      `<b>${fmtPos(p)}</b>` + (gps ? `<br>${n1(distNM(gps.p, p))} NM au ${pad3(bearing(gps.p, p))}° depuis le bateau` : '')
+    ).openOn(map);
+  }
+});
+
+// ---------- GPS ----------
+let gps = null, watchId = null, follow = true, wakeLock = null, prevFix = null;
+const track = [];
+const trackLine = L.polyline([], { color:'#f2b134', weight:3, opacity:.8, dashArray:'4 6' }).addTo(map);
+const boatIcon = cog => L.divIcon({ className:'boat-ico', iconSize:[30,30], iconAnchor:[15,15],
+  html:`<svg width="30" height="30" viewBox="0 0 30 30" style="transform:rotate(${cog||0}deg)"><path d="M15 2 L23 26 L15 21 L7 26 Z" fill="#f2b134" stroke="#0b1a24" stroke-width="2"/></svg>` });
+let boat = null, accCircle = null;
+
+async function keepAwake(){ try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange', () => { if (watchId && document.visibilityState === 'visible') keepAwake(); });
+
+$('gpsBtn').addEventListener('click', () => {
+  if (watchId){ navigator.geolocation.clearWatch(watchId); watchId = null; $('gpsBtn').classList.remove('on'); $('gpsBtn').textContent = 'GPS'; return; }
+  if (!navigator.geolocation){ $('posLine').textContent = 'Ce navigateur ne donne pas accès au GPS.'; return; }
+  $('posLine').textContent = 'Recherche du signal GPS…';
+  watchId = navigator.geolocation.watchPosition(onFix, err => {
+    $('posLine').textContent = err.code === 1
+      ? 'Accès à la position refusé. Autorise la localisation pour ce site dans les réglages du navigateur.'
+      : 'Signal GPS indisponible pour le moment.';
+  }, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
+  $('gpsBtn').classList.add('on'); $('gpsBtn').textContent = 'GPS ON'; keepAwake();
+});
+
+function onFix(pos){
+  const c = pos.coords, p = [c.latitude, c.longitude], now = pos.timestamp;
+  let sog = c.speed != null ? c.speed*1.943844 : null, cog = (c.heading != null && !isNaN(c.heading)) ? c.heading : null;
+  if (prevFix && (sog == null || cog == null)){
+    const dt = (now - prevFix.t)/3600000, d = distNM(prevFix.p, p);
+    if (dt > 0 && d > 0.002){ if (sog == null) sog = d/dt; if (cog == null) cog = bearing(prevFix.p, p); }
+  }
+  prevFix = { p, t:now };
+  gps = { p, sog, cog, acc:c.accuracy };
+  $('sog').innerHTML = (sog == null ? '--' : n1(sog)) + '<small> nd</small>';
+  $('cog').innerHTML = (cog == null || (sog != null && sog < 0.5) ? '---' : pad3(cog)) + '<small>°</small>';
+  $('posLine').textContent = fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
+  if (!boat){ boat = L.marker(p, { icon:boatIcon(cog), zIndexOffset:1000 }).addTo(map); accCircle = L.circle(p, { radius:c.accuracy, color:'#f2b134', weight:1, fillOpacity:.08 }).addTo(map); map.setView(p, Math.max(map.getZoom(), 13)); loadWeather(p, 'position du bateau'); }
+  else { boat.setLatLng(p).setIcon(boatIcon(cog)); accCircle.setLatLng(p).setRadius(c.accuracy); }
+  if (follow) map.panTo(p, { animate:true });
+  if (!track.length || distNM(track[track.length-1], p) > 0.01){ track.push(p); if (track.length > 5000) track.shift(); trackLine.setLatLngs(track); }
+  checkDangers(); updateMob(); drawRoute(); updateDepth(); autoObs(); autoRiver();
+}
+$('followBtn').classList.add('active');
+$('followBtn').addEventListener('click', () => { follow = !follow; $('followBtn').classList.toggle('active', follow); if (follow && gps) map.panTo(gps.p); });
+map.on('dragstart', () => { follow = false; $('followBtn').classList.remove('active'); });
+
+// mode nuit
+if (store.get('night', false)) document.body.classList.add('night');
+$('nightBtn').addEventListener('click', () => store.set('night', document.body.classList.toggle('night')));
+
+// ---------- MÉTÉO ----------
+const W_HOURLY = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,visibility,pressure_msl,precipitation,temperature_2m';
+const M_HOURLY = 'wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,sea_surface_temperature,sea_level_height_msl,ocean_current_velocity,ocean_current_direction';
+let wxBusy = false;
+async function loadWeather(p, label){
+  if (wxBusy) return; wxBusy = true;
+  $('wxOut').innerHTML = `<div class="muted">Chargement de la météo pour ${label}…</div>`;
+  const q = `latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}&timezone=auto&timeformat=unixtime&forecast_days=3`;
+  try{
+    const [w, m] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=${W_HOURLY}&daily=sunrise,sunset&wind_speed_unit=kn`).then(r => r.json()),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&hourly=${M_HOURLY}`).then(r => r.json()).catch(() => null)
+    ]);
+    if (!w || !w.hourly) throw new Error(w && w.reason || 'réponse vide');
+    renderWeather(p, label, w, (m && m.hourly) ? m : null);
+  }catch(e){
+    $('wxOut').innerHTML = `<div class="verdict v1"><div>Météo indisponible (${e.message}). Vérifie la connexion internet : au large, le réseau mobile se perd souvent. Consulte la météo avant de partir.</div></div>`;
+  }finally{ wxBusy = false; }
+}
+
+function renderWeather(p, label, w, m){
+  const H = w.hourly, M = m ? m.hourly : {}, now = Date.now()/1000;
+  let i0 = H.time.findIndex(t => t > now - 1800); if (i0 < 0) i0 = 0;
+  const g = (arr, i) => arr ? arr[i] : null;
+  const ws = H.wind_speed_10m[i0], wd = H.wind_direction_10m[i0], wg = H.wind_gusts_10m[i0];
+  const wh = g(M.wave_height, i0);
+  $('windNow').innerHTML = `${n0(ws)}<small> nd ${card(wd)}</small>`;
+
+  // pire situation sur les 6 prochaines heures
+  let worst = { lvl:-1 }, worstI = i0;
+  for (let i = i0; i < Math.min(i0+6, H.time.length); i++){
+    const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], g(M.wave_height, i));
+    if (r.lvl > worst.lvl){ worst = r; worstI = i; }
+  }
+  const curr = risk(ws, wg, wh);
+
+  const cur = g(M.ocean_current_velocity, i0);
+  const vis = H.visibility[i0];
+  const sunI = w.daily.sunset.findIndex(t => t > now);
+  const cells = [
+    ['Vent', `${arrow(wd)} ${n0(ws)} nd`, `${card(wd)} · force ${beaufort(ws)} · ${BF_TXT[beaufort(ws)]}`],
+    ['Rafales', `${n0(wg)} nd`, `force ${beaufort(wg)}`],
+    ['Vagues', m ? `${n1(wh)} m` : '–', m ? `période ${n0(g(M.wave_period,i0))} s · ${card(g(M.wave_direction,i0)||0)}` : 'pas de donnée ici'],
+    ['Houle', m ? `${n1(g(M.swell_wave_height,i0))} m` : '–', m ? `${n0(g(M.swell_wave_period,i0))} s · de ${card(g(M.swell_wave_direction,i0)||0)}` : ''],
+    ['Mer du vent', m ? `${n1(g(M.wind_wave_height,i0))} m` : '–', 'clapot local'],
+    ['Courant', cur != null ? `${n1(cur/1.852)} nd` : '–', cur != null ? `vers ${card(g(M.ocean_current_direction,i0)||0)}` : ''],
+    ['Visibilité', vis != null ? (vis >= 10000 ? '> 10 km' : `${n1(vis/1000)} km`) : '–', vis != null && vis < 2000 ? 'brume / brouillard' : ''],
+    ['Pression', `${n0(H.pressure_msl[i0])} hPa`, pressTrend(H.pressure_msl, i0)],
+    ['Eau', m ? `${n1(g(M.sea_surface_temperature,i0))} °C` : '–', `air ${n0(H.temperature_2m[i0])} °C`],
+    ['Soleil', sunI >= 0 ? `↓ ${hhmm(w.daily.sunset[sunI])}` : '–', w.daily.sunrise.find(t => t > now) ? `lever ${hhmm(w.daily.sunrise.find(t => t > now))}` : '']
+  ];
+
+  let html = `<div class="muted">${label} · ${fmtPos(p)}</div>
+  <div class="verdict v${curr.lvl}"><div><b>${RISK_TXT[curr.lvl]}</b><div class="muted" style="color:inherit">${curr.why.length ? curr.why.join(' · ') : 'vent et mer modérés en ce moment'}</div></div></div>`;
+  if (worst.lvl > curr.lvl) html += `<div class="verdict v${worst.lvl}"><div><b>Dégradation vers ${hhmm(H.time[worstI])}</b><div class="muted" style="color:inherit">${worst.why.join(' · ')}</div></div></div>`;
+  html += `<div class="grid">${cells.map(c => `<div class="cell"><div class="k">${c[0]}</div><div class="v">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('')}</div>`;
+
+  if (m && M.sea_level_height_msl && M.sea_level_height_msl.some(v => v != null)) html += `<h3>Marée (niveau de la mer, modèle)</h3>` + tideChart(H.time, M.sea_level_height_msl, i0);
+
+  html += `<h3>Prévisions heure par heure</h3><div class="tblWrap"><table><thead><tr><th>Heure</th><th>Vent</th><th>Raf.</th><th>Vagues</th><th>Pér.</th><th>Houle</th><th>Pluie</th></tr></thead><tbody>`;
+  for (let i = i0; i < Math.min(i0+48, H.time.length); i++){
+    const r = risk(H.wind_speed_10m[i], H.wind_gusts_10m[i], g(M.wave_height, i));
+    html += `<tr class="l${r.lvl}"><td>${dayH(H.time[i])}</td><td>${arrow(H.wind_direction_10m[i],10)} ${n0(H.wind_speed_10m[i])} ${card(H.wind_direction_10m[i])}</td><td>${n0(H.wind_gusts_10m[i])}</td><td>${n1(g(M.wave_height,i))}</td><td>${n0(g(M.wave_period,i))}</td><td>${n1(g(M.swell_wave_height,i))}</td><td>${H.precipitation[i] ? n1(H.precipitation[i]) : ''}</td></tr>`;
+  }
+  html += `</tbody></table></div>
+  <div class="muted">Vent en nœuds, vagues en mètres, période en secondes. Bande orange = prudence, rouge = dangereux. Seuils pensés pour un bateau à moteur de 5 à 7 m : vent 16 nd / 22 nd, rafales 20 / 28 nd, vagues 1 m / 2 m. Source : Open-Meteo (modèles Météo-France et ECMWF). Vérifie aussi le BMS et la météo côtière de Météo-France.</div>`;
+  $('wxOut').innerHTML = html;
+}
+function pressTrend(a, i){
+  if (i < 3 || a[i-3] == null) return '';
+  const d = a[i] - a[i-3];
+  if (d <= -3) return `chute rapide ${n1(d)} hPa/3h ⚠`;
+  if (d <= -1) return `en baisse ${n1(d)} hPa/3h`;
+  if (d >= 1) return `en hausse +${n1(d)} hPa/3h`;
+  return 'stable';
+}
+function tideChart(T, L0, i0){
+  const n = Math.min(48, T.length - i0), xs = [], ys = [];
+  for (let i = 0; i < n; i++){ const v = L0[i0+i]; if (v != null){ xs.push(i); ys.push(v); } }
+  if (ys.length < 6) return '<div class="muted">Pas de donnée de marée ici.</div>';
+  const W = 340, Hh = 110, pl = 30, pr = 8, pt = 14, pb = 18;
+  const mn = Math.min(...ys), mx = Math.max(...ys), sp = (mx - mn) || 1;
+  const X = i => pl + i/(n-1)*(W-pl-pr), Y = v => pt + (mx - v)/sp*(Hh-pt-pb);
+  let d = ''; xs.forEach((x, k) => d += (k ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Y(ys[k]).toFixed(1));
+  let marks = '';
+  for (let k = 1; k < ys.length-1; k++){
+    const hi = ys[k] > ys[k-1] && ys[k] >= ys[k+1], lo = ys[k] < ys[k-1] && ys[k] <= ys[k+1];
+    if (hi || lo){
+      const x = X(xs[k]), y = Y(ys[k]);
+      marks += `<circle cx="${x}" cy="${y}" r="3" fill="var(--accent)"/><text x="${x}" y="${hi ? y-5 : y+12}" text-anchor="middle">${hi ? 'PM' : 'BM'} ${hhmm(T[i0+xs[k]])}</text>`;
+    }
+  }
+  return `<div class="tblWrap" style="border:0"><svg viewBox="0 0 ${W} ${Hh}" width="100%" style="max-width:520px;display:block">
+    <line x1="${pl}" x2="${W-pr}" y1="${Y(mx)}" y2="${Y(mx)}" stroke="var(--line)"/><line x1="${pl}" x2="${W-pr}" y1="${Y(mn)}" y2="${Y(mn)}" stroke="var(--line)"/>
+    <text x="${pl-4}" y="${Y(mx)+3}" text-anchor="end">${n1(mx)}</text><text x="${pl-4}" y="${Y(mn)+3}" text-anchor="end">${n1(mn)}</text>
+    <path d="${d} L${X(xs[xs.length-1])} ${Hh-pb} L${X(xs[0])} ${Hh-pb} Z" fill="var(--sea)" opacity=".35"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>${marks}
+    <text x="${pl}" y="${Hh-4}">maintenant</text><text x="${W-pr}" y="${Hh-4}" text-anchor="end">+48 h (m)</text></svg></div>
+    <div class="muted">PM = pleine mer, BM = basse mer. Valeurs de modèle, approximatives près des côtes : vérifie l'annuaire des marées du SHOM pour un passage à faible profondeur.</div>`;
+}
+$('wxHere').addEventListener('click', () => {
+  if (gps) loadWeather(gps.p, 'position du bateau');
+  else { const c = map.getCenter(); loadWeather([c.lat, c.lng], 'centre de la carte'); }
+});
+$('wxTap').addEventListener('click', () => setTool('wx', 'Touche la carte pour la météo de ce point'));
+
+// flèches de vent sur la carte
+let windTimer = null;
+async function loadWindGrid(){
+  if (!map.hasLayer(windLayer)) return;
+  const b = map.getBounds(), N = 4, lats = [], lons = [];
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++){
+    lats.push((b.getSouth() + (i+.5)/N*(b.getNorth()-b.getSouth())).toFixed(3));
+    lons.push((b.getWest() + (j+.5)/N*(b.getEast()-b.getWest())).toFixed(3));
+  }
+  try{
+    let r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn`).then(r => r.json());
+    if (!Array.isArray(r)) r = [r];
+    windLayer.clearLayers();
+    r.forEach((d, k) => {
+      if (!d.current) return;
+      const s = d.current.wind_speed_10m, dir = d.current.wind_direction_10m, gu = d.current.wind_gusts_10m;
+      const col = s >= 22 ? '#ef5350' : s >= 16 ? '#f2b134' : s >= 10 ? '#7fd3ff' : '#c9f2d9';
+      L.marker([+lats[k], +lons[k]], { interactive:false, icon:L.divIcon({ className:'', iconSize:[44,44], iconAnchor:[22,22],
+        html:`<div class="wind-ico"><svg width="26" height="26" viewBox="0 0 12 12" style="transform:rotate(${dir+180}deg)"><path d="M6 0 L10 9 L6 7 L2 9 Z" fill="${col}" stroke="#000" stroke-width=".6"/></svg>${Math.round(s)}<span style="opacity:.8">/${Math.round(gu)}</span></div>` }) }).addTo(windLayer);
+    });
+  }catch(e){}
+}
+map.on('moveend', () => { clearTimeout(windTimer); windTimer = setTimeout(loadWindGrid, 700); });
+
+// ---------- ROUTE ----------
+let route = store.get('route', []);
+const routeLine = L.polyline([], { color:'#ff4fa3', weight:3 }).addTo(map);
+const routeFromBoat = L.polyline([], { color:'#ff4fa3', weight:2, dashArray:'6 6' }).addTo(map);
+const routeMarks = L.layerGroup().addTo(map);
+function saveRoute(){ store.set('route', route); }
+function drawRoute(){
+  routeLine.setLatLngs(route); routeMarks.clearLayers();
+  route.forEach((p, i) => L.marker(p, { icon:L.divIcon({ className:'', iconSize:[22,22], iconAnchor:[11,11],
+    html:`<div style="width:22px;height:22px;border-radius:50%;background:#ff4fa3;color:#fff;font:600 11px var(--f-data);display:grid;place-items:center;border:2px solid #fff">${i+1}</div>` }) }).addTo(routeMarks));
+  routeFromBoat.setLatLngs(gps && route.length ? [gps.p, route[0]] : []);
+  const spd = Math.max(0.1, +$('spd').value || 1), conso = +$('conso').value || 0;
+  if (!route.length){ $('routeOut').innerHTML = '<div class="muted">Appuie sur « Tracer une route » puis touche la carte pour poser tes points. Tu obtiens la distance en milles nautiques, le cap à suivre, le temps et le carburant.</div>'; return; }
+  let tot = 0, rows = '';
+  if (gps) rows += `<div class="leg"><span>⛵→1</span><span>${n1(distNM(gps.p, route[0]))} NM</span><span>cap ${pad3(bearing(gps.p, route[0]))}°</span></div>`;
+  for (let i = 1; i < route.length; i++){
+    const d = distNM(route[i-1], route[i]); tot += d;
+    rows += `<div class="leg"><span>${i}→${i+1}</span><span>${n1(d)} NM</span><span>cap ${pad3(bearing(route[i-1], route[i]))}°</span></div>`;
+  }
+  const h = tot/spd, mins = Math.round(h*60);
+  const eta = new Date(Date.now() + h*3600000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  $('routeOut').innerHTML = `<div class="legs">${rows}</div>
+    <div class="total">Total <b>${n1(tot)} NM</b> (${n1(tot*1.852)} km) · ${Math.floor(mins/60)} h ${String(mins%60).padStart(2,'0')} · arrivée vers ${eta}</div>
+    <div class="total">Carburant estimé <b>${n0(h*conso)} L</b> <span class="muted">· prévois au moins ${n0(h*conso*1.3)} L (règle du tiers : un tiers aller, un tiers retour, un tiers de réserve)</span></div>
+    <div class="muted">Caps vrais, sans déclinaison magnétique ni dérive due au vent et au courant. Vérifie sur la carte que chaque segment ne passe pas sur un danger.</div>`;
+}
+$('routeTool').addEventListener('click', () => setTool('route', 'Touche la carte pour ajouter des points · re-touche le bouton pour finir'));
+$('routeUndo').addEventListener('click', () => { route.pop(); saveRoute(); drawRoute(); });
+$('routeClear').addEventListener('click', () => { route = []; saveRoute(); drawRoute(); });
+$('spd').addEventListener('input', drawRoute); $('conso').addEventListener('input', drawRoute);
+
+// ---------- DANGERS ----------
+let dangers = store.get('dangers', []);
+const dangerLayer = L.layerGroup().addTo(map);
+function saveDangers(){ store.set('dangers', dangers); }
+function drawDangers(){
+  dangerLayer.clearLayers();
+  const rM = +$('dangerDist').value || 150;
+  dangers.forEach((d, i) => {
+    L.circle(d.p, { radius:rM, color:'#ef5350', weight:1, fillOpacity:.12, interactive:false }).addTo(dangerLayer);
+    L.marker(d.p, { icon:L.divIcon({ className:'', iconSize:[24,24], iconAnchor:[12,12],
+      html:'<div style="width:24px;height:24px;background:#ef5350;color:#fff;font-weight:700;display:grid;place-items:center;transform:rotate(45deg);border:2px solid #fff"><span style="transform:rotate(-45deg)">!</span></div>' }) })
+      .bindPopup(`<b>Danger</b><br>${fmtPos(d.p)}<br>ajouté le ${new Date(d.t).toLocaleDateString('fr-FR')}<br><button class="btn danger" data-del="${i}" style="margin-top:6px">Supprimer</button>`)
+      .addTo(dangerLayer);
+  });
+  $('dangerOut').textContent = dangers.length ? `${dangers.length} danger(s) enregistré(s) sur ce téléphone.` : 'Aucun danger enregistré.';
+}
+map.on('popupopen', e => {
+  const b = e.popup.getElement().querySelector('[data-del]');
+  if (b) b.addEventListener('click', () => { dangers.splice(+b.dataset.del, 1); saveDangers(); drawDangers(); map.closePopup(); });
+});
+$('dangerTool').addEventListener('click', () => setTool('danger', 'Touche la carte à l\'endroit du danger'));
+$('dangerDist').addEventListener('input', drawDangers);
+let lastAlert = 0;
+const alerts = {};
+function setAlert(k, msg){
+  if (msg) alerts[k] = msg; else delete alerts[k];
+  const m = Object.values(alerts);
+  $('alertBar').hidden = !m.length;
+  $('alertBar').innerHTML = m.join('<br>');
+  if (m.length && Date.now() - lastAlert > 15000){ lastAlert = Date.now(); try{ navigator.vibrate && navigator.vibrate([400,200,400]); }catch(e){} }
+}
+function checkDangers(){
+  if (!gps) return;
+  const lim = (+$('dangerDist').value || 150)/1852;
+  let near = null;
+  dangers.forEach(d => { const dd = distNM(gps.p, d.p); if (dd < lim && (!near || dd < near.d)) near = { d:dd, p:d.p, label:'DANGER' }; });
+  obsNear.forEach(o => { if (!(HAZ.has(o.kind) || lowBridge(o))) return; const dd = distNM(gps.p, o.p); if (dd < lim && (!near || dd < near.d)) near = { d:dd, p:o.p, label:(lowBridge(o) ? 'PONT BAS' : (KIND[o.kind] || 'Obstacle').toUpperCase()) }; });
+  setAlert('danger', near ? `⚠ ${near.label} à ${Math.round(near.d*1852)} m au ${pad3(bearing(gps.p, near.p))}°. Réduis la vitesse.` : null);
+}
+
+// ---------- MOB ----------
+let mob = store.get('mob', null), mobMarker = null;
+const mobLine = L.polyline([], { color:'#ef5350', weight:3 }).addTo(map);
+function updateMob(){
+  if (!mob){ mobLine.setLatLngs([]); if (mobMarker){ map.removeLayer(mobMarker); mobMarker = null; } $('mobBtn').textContent = 'MOB'; return; }
+  if (!mobMarker) mobMarker = L.circleMarker(mob.p, { radius:10, color:'#fff', fillColor:'#ef5350', fillOpacity:1, weight:3 }).addTo(map);
+  $('mobBtn').textContent = 'MOB ✕';
+  if (gps){
+    mobLine.setLatLngs([gps.p, mob.p]);
+    const d = distNM(gps.p, mob.p);
+    $('mobOut').innerHTML = `<div class="verdict v2"><div><b>Homme à la mer</b><div style="font-family:var(--f-data);font-size:18px">${Math.round(d*1852)} m · cap ${pad3(bearing(gps.p, mob.p))}°</div><div>Marqué à ${new Date(mob.t).toLocaleTimeString('fr-FR')} · ${fmtPos(mob.p)}. Appelle le CROSS sur VHF 16 (Mayday) ou au 196.</div></div></div>`;
+  } else $('mobOut').innerHTML = `<div class="verdict v2"><div><b>Homme à la mer</b><div>${fmtPos(mob.p)} · active le GPS pour avoir le cap de retour.</div></div></div>`;
+}
+$('mobBtn').addEventListener('click', () => {
+  if (mob){ mob = null; store.set('mob', null); updateMob(); $('mobOut').textContent = 'Homme à la mer : appuie sur MOB pour marquer la position et afficher le cap pour y revenir.'; return; }
+  const p = gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
+  mob = { p, t:Date.now() }; store.set('mob', mob); updateMob();
+  document.querySelector('.tab[data-t="secu"]').click();
+  try{ navigator.vibrate && navigator.vibrate(600); }catch(e){}
+});
+
+// ---------- CHECKLIST ----------
+const CHECK = [
+  'Météo et bulletin côtier consultés (vent, rafales, mer, évolution)',
+  'Quelqu\'un à terre connaît ma route et mon heure de retour',
+  'Plein de carburant + réserve (règle du tiers)',
+  'Hélice et embase vérifiées, hélice de rechange et clé à bord',
+  'Gilets de sauvetage pour tous, bien ajustés',
+  'VHF chargée, testée, sur le canal 16',
+  'Téléphone chargé + batterie externe, dans une pochette étanche',
+  'Feux à main / fusées en date, lampe torche',
+  'Mouillage, ligne et bout de remorquage',
+  'Écope ou pompe de cale qui fonctionne',
+  'Marées vérifiées pour les passages peu profonds',
+  'Coupe-circuit (cordon) attaché au pilote'
+];
+let checks = store.get('checks', {});
+function drawChecks(){
+  $('checklist').innerHTML = CHECK.map((c, i) => `<label class="chk"><input type="checkbox" id="chk-${i}" data-i="${i}" ${checks[i] ? 'checked' : ''}> ${c}</label>`).join('');
+}
+$('checklist').addEventListener('change', e => { checks[e.target.dataset.i] = e.target.checked; store.set('checks', checks); });
+$('checkReset').addEventListener('click', () => { checks = {}; store.set('checks', checks); drawChecks(); });
+
+// ---------- OBSTACLES, PROFONDEUR ----------
+const KIND = { wreck:'Épave', rock:'Roche', obstruction:'Obstruction', weir:'Barrage / seuil', dam:'Barrage', lock:'Écluse', bridge:'Pont',
+  marina:'Port / halte', fuel:'Carburant', slipway:'Cale de mise à l\'eau', cable:'Câble ou ligne aérienne' };
+const KCOL = { wreck:'#b36bff', rock:'#ff8a3d', obstruction:'#ef5350', weir:'#ff3b6b', dam:'#ff3b6b', lock:'#4fc3f7', bridge:'#9fb3c8',
+  marina:'#3fbf7f', fuel:'#f2b134', slipway:'#8bd17c', cable:'#e0d060' };
+const HAZ = new Set(['wreck','rock','obstruction','weir','dam']);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let shomPts = [], osmPts = [], obsNear = [], obsCenter = null, obsT = 0, obsBusy = false;
+const cfg = Object.assign({ draft:0.7, margin:1, r:2, air:2 }, store.get('cfg', {}));
+$('draft').value = cfg.draft; $('margin').value = cfg.margin; $('obsR').value = cfg.r; $('air').value = cfg.air;
+[['draft','draft'],['margin','margin'],['obsR','r'],['air','air']].forEach(([id, k]) => $(id).addEventListener('input', () => {
+  const v = parseFloat($(id).value); if (isFinite(v)) { cfg[k] = v; store.set('cfg', cfg); }
+}));
+
+function dest(p, brg, nm){
+  const d = nm/R_NM, b = toRad(brg), la = toRad(p[0]), lo = toRad(p[1]);
+  const la2 = Math.asin(Math.sin(la)*Math.cos(d) + Math.cos(la)*Math.sin(d)*Math.cos(b));
+  const lo2 = lo + Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la), Math.cos(d) - Math.sin(la)*Math.sin(la2));
+  return [toDeg(la2), toDeg(lo2)];
+}
+function pick(pr, keys){
+  const low = {}; for (const k in pr) low[k.toLowerCase()] = pr[k];
+  for (const k of keys){ const v = low[k]; if (v != null && v !== '') return v; }
+  return null;
+}
+
+// --- stockage local (IndexedDB) pour garder la base SHOM hors ligne
+function idb(){ return new Promise((res, rej) => { const r = indexedDB.open('cm', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+async function idbGet(k){ try{ const db = await idb(); return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(null); }); }catch(e){ return null; } }
+async function idbSet(k, v){ try{ const db = await idb(); await new Promise(res => { const t = db.transaction('kv','readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => res(); }); }catch(e){} }
+
+// --- base SHOM : épaves et obstructions (data.gouv.fr, CC BY-SA 4.0)
+const SHOM_URL = 'https://www.data.gouv.fr/api/1/datasets/r/0614f90e-6dc5-4085-8edd-90b2ee69fd1a';
+const setShomStatus = t => { $('shomStatus').textContent = t; };
+function ingest(gj){
+  const out = [];
+  (Array.isArray(gj) ? gj : [gj]).forEach(fc => {
+    const fn = String(fc.fileName || '').toLowerCase();
+    (fc.features || []).forEach(f => {
+      const g = f.geometry; if (!g) return;
+      const c = g.type === 'Point' ? g.coordinates : g.type === 'MultiPoint' ? g.coordinates[0] : null;
+      if (!c || !isFinite(c[0]) || !isFinite(c[1]) || Math.abs(c[0]) > 180 || Math.abs(c[1]) > 90) return;
+      const pr = f.properties || {};
+      const isObs = fn.includes('obs') || pick(pr, ['catobs']) != null;
+      const dv = parseFloat(pick(pr, ['valsou','sounding','profondeur','depth','prof']));
+      const extra = []; for (const k in pr){ if (pr[k] != null && pr[k] !== '' && extra.length < 8) extra.push(k + ': ' + pr[k]); }
+      out.push({ p:[c[1], c[0]], kind:isObs ? 'obstruction' : 'wreck', n:pick(pr, ['objnam','nobjnm','nom','name']),
+        d:isFinite(dv) ? dv : null, c:pick(pr, ['catwrk','catobs','categorie','category','type']), x:extra.join(' · '), src:'SHOM' });
+    });
+  });
+  return out;
+}
+async function importZip(buf){
+  if (typeof shp === 'undefined') throw new Error('lecteur de fichier non chargé, vérifie le réseau');
+  shomPts = ingest(await shp(buf));
+  if (!shomPts.length) throw new Error('aucune épave trouvée dans ce fichier');
+  await idbSet('shom', { pts:shomPts, t:Date.now() });
+  setShomStatus(`${shomPts.length} épaves et obstructions SHOM chargées et gardées sur ce téléphone.`);
+  drawObsInView();
+}
+async function loadShom(force){
+  if (!force){
+    const c = await idbGet('shom');
+    if (c && c.pts && c.pts.length){
+      shomPts = c.pts; drawObsInView();
+      setShomStatus(`${shomPts.length} épaves et obstructions SHOM en mémoire (téléchargées le ${new Date(c.t).toLocaleDateString('fr-FR')}).`);
+      return;
+    }
+  }
+  setShomStatus('Téléchargement de la base SHOM…');
+  try{
+    const r = await fetch(SHOM_URL); if (!r.ok) throw new Error('HTTP ' + r.status);
+    await importZip(await r.arrayBuffer());
+  }catch(e){ setShomStatus('Téléchargement impossible (' + e.message + '). Importe le fichier .zip à la main.'); }
+}
+$('shomReload').addEventListener('click', () => loadShom(true));
+$('shomFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  setShomStatus('Lecture du fichier…');
+  try{ await importZip(await f.arrayBuffer()); }catch(err){ setShomStatus('Fichier illisible : ' + err.message); }
+});
+
+// --- OpenStreetMap / OpenSeaMap via Overpass
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+function osmKind(t){
+  const s = t['seamark:type'];
+  if (['wreck','rock','obstruction','bridge'].includes(s)) return s;
+  if (t.waterway === 'weir') return 'weir';
+  if (t.waterway === 'dam') return 'dam';
+  if (t.waterway === 'lock_gate' || t.lock === 'yes') return 'lock';
+  if (t.waterway === 'fuel') return 'fuel';
+  if (t.leisure === 'marina') return 'marina';
+  if (t.leisure === 'slipway') return 'slipway';
+  return null;
+}
+function nearKind(arr, p, kinds, tol){ return arr.some(s => kinds.includes(s.kind) && Math.abs(s.p[0]-p[0]) < tol && Math.abs(s.p[1]-p[1]) < tol*1.5); }
+async function overpass(q){
+  for (const url of OVERPASS){
+    try{ return await fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }); }catch(e){}
+  }
+  return null;
+}
+async function loadOsm(c, rNM){
+  const a = `(around:${Math.round(rNM*1852)},${c[0].toFixed(5)},${c[1].toFixed(5)})`;
+  const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0])));
+  const bb = `(${(c[0]-dLat).toFixed(4)},${(c[1]-dLon).toFixed(4)},${(c[0]+dLat).toFixed(4)},${(c[1]+dLon).toFixed(4)})`;
+  const q1 = `[out:json][timeout:30];(nwr${a}["seamark:type"~"^(wreck|rock|obstruction|bridge)$"];nwr${a}["waterway"~"^(lock_gate|weir|dam|fuel)$"];nwr${a}["lock"="yes"];nwr${a}["leisure"~"^(marina|slipway)$"];);out center tags 800;`;
+  const q2 = `[out:json][timeout:30];way["waterway"~"^(river|canal)$"]${bb}->.w;way(around.w:0)["bridge"]["bridge"!="no"]${bb};out center tags 400;`;
+  const [j, jb] = await Promise.all([overpass(q1), overpass(q2)]);
+  if (!j && !jb) return false;
+  const out = [];
+  const els = (j ? j.elements : []).concat((jb ? jb.elements : []).map(e => Object.assign({ _br:true }, e)));
+  els.forEach(el => {
+    const t = el.tags || {}, kind = el._br ? 'bridge' : osmKind(t);
+    const p = el.lat != null ? [el.lat, el.lon] : el.center ? [el.center.lat, el.center.lon] : null;
+    if (!p || !kind) return;
+    if ((kind === 'wreck' || kind === 'obstruction') && nearKind(shomPts, p, ['wreck','obstruction'], 0.0006)) return;
+    if (['bridge','lock','dam','weir','wreck','rock','obstruction'].includes(kind) && nearKind(iencPts, p, kind === 'weir' ? ['dam'] : [kind], 0.0010)) return;
+    if ((kind === 'lock' || kind === 'bridge') && nearKind(out, p, [kind], kind === 'lock' ? 0.0012 : 0.0002)) return;
+    const dv = parseFloat(t['seamark:' + kind + ':value_of_sounding']);
+    const hv = parseFloat(t['seamark:bridge:clearance_height'] ?? t['seamark:bridge:clearance_height_closed'] ?? t['bridge:clearance']);
+    const dims = [];
+    if (kind === 'lock'){ if (t.maxlength) dims.push('longueur ' + t.maxlength + ' m'); if (t.maxwidth) dims.push('largeur ' + t.maxwidth + ' m'); if (t.maxdraft) dims.push('tirant d\'eau ' + t.maxdraft + ' m'); if (t['lock:height']) dims.push('chute ' + t['lock:height'] + ' m'); }
+    if (kind === 'bridge' && (t.highway || t.railway)) dims.push(t.railway ? 'pont ferroviaire' : 'pont routier');
+    out.push({ p, kind, n:t['seamark:name'] || t.name || t['bridge:name'] || t['lock_name'] || null, d:(kind === 'wreck' || kind === 'rock' || kind === 'obstruction') && isFinite(dv) ? dv : null,
+      h:kind === 'bridge' && isFinite(hv) ? hv : null,
+      c:t['seamark:' + kind + ':category'] || t['seamark:' + kind + ':water_level'] || null, x:dims.join(' · '), src:'OSM' });
+  });
+  osmPts = out; return true;
+}
+
+function nearby(c, rNM){
+  const dLat = rNM/60, dLon = rNM/(60*Math.cos(toRad(c[0]))), out = [];
+  for (const arr of [iencPts, shomPts, osmPts]) for (const o of arr){
+    if (Math.abs(o.p[0]-c[0]) > dLat || Math.abs(o.p[1]-c[1]) > dLon) continue;
+    const dist = distNM(c, o.p);
+    if (dist <= rNM) out.push(Object.assign({ dist, brg:bearing(c, o.p) }, o));
+  }
+  return out.sort((a, b) => a.dist - b.dist);
+}
+function obsPopup(o){
+  return `<b>${KIND[o.kind]}</b>${o.n ? ' ' + esc(o.n) : ''}<br>` +
+    (o.d != null ? `sonde ${n1(o.d)} m<br>` : '') + (o.h != null ? `hauteur libre ${n1(o.h)} m<br>` : '') + (o.c ? `${esc(o.c)}<br>` : '') +
+    (o.x ? `<span class="muted">${esc(o.x)}</span><br>` : '') + `<span class="muted">source ${o.src} · ${fmtPos(o.p)}</span>`;
+}
+function lowBridge(o){ return (o.kind === 'bridge' || o.kind === 'cable') && o.h != null && o.h < cfg.air + 0.5; }
+function renderObs(label){
+  const haz = obsNear.filter(o => HAZ.has(o.kind) || lowBridge(o));
+  let html = '';
+  if (!haz.length) html += `<div class="verdict v0"><div><b>Aucun danger répertorié</b><div>dans ${cfg.r} NM autour de ${label}. Ça ne prouve pas que l'eau est libre, reste vigilant.</div></div></div>`;
+  else {
+    const f = haz[0];
+    html += `<div class="verdict ${f.dist < 0.25 ? 'v2' : f.dist < 0.7 ? 'v1' : 'v0'}"><div><b>${haz.length} danger(s) à moins de ${cfg.r} NM</b>
+      <div>Le plus proche : ${(lowBridge(f) ? 'pont bas' : KIND[f.kind].toLowerCase())} à ${Math.round(f.dist*1852)} m au ${pad3(f.brg)}°.</div></div></div>`;
+  }
+  const row = o => { const i = obsNear.indexOf(o);
+    return `<button class="obsrow" data-i="${i}"><span class="dot" style="background:${KCOL[o.kind]}"></span>
+      <span>${KIND[o.kind]}${o.n ? ' · ' + esc(o.n) : ''}<small>${o.d != null ? 'sonde ' + n1(o.d) + ' m · ' : ''}${o.h != null ? 'hauteur libre ' + n1(o.h) + ' m' + (lowBridge(o) ? ' ⚠ ' : ' · ') : (o.kind === 'bridge' ? 'hauteur libre inconnue · ' : '')}${o.x ? esc(o.x) + ' · ' : ''}${o.c ? esc(o.c) + ' · ' : ''}${o.src}</small></span>
+      <span class="od">${o.dist < 1 ? Math.round(o.dist*1852) + ' m' : n1(o.dist) + ' NM'}<small>${pad3(o.brg)}°</small></span></button>`; };
+  [['Dangers', o => HAZ.has(o.kind)], ['Écluses, ponts et lignes aériennes', o => o.kind === 'lock' || o.kind === 'bridge' || o.kind === 'cable'], ['Services (ports, carburant, cales)', o => ['marina','fuel','slipway'].includes(o.kind)]].forEach(([title, fn]) => {
+    const list = obsNear.filter(fn); if (!list.length) return;
+    html += `<h3>${title} (${list.length})</h3><div class="obslist">${list.slice(0, 15).map(row).join('')}</div>` + (list.length > 15 ? `<div class="muted">${list.length - 15} autres plus loin, visibles sur la carte.</div>` : '');
+  });
+  html += `<div class="muted">Données SHOM (CC BY-SA 4.0) et OpenStreetMap, incomplètes. Ne pas utiliser pour la navigation.</div>`;
+  $('obsOut').innerHTML = html;
+}
+$('obsOut').addEventListener('click', e => {
+  const b = e.target.closest('.obsrow'); if (!b) return;
+  const o = obsNear[+b.dataset.i]; if (!o) return;
+  map.setView(o.p, Math.max(map.getZoom(), 15)); L.popup().setLatLng(o.p).setContent(obsPopup(o)).openOn(map);
+  $('sheet').classList.add('collapsed'); $('toggleSheet').textContent = '▴';
+});
+async function refreshObstacles(c, label){
+  if (obsBusy) return; obsBusy = true; obsCenter = c; obsT = Date.now();
+  $('obsOut').innerHTML = `<div class="muted">Recherche autour de ${label}…</div>`;
+  const ok = await loadOsm(c, cfg.r);
+  obsNear = nearby(c, cfg.r); renderObs(label);
+  if (!ok) $('obsOut').insertAdjacentHTML('beforeend', '<div class="muted">Données OpenStreetMap indisponibles pour le moment (réseau). Seule la base SHOM est utilisée.</div>');
+  obsBusy = false; drawObsInView(); checkDangers();
+}
+function autoObs(){
+  if (!gps || obsBusy) return;
+  if (!obsCenter || distNM(obsCenter, gps.p) > 0.5 || Date.now() - obsT > 180000) refreshObstacles(gps.p, 'ton bateau');
+}
+$('obsRefresh').addEventListener('click', () => {
+  if (gps) refreshObstacles(gps.p, 'ton bateau'); else { const c = map.getCenter(); refreshObstacles([c.lat, c.lng], 'le centre de la carte'); }
+});
+function drawObsInView(){
+  obsLayer.clearLayers();
+  if (!map.hasLayer(obsLayer) || map.getZoom() < 11) return;
+  const b = map.getBounds().pad(0.1); let n = 0;
+  for (const arr of [iencPts, shomPts, osmPts]) for (const o of arr){
+    if (!b.contains(o.p)) continue; if (++n > 400) return;
+    L.circleMarker(o.p, { radius:6, color:'#fff', weight:1.5, fillColor:KCOL[o.kind], fillOpacity:.95 }).bindPopup(() => obsPopup(o)).addTo(obsLayer);
+  }
+}
+let obsDrawTimer = null;
+map.on('moveend', () => { clearTimeout(obsDrawTimer); obsDrawTimer = setTimeout(drawObsInView, 400); });
+
+// --- profondeur (EMODnet) et alerte fond faible
+const depthCache = new Map();
+async function depthAt(p){
+  const di = iencDepth(p); if (di != null) return di;
+  const key = p[0].toFixed(4) + ',' + p[1].toFixed(4);
+  if (depthCache.has(key)) return depthCache.get(key);
+  let d = null;
+  try{
+    const j = await fetch(`https://rest.emodnet-bathymetry.eu/depth_sample?geom=POINT(${p[1].toFixed(5)}%20${p[0].toFixed(5)})`).then(r => r.json());
+    if (typeof j.avg === 'number') d = -j.avg;
+  }catch(e){}
+  if (d == null){
+    try{
+      const e0 = 0.0006, bb = [p[1]-e0, p[0]-e0, p[1]+e0, p[0]+e0].join(',');
+      const j = await fetch(`https://ows.emodnet-bathymetry.eu/wms?service=WMS&version=1.1.1&request=GetFeatureInfo&layers=emodnet:mean&query_layers=emodnet:mean&srs=EPSG:4326&bbox=${bb}&width=101&height=101&x=50&y=50&info_format=application/json`).then(r => r.json());
+      const pr = j.features && j.features[0] && j.features[0].properties;
+      if (pr){ for (const k in pr) if (typeof pr[k] === 'number'){ d = -pr[k]; break; } }
+    }catch(e){}
+  }
+  if (depthCache.size > 300) depthCache.clear();
+  depthCache.set(key, d); return d;
+}
+let lastDepthT = 0, depthBusy = false;
+async function updateDepth(){
+  if (!gps || depthBusy || Date.now() - lastDepthT < 8000) return;
+  depthBusy = true; lastDepthT = Date.now();
+  try{
+    const pts = [gps.p];
+    if (gps.cog != null && gps.sog != null && gps.sog > 1.5) [0.08, 0.2, 0.4].forEach(nm => pts.push(dest(gps.p, gps.cog, nm)));
+    const ds = await Promise.all(pts.map(depthAt));
+    const here = ds[0], ahead = ds.filter(v => v != null);
+    const el = $('depthNow');
+    if (here == null){ el.className = 'v'; el.innerHTML = '--<small> m</small>'; setAlert('depth', null); }
+    else {
+      const need = cfg.draft + cfg.margin, minD = Math.min(...ahead);
+      el.className = 'v' + (minD < cfg.draft ? ' bad' : minD < need ? ' warn' : '');
+      el.innerHTML = (here < 0 ? 'sec' : n1(here)) + '<small> m</small>';
+      setAlert('depth', minD < need ? `⚠ FOND FAIBLE : environ ${n1(Math.max(minD, 0))} m devant (tirant d'eau ${n1(cfg.draft)} m + marge ${n1(cfg.margin)} m).` : null);
+    }
+  }catch(e){}
+  depthBusy = false;
+}
+
+// --- bateaux : liens vers des sites de suivi AIS
+const aisPos = () => gps ? gps.p : [map.getCenter().lat, map.getCenter().lng];
+$('aisMT').addEventListener('click', () => { const c = aisPos(); window.open(`https://www.marinetraffic.com/en/ais/home/centerx:${c[1].toFixed(4)}/centery:${c[0].toFixed(4)}/zoom:12`, '_blank'); });
+$('aisVF').addEventListener('click', () => { window.open('https://www.vesselfinder.com/', '_blank'); });
+
+// ---------- CARTES OFFICIELLES IENC (S-57 : VNF, CNR…) ----------
+const S57 = { 11:'bridge', 38:'dam', 79:'lock', 86:'obstruction', 159:'wreck', 153:'rock', 21:'cable', 93:'cable', 34:'cable' };
+let iencCells = {}, iencPts = [], iencAreas = [];
+function parseS57(buf){
+  const u8 = new Uint8Array(buf), dv = new DataView(buf), dec = new TextDecoder('iso-8859-1');
+  const num = (o, l) => parseInt(dec.decode(u8.subarray(o, o+l)), 10);
+  const vec = new Map(), feats = [];
+  let off = 0, comf = 10000000, first = true;
+  while (off + 24 <= u8.length){
+    const recLen = num(off, 5); if (!recLen || off + recLen > u8.length) break;
+    const base = num(off+12, 5), sL = u8[off+20]-48, sP = u8[off+21]-48, sT = u8[off+23]-48;
+    const F = {};
+    for (let d = off+24; u8[d] !== 0x1e && d < off+base; d += sT+sL+sP){
+      const tag = dec.decode(u8.subarray(d, d+sT));
+      (F[tag] = F[tag] || []).push([off + base + num(d+sP*0+sT+sL, sP), num(d+sT, sL) - 1]);
+    }
+    if (!first){
+      if (F.DSPM){ const q = F.DSPM[0][0]; comf = dv.getUint32(q+16, true) || comf; }
+      if (F.VRID){
+        const q = F.VRID[0][0], key = u8[q] + ':' + dv.getUint32(q+1, true), c = [], n = [null, null];
+        (F.SG2D || []).forEach(([q2, l]) => { for (let i = q2; i + 8 <= q2 + l; i += 8) c.push([dv.getInt32(i, true)/comf, dv.getInt32(i+4, true)/comf]); });
+        (F.VRPT || []).forEach(([q2, l]) => { for (let i = q2; i + 9 <= q2 + l; i += 9){ const t = u8[i+7]; const k = u8[i] + ':' + dv.getUint32(i+1, true); if (t === 1) n[0] = k; else if (t === 2) n[1] = k; } });
+        vec.set(key, { c, n });
+      }
+      if (F.FRID){
+        const q = F.FRID[0][0], prim = u8[q+5], objl = dv.getUint16(q+7, true);
+        if (S57[objl] || objl === 42){
+          const at = {}, sp = [];
+          (F.ATTF || []).forEach(([q2, l]) => { let i = q2; const e = q2 + l; while (i + 2 <= e){ const code = dv.getUint16(i, true); i += 2; let j = i; while (j < e && u8[j] !== 0x1f) j++; at[code] = dec.decode(u8.subarray(i, j)).trim(); i = j + 1; } });
+          (F.NATF || []).forEach(([q2, l]) => { let i = q2; const e = q2 + l; while (i + 2 <= e){ const code = dv.getUint16(i, true); i += 2; let j = i; while (j + 1 < e && !(u8[j] === 0x1f && u8[j+1] === 0)) j += 2; try{ at[code] = new TextDecoder('utf-16le').decode(u8.subarray(i, j)).trim(); }catch(err){} i = j + 2; } });
+          (F.FSPT || []).forEach(([q2, l]) => { for (let i = q2; i + 8 <= q2 + l; i += 8) sp.push([u8[i] + ':' + dv.getUint32(i+1, true), u8[i+5]]); });
+          feats.push({ objl, prim, at, sp });
+        }
+      }
+    }
+    first = false; off += recLen;
+  }
+  const edge = (key, ornt) => { const v = vec.get(key); if (!v) return [];
+    const a = v.n[0] && vec.get(v.n[0]), b = v.n[1] && vec.get(v.n[1]);
+    const pts = [].concat(a ? a.c : [], v.c, b ? b.c : []); return ornt === 2 ? pts.reverse() : pts; };
+  const pts = [], areas = [];
+  feats.forEach(f => {
+    const lines = f.sp.map(([k, o]) => edge(k, o)).filter(l => l.length);
+    if (!lines.length) return;
+    if (f.objl === 42){
+      const dval = parseFloat(f.at[87]); if (f.prim !== 3 || !isFinite(dval)) return;
+      const b = [90, 180, -90, -180];
+      const s = lines.filter(l => l.length > 1).map(l => { const fa = new Float32Array(l.length*2); l.forEach((pt, i) => { fa[i*2] = pt[0]; fa[i*2+1] = pt[1]; b[0] = Math.min(b[0], pt[0]); b[1] = Math.min(b[1], pt[1]); b[2] = Math.max(b[2], pt[0]); b[3] = Math.max(b[3], pt[1]); }); return fa; });
+      if (s.length) areas.push({ b, d:dval, s });
+      return;
+    }
+    let la = 0, lo = 0, n = 0; lines.forEach(l => l.forEach(pt => { la += pt[0]; lo += pt[1]; n++; }));
+    const kind = S57[f.objl], a = f.at, x = [];
+    const h = parseFloat(a[181] ?? a[182]), hOpen = parseFloat(a[183]), dv2 = parseFloat(a[179]);
+    if (kind === 'bridge'){ const cb = String(a[9] || '').split(',').map(Number); if (cb.some(v => [2,3,4,5,7,8].includes(v))) x.push('pont mobile' + (isFinite(hOpen) ? ', ouvert ' + hOpen + ' m' : '')); }
+    if (a[98]) x.push('largeur de passe ' + a[98] + ' m'); else if (a[100]) x.push('largeur ' + a[100] + ' m');
+    if (a[102]) x.push(String(a[102]).slice(0, 90));
+    pts.push({ p:[la/n, lo/n], kind, n:a[301] || a[116] || null, d:isFinite(dv2) ? dv2 : null,
+      h:(kind === 'bridge' || kind === 'cable') && isFinite(h) ? h : null, c:null, x:x.join(' · '), src:'IENC' });
+  });
+  return { pts, areas };
+}
+function iencDepth(p){
+  let best = null;
+  for (const a of iencAreas){
+    if (p[0] < a.b[0] || p[0] > a.b[2] || p[1] < a.b[1] || p[1] > a.b[3]) continue;
+    let inside = false;
+    for (const s of a.s) for (let i = 0; i + 3 < s.length; i += 2){
+      const y1 = s[i], x1 = s[i+1], y2 = s[i+2], x2 = s[i+3];
+      if ((y1 > p[0]) !== (y2 > p[0]) && p[1] < (x2 - x1)*(p[0] - y1)/(y2 - y1) + x1) inside = !inside;
+    }
+    if (inside && (best == null || a.d < best)) best = a.d;
+  }
+  return best;
+}
+function rebuildIenc(){
+  iencPts = []; iencAreas = [];
+  Object.values(iencCells).forEach(c => { iencPts = iencPts.concat(c.pts); iencAreas = iencAreas.concat(c.areas); });
+  const nC = Object.keys(iencCells).length;
+  if (!nC){ $('iencStatus').textContent = 'Aucune carte IENC importée.'; return; }
+  const br = iencPts.filter(o => o.kind === 'bridge'), withH = br.filter(o => o.h != null).length;
+  $('iencStatus').textContent = `${nC} carte(s) IENC : ${br.length} ponts (${withH} avec hauteur libre), ${iencPts.filter(o => o.kind === 'lock').length} écluses, ${iencPts.filter(o => o.kind === 'dam').length} barrages, ${iencPts.filter(o => o.kind === 'cable').length} lignes aériennes, ${iencAreas.length} zones de profondeur.`;
+  drawObsInView(); depthCache.clear();
+}
+async function importIenc(files){
+  if (typeof JSZip === 'undefined') throw new Error('lecteur de .zip non chargé, vérifie le réseau');
+  const bufs = [];
+  const addZip = async ab => { const z = await JSZip.loadAsync(ab); for (const [name, e] of Object.entries(z.files)){ if (e.dir) continue; const ln = name.toLowerCase(); if (ln.endsWith('.000')) bufs.push([name, await e.async('arraybuffer')]); else if (ln.endsWith('.zip')) await addZip(await e.async('arraybuffer')); } };
+  for (const f of files){ const ln = f.name.toLowerCase(), ab = await f.arrayBuffer(); if (ln.endsWith('.zip')) await addZip(ab); else if (ln.endsWith('.000')) bufs.push([f.name, ab]); }
+  if (!bufs.length) throw new Error('aucune carte .000 trouvée dans ce fichier');
+  let bad = 0;
+  for (const [name, ab] of bufs){
+    $('iencStatus').textContent = 'Lecture de ' + name.split('/').pop() + '…';
+    await new Promise(r => setTimeout(r, 0));
+    try{ const r = parseS57(ab); if (r.pts.length || r.areas.length) iencCells[name.split('/').pop()] = r; else bad++; }catch(e){ bad++; }
+  }
+  await idbSet('ienc', { cells:iencCells, t:Date.now() });
+  rebuildIenc();
+  if (bad) $('iencStatus').textContent += ` ${bad} fichier(s) illisible(s) ignoré(s).`;
+}
+$('iencFile').addEventListener('change', async e => {
+  const files = [...e.target.files]; if (!files.length) return;
+  try{ await importIenc(files); if (gps) refreshObstacles(gps.p, 'ton bateau'); }catch(err){ $('iencStatus').textContent = 'Import impossible : ' + err.message; }
+  e.target.value = '';
+});
+$('iencClear').addEventListener('click', async () => { iencCells = {}; await idbSet('ienc', { cells:{}, t:Date.now() }); rebuildIenc(); });
+$('lnkIencVnf').addEventListener('click', () => window.open('https://www.vnf.fr/', '_blank'));
+$('lnkIencCnr').addEventListener('click', () => window.open('https://www.inforhone.fr/', '_blank'));
+async function loadIenc(){ const c = await idbGet('ienc'); if (c && c.cells) iencCells = c.cells; rebuildIenc(); }
+
+// ---------- FLEUVES (Hub'Eau : stations hydrométriques) ----------
+let riverBusy = false, riverCenter = null;
+async function loadRiver(c, label){
+  if (riverBusy) return; riverBusy = true; riverCenter = c;
+  $('riverOut').innerHTML = `<div class="muted">Recherche des stations près de ${label}…</div>`;
+  try{
+    const dLat = 0.2, dLon = 0.2/Math.cos(toRad(c[0]));
+    const bbox = [c[1]-dLon, c[0]-dLat, c[1]+dLon, c[0]+dLat].map(v => v.toFixed(4)).join(',');
+    const since = new Date(Date.now() - 4*3600000).toISOString().replace(/\.\d+Z$/, 'Z');
+    const base = 'https://hubeau.eaufrance.fr/api/v2/hydrometrie/';
+    const [st, h, q] = await Promise.all([
+      fetch(`${base}referentiel/stations?bbox=${bbox}&size=200&format=json&fields=code_station,libelle_station,longitude_station,latitude_station,libelle_cours_eau`).then(r => r.json()),
+      fetch(`${base}observations_tr?bbox=${bbox}&grandeur_hydro=H&date_debut_obs=${since}&size=2000&fields=code_station,date_obs,resultat_obs`).then(r => r.json()),
+      fetch(`${base}observations_tr?bbox=${bbox}&grandeur_hydro=Q&date_debut_obs=${since}&size=2000&fields=code_station,date_obs,resultat_obs`).then(r => r.json())
+    ]);
+    const series = (j) => { const m = {}; (j.data || []).forEach(o => { (m[o.code_station] = m[o.code_station] || []).push({ t:Date.parse(o.date_obs), v:o.resultat_obs }); }); for (const k in m) m[k].sort((a, b) => a.t - b.t); return m; };
+    const H = series(h), Q = series(q);
+    const rows = (st.data || []).map(s => ({ s, p:[s.latitude_station, s.longitude_station], hs:H[s.code_station], qs:Q[s.code_station] }))
+      .filter(r => (r.hs && r.hs.length) || (r.qs && r.qs.length))
+      .map(r => Object.assign(r, { km:distNM(c, r.p)*1.852 })).sort((a, b) => a.km - b.km).slice(0, 8);
+    if (!rows.length){ $('riverOut').innerHTML = `<div class="verdict v1"><div>Aucune station avec mesure récente à moins de 20 km de ${label}. Essaie depuis un point sur le fleuve, ou consulte Vigicrues.</div></div>`; riverBusy = false; return; }
+    let alertTxt = '';
+    const cells = rows.map(r => {
+      const hs = r.hs, qs = r.qs; let hTxt = '–', trend = '', q0 = '–', when = '';
+      if (hs && hs.length){
+        const a = hs[0], b = hs[hs.length-1]; hTxt = n1(b.v/1000) + ' m'; when = new Date(b.t).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        const dh = (b.t - a.t)/3600000;
+        if (dh >= 1){ const rate = (b.v - a.v)/10/dh; trend = Math.abs(rate) < 0.5 ? 'stable' : (rate > 0 ? '▲ +' : '▼ ') + n1(rate) + ' cm/h'; if (rate > 5) alertTxt = `Crue en cours à ${r.s.libelle_station} : ${n1(rate)} cm/h.`; }
+      }
+      if (qs && qs.length) q0 = n0(qs[qs.length-1].v/1000) + ' m³/s';
+      return `<div class="cell"><div class="k">${esc(r.s.libelle_cours_eau || 'Cours d\'eau')}</div><div class="v">${hTxt}</div><div class="s">${esc(r.s.libelle_station)}<br>débit ${q0}${trend ? '<br>' + trend : ''}<br>à ${n1(r.km)} km${when ? ' · ' + when : ''}</div></div>`;
+    }).join('');
+    $('riverOut').innerHTML = (alertTxt ? `<div class="verdict v2"><div><b>Niveau en hausse rapide</b><div>${esc(alertTxt)} Vérifie la vigilance crues avant de naviguer.</div></div></div>` : '') +
+      `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${cells}</div>
+       <div class="muted">La hauteur est lue à l'échelle de la station, ce n'est pas la profondeur sous ta coque. Un débit fort veut dire un courant fort : barrages et piles de ponts deviennent plus dangereux. Source : Hub'Eau (eaufrance.fr).</div>`;
+  }catch(e){
+    $('riverOut').innerHTML = `<div class="verdict v1"><div>Stations indisponibles pour le moment (${esc(e.message || 'réseau')}). Consulte Vigicrues.</div></div>`;
+  }
+  riverBusy = false;
+}
+$('riverRefresh').addEventListener('click', () => { if (gps) loadRiver(gps.p, 'ton bateau'); else { const c = map.getCenter(); loadRiver([c.lat, c.lng], 'le centre de la carte'); } });
+$('lnkVigi').addEventListener('click', () => window.open('https://www.vigicrues.gouv.fr/', '_blank'));
+$('lnkVnf').addEventListener('click', () => window.open('https://www.vnf.fr/', '_blank'));
+function autoRiver(){ if (gps && !riverBusy && (!riverCenter || distNM(riverCenter, gps.p) > 5)) loadRiver(gps.p, 'ton bateau'); }
+
+// ---------- démarrage ----------
+loadShom(false); loadIenc();
+drawRoute(); drawDangers(); drawChecks(); updateMob(); setTool(null);
+loadWeather([map.getCenter().lat, map.getCenter().lng], 'centre de la carte');
+loadWindGrid();
+</script>
+</body>
+</html>
