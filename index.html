@@ -128,6 +128,7 @@ a.btn{color:var(--fg);text-decoration:none;display:inline-flex;align-items:cente
 #dash .dv2{font-family:var(--f-data);font-weight:700;font-size:min(11vw,13vh);line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
 #dash .dv2 small{font-size:.35em;color:var(--muted);font-weight:400}
 #dash .dv2.warn{color:var(--warn)} #dash .dv2.bad{color:var(--bad)}
+#sogBox .v small{border-bottom:1px dotted var(--muted)}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);flex-shrink:0;gap:4px;padding:10px 10px 4px;position:relative}
 .tab .ti{display:block;font-size:19px;line-height:1.1}
 .tab .tl{display:block;font-size:12px;margin-top:1px}
@@ -263,7 +264,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
 <div id="map"></div>
 
 <div id="hud">
-  <div class="inst" id="sogBox" title="Touche pour passer de nœuds à km/h"><div class="k">Vitesse ⇄</div><div class="v" id="sog">--<small> nd</small></div></div>
+  <div class="inst" id="sogBox" title="Touche pour passer de nœuds à km/h"><div class="k">Vitesse</div><div class="v" id="sog">--<small> nd</small></div></div>
   <div class="inst"><div class="k">Cap</div><div class="v" id="cog">---<small>°</small></div></div>
   <div class="inst"><div class="k">Vent ici</div><div class="v" id="windNow">--<small> nd</small></div></div>
   <div class="inst"><div class="k">Fond</div><div class="v" id="depthNow">--<small> m</small></div></div>
@@ -306,8 +307,9 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     <div class="lgRow"><span class="lgI">AIS</span><span><b>Autres bateaux</b> équipés d'AIS, avec réseau : une aide, pas une sécurité (voir l'avertissement)</span></div>
     <div class="lgRow"><span class="lgI">☾</span><span><b>Mode nuit</b> : écran rouge, préserve la vue de nuit</span></div>
     <div class="lgRow"><span class="lgI">⇄</span><span>Touche le cadre <b>Vitesse</b> pour passer de nœuds à km/h. Appui long sur un cadre : <b>grand compteur</b></span></div>
+    <div class="lgRow"><span class="lgI">▶</span><span><b>Mode démo</b> : un bateau virtuel avance pour essayer l'appli sans être sur l'eau</span></div>
     <div class="lgRow"><span class="lgI">GPS</span><span>Active ta position. Les 4 cadres en haut : vitesse (nœuds), cap, vent, profondeur</span></div>
-    <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgClose">Fermer</button></div>
+    <div class="lgBtns"><button class="btn primary" id="lgTour">Visite guidée</button><button class="btn" id="lgDemo">Mode démo</button><button class="btn" id="lgClose">Fermer</button></div>
   </div>
 </div>
 <div id="toolHint" hidden></div>
@@ -353,6 +355,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
         <button class="fs" data-go="couches"><span>2</span>Télécharge ta zone pour naviguer sans réseau</button>
         <button class="fs" data-go="route"><span>3</span>Trace ta route et vérifie ta sortie</button>
         <button class="fs" data-go="learn"><span>?</span>Je débute : fiches simples</button>
+        <button class="fs" id="fsDemo"><span>▶</span>Essayer sans bateau : mode démo</button>
         <button class="btn" id="fsHide" style="padding:6px">Masquer</button>
       </details>
       <div class="row">
@@ -589,7 +592,7 @@ body.nav #toolHint{top:calc(env(safe-area-inset-top,0px) + 200px)}
     </ul>
     <p class="muted" id="wInstall"></p>
     <label class="chk"><input type="checkbox" id="wOk"> J'ai compris : je garde une carte officielle et je reste attentif.</label>
-    <div class="row"><button class="btn primary" id="wGo" disabled>Visite guidée (2 min)</button><button class="btn" id="wSkip" disabled>Plus tard</button></div>
+    <div class="row"><button class="btn primary" id="wGo" disabled>Visite guidée (2 min)</button><button class="btn" id="wDemo" disabled>Essayer la démo</button><button class="btn" id="wSkip" disabled>Plus tard</button></div>
   </div>
 </div>
 <script>
@@ -825,6 +828,7 @@ async function keepAwake(){ try{ if ('wakeLock' in navigator) wakeLock = await n
 document.addEventListener('visibilitychange', () => { if (watchId && document.visibilityState === 'visible') keepAwake(); });
 
 $('gpsBtn').addEventListener('click', () => {
+  if (demo){ demoStop(); return; }
   if (watchId){ navigator.geolocation.clearWatch(watchId); watchId = null; $('gpsBtn').classList.remove('on'); $('gpsBtn').textContent = 'GPS'; return; }
   if (!navigator.geolocation){ $('posLine').textContent = 'Ce navigateur ne donne pas accès au GPS.'; return; }
   $('posLine').textContent = 'Recherche du signal GPS…';
@@ -855,7 +859,53 @@ function spdTween(target){
   spdRaf = requestAnimationFrame(step);
 }
 function toggleSpdUnit(){ spdUnit = spdUnit === 'nd' ? 'kmh' : 'nd'; store.set('spdUnit', spdUnit); renderSpd(spdShown); hint('Vitesse en ' + (spdUnit === 'kmh' ? 'km/h' : 'nœuds'), 1800); }
+
+// ---------- MODE DÉMO : un bateau virtuel (rien n'est enregistré, tout est remis en état à la sortie) ----------
+// Parcours en pleine mer, mer d'Iroise (ouest de Brest), loin des terres. Le bateau avance 10 fois plus vite que la réalité.
+const DEMO_PATH = [[48.280, -4.700], [48.280, -4.780], [48.285, -4.860], [48.300, -4.930], [48.310, -4.990]];
+let demo = null;
+function demoStart(){
+  if (demo) return;
+  if (watchId && watchId !== -999){ try{ navigator.geolocation.clearWatch(watchId); }catch(e){} }
+  const seg = DEMO_PATH.slice(1).map((q, i) => ({ a:DEMO_PATH[i], b:q, L:distNM(DEMO_PATH[i], q)*1852 }));
+  demo = { s:0, dir:1, t:0, seg, tot:seg.reduce((a, x) => a + x.L, 0), view:{ c:map.getCenter(), z:map.getZoom() }, anchor, hadTrip:!!trip, tm:null };
+  watchId = -999; $('gpsBtn').classList.add('on'); $('gpsBtn').textContent = 'DÉMO ✕';
+  map.setView(DEMO_PATH[0], 13); follow = true; $('followBtn').classList.add('active'); keepAwake();
+  demo.tm = setInterval(demoTick, 1000); demoTick();
+  hint('MODE DÉMO : bateau virtuel, 10 fois plus rapide que la réalité. Touche « DÉMO ✕ » en haut pour quitter.', 6000);
+  setTimeout(() => { if (demo && !nav) startNav(DEMO_PATH.slice(1), 'route'); }, 6500);
+}
+function demoTick(){
+  if (!demo) return;
+  const spd = 6 + 0.3*Math.sin(demo.t/4) + (Math.random() - .5)*0.2; demo.t++;
+  demo.s += demo.dir*spd*0.514444*10;
+  if (demo.s >= demo.tot){ demo.s = demo.tot; demo.dir = -1; if (nav && nav.arrived) stopNav(); }
+  if (demo.s <= 0){ demo.s = 0; demo.dir = 1; }
+  let acc = demo.s, sg = demo.seg[0];
+  for (const x of demo.seg){ sg = x; if (acc <= x.L) break; acc -= x.L; }
+  const f = Math.max(0, Math.min(1, acc/sg.L)), lat = sg.a[0] + (sg.b[0] - sg.a[0])*f + (Math.random() - .5)*3e-5, lon = sg.a[1] + (sg.b[1] - sg.a[1])*f + (Math.random() - .5)*3e-5;
+  const hdg = (bearing(sg.a, sg.b) + (demo.dir < 0 ? 180 : 0)) % 360;
+  onFix({ coords:{ latitude:lat, longitude:lon, speed:spd*0.514444, heading:hdg, accuracy:4 }, timestamp:Date.now(), demo:true });
+}
+function demoStop(){
+  if (!demo) return;
+  clearInterval(demo.tm); const d = demo; demo = null;
+  if (nav) stopNav();
+  watchId = null; $('gpsBtn').classList.remove('on'); $('gpsBtn').textContent = 'GPS';
+  if (boat){ map.removeLayer(boat); boat = null; } if (accCircle){ map.removeLayer(accCircle); accCircle = null; }
+  gps = null; prevFix = null; spdSm = null; cogSm = null; spdTween(null);
+  track.length = 0; trackLine.setLatLngs([]);
+  if (anchor !== d.anchor){ anchor = d.anchor; store.set('anchor', anchor); anchOutN = 0; drawAnchor(); }
+  if (!d.hadTrip && trip){ trip = null; store.set('tripLive', null); tripLine.setLatLngs([]); tripUI(); }
+  Object.keys(alerts).forEach(k => setAlert(k, null));
+  $('posLine').textContent = 'Position inconnue · touche GPS pour te localiser';
+  $('cog').innerHTML = '---<small>°</small>'; $('depthNow').className = 'v'; $('depthNow').innerHTML = '--<small> m</small>';
+  idbSet('wx', null);
+  map.setView(d.view.c, d.view.z); follow = true;
+  hint('Démo terminée : l\'appli est remise comme avant.', 4000);
+}
 function onFix(pos){
+  if (demo && !pos.demo) return;
   const c = pos.coords, p = [c.latitude, c.longitude], now = pos.timestamp;
   let sog = c.speed != null ? c.speed*1.943844 : null, cog = (c.heading != null && !isNaN(c.heading)) ? c.heading : null;
   if (prevFix && (sog == null || cog == null)){
@@ -867,7 +917,7 @@ function onFix(pos){
   smoothFix(sog, cog); spdTween(spdSm);
   const still = cogSm == null || (sog != null && sog < 0.5);
   $('cog').innerHTML = !still ? pad3(cogSm) + '<small>°</small>' : compass.on && compass.h != null ? pad3(compass.h) + '<small>° bouss.</small>' : '---<small>°</small>';
-  $('posLine').textContent = fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
+  $('posLine').textContent = (demo ? 'MODE DÉMO · bateau virtuel · ' : '') + fmtPos(p) + `  ·  ±${Math.round(c.accuracy)} m`;
   if (!boat){ boat = L.marker(p, { icon:boatIcon(cog), zIndexOffset:1000 }).addTo(map); accCircle = L.circle(p, { radius:c.accuracy, color:'#f2b134', weight:1, fillOpacity:.08 }).addTo(map); map.setView(p, Math.max(map.getZoom(), 13)); loadWeather(p, 'position du bateau'); }
   else { boat.setLatLng(p).setIcon(boatIcon(cog)); accCircle.setLatLng(p).setRadius(c.accuracy); }
   if (follow) map.panTo(p, { animate:true });
@@ -2476,7 +2526,7 @@ function startTrip(manual){
   store.set('tripLive', trip); tripUI(); say && cfg.voice && say('Sortie enregistrée');
 }
 function tripTick(){
-  if (!gps || gps.acc > 50) return;
+  if (demo || !gps || gps.acc > 50) return;
   const now = Date.now(), sog = gps.sog || 0;
   if (!trip){
     if (!$('tripAuto').checked) return;
@@ -3024,7 +3074,8 @@ function showWelcome(){
   $('wInstall').textContent = standalone ? '' : ios ? 'Astuce : dans Safari, touche le bouton Partager puis « Sur l\'écran d\'accueil » : l\'appli s\'ouvre alors en plein écran, comme une vraie appli.' : 'Astuce : installe l\'appli depuis le menu du navigateur (« Installer » ou « Ajouter à l\'écran d\'accueil »).';
   $('welcome').hidden = false;
 }
-$('wOk').addEventListener('change', () => { $('wGo').disabled = $('wSkip').disabled = !$('wOk').checked; });
+$('wOk').addEventListener('change', () => { $('wGo').disabled = $('wSkip').disabled = $('wDemo').disabled = !$('wOk').checked; });
+$('wDemo').addEventListener('click', () => { store.set('welcome', 1); $('welcome').hidden = true; demoStart(); });
 $('wGo').addEventListener('click', () => { store.set('welcome', 1); $('welcome').hidden = true; tourStart(); });
 $('wSkip').addEventListener('click', () => { store.set('welcome', 1); $('welcome').hidden = true; hint('La visite guidée est dans l\'onglet Apprendre.', 5000); });
 if (!store.get('welcome', 0)) showWelcome();
@@ -3177,6 +3228,8 @@ $('helpFab').addEventListener('click', () => { $('legend').hidden = false; });
 $('lgClose').addEventListener('click', () => { $('legend').hidden = true; });
 $('legend').addEventListener('click', e => { if (e.target === $('legend')) $('legend').hidden = true; });
 $('lgTour').addEventListener('click', () => { $('legend').hidden = true; tourStart(); });
+$('lgDemo').addEventListener('click', () => { $('legend').hidden = true; demoStart(); });
+$('fsDemo').addEventListener('click', () => demoStart());
 $('firstSteps').hidden = !!store.get('stepsHide', 0);
 // ouvert les premières fois, puis replié sur une ligne pour laisser la place à la météo
 { const n = store.get('stepsSeen', 0); $('firstSteps').open = n < 3; store.set('stepsSeen', n + 1); }
